@@ -16,6 +16,8 @@ type Config struct {
 	LoginMaxAttempts int
 	LoginWindow      time.Duration
 	Now              func() time.Time
+	// GoogleOIDC, when set, enables the Google OAuth login route (AUTH-2).
+	GoogleOIDC OIDCProvider
 }
 
 func (c Config) withDefaults() Config {
@@ -76,6 +78,9 @@ func (s *Service) Routes() http.Handler {
 	mux.HandleFunc("POST /auth/password-reset/request", s.handleResetRequest)
 	mux.HandleFunc("POST /auth/password-reset/confirm", s.handleResetConfirm)
 	mux.Handle("GET /auth/me", s.RequireVerified(http.HandlerFunc(s.handleMe)))
+	if s.cfg.GoogleOIDC != nil {
+		mux.HandleFunc("POST /auth/oauth/google/callback", s.handleGoogleCallback)
+	}
 	return mux
 }
 
@@ -171,16 +176,35 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.Reset(key)
+	s.setSessionCookie(w, sess)
+	writeJSON(w, http.StatusOK, map[string]any{"token": token})
+}
+
+// startSession creates a session for userID, sets the cookie, and returns the
+// token. Shared by password login and OAuth login.
+func (s *Service) startSession(ctx context.Context, w http.ResponseWriter, userID string) (string, error) {
+	token, err := NewToken()
+	if err != nil {
+		return "", err
+	}
+	sess := Session{Token: token, UserID: userID, ExpiresAt: s.cfg.Now().Add(s.cfg.SessionTTL)}
+	if err := s.repo.CreateSession(ctx, sess); err != nil {
+		return "", err
+	}
+	s.setSessionCookie(w, sess)
+	return token, nil
+}
+
+func (s *Service) setSessionCookie(w http.ResponseWriter, sess Session) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
-		Value:    token,
+		Value:    sess.Token,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		Expires:  sess.ExpiresAt,
 	})
-	writeJSON(w, http.StatusOK, map[string]any{"token": token})
 }
 
 func (s *Service) handleLogout(w http.ResponseWriter, r *http.Request) {
