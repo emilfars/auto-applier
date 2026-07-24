@@ -61,6 +61,7 @@ type Job struct {
 	SalaryCurrency  string
 	Seniority       string
 	EmploymentType  string
+	YearsExperience *int
 	Requirements    []string
 	PostedAt        *time.Time
 }

@@ -56,6 +56,7 @@ func Normalize(raw RawJob) (Job, error) {
 		SalaryCurrency:  "IDR",
 		Seniority:       normalizeSeniority(raw.Seniority),
 		EmploymentType:  normalizeEmploymentType(raw.EmploymentType),
+		YearsExperience: parseYearsExperience(append(append([]string{title}, reqs...), raw.Seniority)...),
 		Requirements:    reqs,
 		PostedAt:        raw.PostedAt,
 	}
@@ -148,6 +149,30 @@ func normalizeSeniority(s string) string {
 		}
 	}
 	return key
+}
+
+// yoeRe matches the minimum years-of-experience mentioned in a requirement or
+// title, e.g. "3+ years", "min 5 years", "3-5 years", "2 tahun".
+var yoeRe = regexp.MustCompile(`(\d{1,2})\s*\+?\s*(?:-\s*\d{1,2}\s*)?(?:years?|yrs?|tahun)`)
+
+// parseYearsExperience returns the smallest stated minimum years of experience
+// across the given texts, or nil if none is mentioned. Used to back the feed's
+// YoE filter (FEED-2).
+func parseYearsExperience(texts ...string) *int {
+	var best *int
+	for _, t := range texts {
+		for _, m := range yoeRe.FindAllStringSubmatch(strings.ToLower(t), -1) {
+			n, err := strconv.Atoi(m[1])
+			if err != nil {
+				continue
+			}
+			if best == nil || n < *best {
+				v := n
+				best = &v
+			}
+		}
+	}
+	return best
 }
 
 // ParseSalaryIDR extracts a stated salary range from free-text. It handles

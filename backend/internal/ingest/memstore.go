@@ -91,6 +91,11 @@ func (m *MemoryStore) Active() []Job {
 	return m.snapshot(true)
 }
 
+// ActiveJobs adapts the store to the feed's Provider interface.
+func (m *MemoryStore) ActiveJobs(context.Context) ([]Job, error) {
+	return m.Active(), nil
+}
+
 func (m *MemoryStore) snapshot(activeOnly bool) []Job {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

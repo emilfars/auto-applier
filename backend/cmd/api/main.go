@@ -17,6 +17,8 @@ import (
 	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/cv"
 	"github.com/auto-applier/backend/internal/db"
+	"github.com/auto-applier/backend/internal/feed"
+	"github.com/auto-applier/backend/internal/ingest"
 	"github.com/auto-applier/backend/internal/profile"
 	"github.com/auto-applier/backend/internal/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -48,12 +50,19 @@ func main() {
 		WithParsing(newCVParser(), profileSvc)
 	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
 
+	// Public job feed (FEED-1..3): browsable before signup, stated-pay only.
+	// Backed by an in-memory job store for now; the ingestion scheduler that
+	// populates it is wired in a later milestone (job-queue choice pending).
+	jobStore := ingest.NewMemoryStore()
+	feedSvc := feed.NewService(jobStore)
+
 	srv := &http.Server{
 		Addr: addr,
 		Handler: api.NewRouter(authSvc.Routes(),
 			api.Mount{Pattern: "/cv", Handler: gatedCV},
 			api.Mount{Pattern: "/profile", Handler: gatedProfile},
 			api.Mount{Pattern: "/profile/", Handler: gatedProfile},
+			api.Mount{Pattern: "/feed", Handler: feedSvc.Routes()},
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
