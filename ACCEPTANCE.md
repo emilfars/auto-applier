@@ -73,10 +73,10 @@ Test-type conventions:
 | AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit on staleness rule with clock injection | ✅ |
 | AC-FEED-1 | FEED-1 | Feed returns paginated cards; pay shows **stated only**, labeled; no estimated values at MVP | integration + unit: response contains no `estimated` pay field | ✅ |
 | AC-FEED-2 | FEED-2 | Filters (pay, location incl. remote, skills, YoE, employment type, posted date, source) return correct subset | integration: seeded dataset → filtered counts match expected | ✅ |
-| AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | perf test (k6/Go bench) asserting p95 threshold | ⬜ |
+| AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | perf test (k6/Go bench) asserting p95 threshold | ✅ |
 | AC-FEED-3 | FEED-3 | Free-text search matches on title + company | integration | ✅ |
 | AC-FEED-1p | NFR | Feed p95 < 2s on simulated 4G profile | perf test (may run in CI perf stage, not per-commit) | ⬜ |
-| AC-SEED-1 | plan | Seed job present that loads ≥5,000 listings before signup opens | integration: seeded count ≥ 5000 | ⬜ |
+| AC-SEED-1 | plan | Seed job present that loads ≥5,000 listings before signup opens | integration: seeded count ≥ 5000 | ✅ |
 
 ## 4. Extension Autofill (M4 — core value)
 | Test ID | ID | Criteria | Verification | Status |
