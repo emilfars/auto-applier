@@ -10,6 +10,7 @@
  * static scan (safety.test.ts) enforces this.
  */
 import type { FillPlan } from "@auto-applier/fill-mappings";
+import { watchForCorrection, type TelemetrySink } from "./telemetry.js";
 
 /** Marker attribute added to touched fields for the review UI. */
 export const FILL_ATTR = "data-aa-fill";
@@ -38,6 +39,12 @@ export interface ApplyReport {
 export interface ApplyOptions {
   /** The CV file to attach to file-upload fields, when available. */
   file?: File | null;
+  /**
+   * Optional sink for fill-correction telemetry. When provided, each field
+   * filled with high confidence is watched; if the user later changes it, a
+   * privacy-safe `fill_correction` event is emitted (no field value / PII).
+   */
+  onCorrection?: TelemetrySink;
 }
 
 /** A queryable root: a Document or an Element. */
@@ -153,6 +160,26 @@ export function applyPlan(
       rec.applied = true;
       if (o.state === "uncertain") uncertain++;
       else applied++;
+
+      // Watch high-confidence text fills for user corrections (AC-APP-TEL).
+      if (
+        opts.onCorrection &&
+        o.state === "filled" &&
+        !o.file &&
+        (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
+      ) {
+        watchForCorrection(
+          el,
+          o.value,
+          {
+            portalId: plan.portalId,
+            version: plan.version,
+            key: o.key,
+            ...(o.selector ? { selector: o.selector } : {}),
+          },
+          opts.onCorrection,
+        );
+      }
     } else {
       skipped++;
       rec.applied = false;
