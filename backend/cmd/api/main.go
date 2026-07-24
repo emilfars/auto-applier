@@ -13,6 +13,8 @@ import (
 
 	"github.com/auto-applier/backend/internal/api"
 	"github.com/auto-applier/backend/internal/auth"
+	"github.com/auto-applier/backend/internal/db"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -21,9 +23,11 @@ func main() {
 		addr = ":8080"
 	}
 
-	// NOTE (M1): auth currently uses an in-memory repo. A pgx-backed Repo +
-	// startup migration apply lands with the M1 DB-integration sub-task.
-	authSvc := auth.NewService(auth.NewMemoryRepo(), auth.Config{})
+	// With DATABASE_URL set, auth persists to Postgres (migrations applied at
+	// startup). Without it, an in-memory repo backs local/dev runs.
+	authRepo, closeRepo := newAuthRepo()
+	defer closeRepo()
+	authSvc := auth.NewService(authRepo, auth.Config{})
 
 	srv := &http.Server{
 		Addr:              addr,
@@ -48,4 +52,27 @@ func main() {
 		log.Fatalf("shutdown error: %v", err)
 	}
 	log.Println("api stopped")
+}
+
+// newAuthRepo selects the auth persistence backend. When DATABASE_URL is set it
+// connects to Postgres, applies pending migrations, and returns a pgx-backed
+// repo; otherwise it falls back to the in-memory repo for local development.
+func newAuthRepo() (auth.Repo, func()) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		log.Println("DATABASE_URL not set; using in-memory auth repo")
+		return auth.NewMemoryRepo(), func() {}
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		log.Fatalf("connect to database: %v", err)
+	}
+	applied, err := db.Apply(ctx, pool)
+	if err != nil {
+		pool.Close()
+		log.Fatalf("apply migrations: %v", err)
+	}
+	log.Printf("database ready (%d migration(s) applied)", applied)
+	return auth.NewPgxRepo(pool), pool.Close
 }

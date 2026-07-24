@@ -5,7 +5,7 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-07-24
-**Current phase:** M1 — Accounts (in progress). Email/password auth (register/verify/login/logout/reset + rate limit) landed against in-memory repo; OAuth + pgx repo pending.
+**Current phase:** M1 — Accounts (near complete). Email/password + Google OAuth auth on both in-memory and pgx-backed repos; migrations apply at startup. Remaining: real Google OIDC client wiring (needs live credentials).
 **Verify gate:** `./scripts/verify.sh` → green (backend 4/4, web 4/4; extension/fill-mappings/android skipped).
 
 ---
@@ -26,7 +26,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | Milestone | Scope | Status | Notes |
 |---|---|---|---|
 | M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | ✅ | Health API, web+i18n shell, embedded DB migrations, AES-256-GCM object storage, docker-compose (API+DB+web). |
-| M1 Accounts | AUTH-1..4 | 🟡 | AUTH-1/1b/2/3/4/4b ✅ (email/password + Google OAuth via mocked OIDC, sessions, reset, rate limit) on in-memory repo. Remaining: pgx-backed repo + live-PG integration + real Google OIDC client. |
+| M1 Accounts | AUTH-1..4 | 🟡 | AUTH-1/1b/2/3/4/4b ✅ (email/password + Google OAuth via mocked OIDC, sessions, reset, hardened rate limiting). Now backed by **both** in-memory and **pgx** repos; migrations apply at startup (verified against real Postgres). Remaining: real Google OIDC client (needs live credentials). |
 | M2 CV & profile | CV-1..4 + confirm-before-apply gate | ⬜ | |
 | M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ⬜ | |
 | M4 Extension autofill | fill-mappings, APP-1,2,4,5 | ⬜ | **End of MVP** |
@@ -36,7 +36,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 ## 3. Component readiness
 | Component | Path | Exists | verify.sh checks | State |
 |---|---|---|---|---|
-| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | health API (GET /healthz) + tests, all green |
+| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | health API + auth (in-memory + pgx repos, startup migrations); all green |
 | Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Vite+React+TS shell, i18n (id-ID/en, IDR), all green |
 | Fill mappings | `/packages/fill-mappings` | no | lint, typecheck, test, build | not scaffolded |
 | Extension (MV3) | `/extension` | no | lint, typecheck, test, build | not scaffolded |
@@ -58,9 +58,9 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M1 email/password auth complete (AUTH-1/1b/3/4/4b ✅) + hardened auth rate limiting (bounded limiter map, per-IP throttling on all PBKDF2 paths, composite IP+email login keying). PBKDF2-SHA256 hashing (stdlib), opaque session tokens, verification + reset tokens, `RequireVerified` middleware (401/403). In-memory `Repo` behind an interface; HTTP integration tests green; smoke-tested against the running server. verify.sh green (8/8).
-- **Next:** pgx-backed `Repo` + startup migration apply (live-Postgres integration test, guarded to skip without DB) and a real Google OIDC client behind `OIDCProvider`. Then M2 CV & profile (upload, parse, edit, confirm-before-apply gate).
-- **Blocked:** none. (Env note: `npm` allow-scripts policy — run `npm approve-scripts esbuild` after installs.)
+- **Now:** M1 auth backed by a production **pgx** repo (`PgxRepo`) alongside the in-memory one; a version-tracked migrator (`db.Apply`) runs pending migrations at startup and is idempotent. New `0002_auth_tokens` migration adds `email_verifications`, `sessions`, `password_resets`. DB-guarded integration tests (skip without `TEST_DATABASE_URL`) verified green against a real Postgres 16. Rate limiting hardened (bounded map, per-IP throttling, composite IP+email login keys). verify.sh green (8/8).
+- **Next:** Real Google OIDC client behind `OIDCProvider` (needs live client id/secret — pause point for credentials). Then M2 CV & profile (upload, parse, edit, confirm-before-apply gate).
+- **Blocked:** none. (Env notes: `npm` allow-scripts → run `npm approve-scripts esbuild` after installs. Docker daemon unavailable this session; validated pgx path against a local Homebrew Postgres instead.)
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -77,6 +77,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-07-24** — [DONE] M1 pgx-backed auth persistence: added `PgxRepo` (implements `auth.Repo` over pgx; UUIDs cast to text, unique-violation→`ErrEmailTaken`, single-use token consumption via `DELETE ... RETURNING`), version-tracked idempotent migrator `db.Apply` (+`schema_migrations`), and `0002_auth_tokens` migration (`email_verifications`, `sessions`, `password_resets`). `cmd/api` now selects pgx when `DATABASE_URL` is set and applies migrations at startup, else in-memory. DB-guarded integration tests skip offline (keep gate green) and were verified green against a real Postgres 16 (5/5). verify.sh green (8/8).
 - **2026-07-24** — [DONE] M1 auth rate-limiter hardening (security review): (1) bounded the limiter map — expired windows are now swept lazily once per window (`ratelimit.go`), fixing unbounded growth / memory-exhaustion DoS; (2) added a per-client-IP limiter (default 30/15min) to `register`, `login`, and `password-reset` request/confirm, capping unauthenticated PBKDF2 CPU burn and single-source password-spray; (3) login now keyed by composite IP+email (`clientIP()` helper, RemoteAddr only — X-Forwarded-For untrusted), preventing targeted global account-lockout DoS while the per-IP limiter blocks email rotation. New tests: register/reset-confirm IP throttling, composite-key no-global-lockout, per-IP spray cap, expired-window eviction. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M1 AUTH-2 Google OAuth: added `OIDCProvider` interface (code→verified claims) + `POST /auth/oauth/google/callback` handler that links-or-creates a verified account and issues a session; refactored session issuance into shared `startSession`. Rejects unverified/absent email. Route only registers when a provider is configured. Tested with a fake OIDC provider (create, link-existing, unverified-reject, exchange-failure). verify.sh green (8/8).
 - **2026-07-24** — [DONE] M1 email/password auth (AUTH-1/1b/3/4/4b): `/backend/internal/auth` — PBKDF2-SHA256 hashing (stdlib crypto/pbkdf2), opaque tokens, in-memory `Repo` behind interface, fixed-window login rate limiter, `RequireVerified` middleware (401 no session / 403 unverified). Endpoints: register, verify, login, logout, me, password-reset request/confirm. Mounted in `cmd/api`. HTTP integration tests green + server smoke test. verify.sh green (8/8).
