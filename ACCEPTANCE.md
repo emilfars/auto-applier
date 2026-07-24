@@ -69,8 +69,8 @@ Test-type conventions:
 | AC-SCR-1b | SCR-1 | **Circuit breaker:** one failing source does not fail the run or empty the feed | integration: inject source error → other sources still ingest, feed non-empty | ✅ |
 | AC-SCR-2 | SCR-2 | Normalized job has title, company, location, stated_salary, requirements, seniority, employment_type, posted_at, source_url | unit on normalizer + schema assertion | ✅ |
 | AC-SCR-2b | SCR-2 | Only Tier 1+2 sources present; no login-walled source configured | unit: source registry excludes Tier 3 | ✅ |
-| AC-SCR-3 | SCR-3 | Duplicate listings across sources collapse to one canonical job | unit on dedup key + integration | ⬜ |
-| AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit on staleness rule with clock injection | ⬜ |
+| AC-SCR-3 | SCR-3 | Duplicate listings across sources collapse to one canonical job | unit on dedup key + integration | ✅ |
+| AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit on staleness rule with clock injection | ✅ |
 | AC-FEED-1 | FEED-1 | Feed returns paginated cards; pay shows **stated only**, labeled; no estimated values at MVP | integration + unit: response contains no `estimated` pay field | ⬜ |
 | AC-FEED-2 | FEED-2 | Filters (pay, location incl. remote, skills, YoE, employment type, posted date, source) return correct subset | integration: seeded dataset → filtered counts match expected | ⬜ |
 | AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | perf test (k6/Go bench) asserting p95 threshold | ⬜ |
