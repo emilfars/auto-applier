@@ -12,6 +12,9 @@ type User struct {
 	PasswordHash string
 	Verified     bool
 	CreatedAt    time.Time
+	// ConsentAt is when the user consented to data processing at signup
+	// (UU PDP No. 27/2022). Zero means no consent has been recorded.
+	ConsentAt time.Time
 }
 
 // Session is an issued login session.
@@ -29,6 +32,7 @@ type Repo interface {
 	UserByEmail(ctx context.Context, email string) (User, error)
 	UserByID(ctx context.Context, id string) (User, error)
 	SetVerified(ctx context.Context, userID string) error
+	SetConsent(ctx context.Context, userID string, at time.Time) error
 	UpdatePassword(ctx context.Context, userID, passwordHash string) error
 
 	CreateVerification(ctx context.Context, userID, token string) error

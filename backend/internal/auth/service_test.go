@@ -83,7 +83,7 @@ func decodeBody(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 // registerVerifiedUser registers a user and marks them verified, returning id.
 func (h *harness) registerVerifiedUser(t *testing.T, email, password string) string {
 	t.Helper()
-	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: email, Password: password})
+	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: email, Password: password, Consent: true})
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("register: got %d, want 201", rec.Code)
 	}
@@ -115,7 +115,7 @@ func (h *harness) loginFrom(t *testing.T, ip, email, password string) (int, stri
 // AC-AUTH-1: register creates an unverified user and issues a verification token.
 func TestAC_AUTH_1_RegisterCreatesUnverified(t *testing.T) {
 	h := newHarness()
-	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dina@example.com", Password: "password123"})
+	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dina@example.com", Password: "password123", Consent: true})
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("got %d, want 201", rec.Code)
 	}
@@ -145,17 +145,49 @@ func TestAC_AUTH_1_RegisterValidationAndDuplicate(t *testing.T) {
 	if rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "a@b.co", Password: "short"}); rec.Code != http.StatusBadRequest {
 		t.Errorf("short password: got %d, want 400", rec.Code)
 	}
-	h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dup@b.co", Password: "password123"})
-	if rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dup@b.co", Password: "password123"}); rec.Code != http.StatusConflict {
+	h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dup@b.co", Password: "password123", Consent: true})
+	if rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dup@b.co", Password: "password123", Consent: true}); rec.Code != http.StatusConflict {
 		t.Errorf("duplicate: got %d, want 409", rec.Code)
 	}
 }
 
-// AC-AUTH-1b: unverified user is blocked (403) from gated routes; allowed (200)
-// after verification.
+// AC-NFR-PRIV: consent to data processing is captured at signup (UU PDP).
+// Registration without consent is refused; with consent the user's ConsentAt
+// is recorded.
+func TestAC_NFR_PRIV_SignupConsent(t *testing.T) {
+	h := newHarness()
+
+	// No consent → rejected, and no account is created.
+	rec := h.do(t, http.MethodPost, "/auth/register", "",
+		registerReq{Email: "noconsent@example.com", Password: "password123"})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("register without consent: got %d, want 400", rec.Code)
+	}
+	if _, err := h.repo.UserByEmail(context.Background(), "noconsent@example.com"); err == nil {
+		t.Fatal("user was created despite missing consent")
+	}
+
+	// With consent → created, and consent is persisted as an audit timestamp.
+	rec = h.do(t, http.MethodPost, "/auth/register", "",
+		registerReq{Email: "consent@example.com", Password: "password123", Consent: true})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("register with consent: got %d, want 201", rec.Code)
+	}
+	if body := decodeBody(t, rec); body["consent"] != true {
+		t.Errorf("response consent = %v, want true", body["consent"])
+	}
+	u, err := h.repo.UserByEmail(context.Background(), "consent@example.com")
+	if err != nil {
+		t.Fatalf("user not found: %v", err)
+	}
+	if u.ConsentAt.IsZero() {
+		t.Error("ConsentAt not recorded at signup")
+	}
+}
+
 func TestAC_AUTH_1b_GatedRouteVerificationGate(t *testing.T) {
 	h := newHarness()
-	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "riz@example.com", Password: "password123"})
+	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "riz@example.com", Password: "password123", Consent: true})
 	id := decodeBody(t, rec)["id"].(string)
 
 	_, token := h.login(t, "riz@example.com", "password123")
@@ -295,19 +327,19 @@ func TestRegisterIPRateLimited(t *testing.T) {
 	const ip = "203.0.113.10"
 	for i := 0; i < 3; i++ {
 		rec := h.doFrom(t, http.MethodPost, "/auth/register", ip, "",
-			registerReq{Email: fmt.Sprintf("u%d@example.com", i), Password: "password123"})
+			registerReq{Email: fmt.Sprintf("u%d@example.com", i), Password: "password123", Consent: true})
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("register %d: got %d, want 201", i, rec.Code)
 		}
 	}
 	rec := h.doFrom(t, http.MethodPost, "/auth/register", ip, "",
-		registerReq{Email: "u4@example.com", Password: "password123"})
+		registerReq{Email: "u4@example.com", Password: "password123", Consent: true})
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("4th register: got %d, want 429", rec.Code)
 	}
 	// A different IP is unaffected.
 	if rec := h.doFrom(t, http.MethodPost, "/auth/register", "198.51.100.7", "",
-		registerReq{Email: "other@example.com", Password: "password123"}); rec.Code != http.StatusCreated {
+		registerReq{Email: "other@example.com", Password: "password123", Consent: true}); rec.Code != http.StatusCreated {
 		t.Fatalf("register from fresh IP: got %d, want 201", rec.Code)
 	}
 }

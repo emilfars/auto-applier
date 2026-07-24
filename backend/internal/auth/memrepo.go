@@ -87,6 +87,18 @@ func (m *MemoryRepo) SetVerified(_ context.Context, userID string) error {
 	return nil
 }
 
+func (m *MemoryRepo) SetConsent(_ context.Context, userID string, at time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.ConsentAt = at
+	m.users[userID] = u
+	return nil
+}
+
 func (m *MemoryRepo) UpdatePassword(_ context.Context, userID, passwordHash string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

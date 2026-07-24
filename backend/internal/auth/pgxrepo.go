@@ -35,16 +35,20 @@ func isUniqueViolation(err error) bool {
 
 func (r *PgxRepo) CreateUser(ctx context.Context, email, passwordHash string) (User, error) {
 	var u User
+	var consentAt *time.Time
 	err := r.db.QueryRow(ctx,
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
-		 RETURNING id::text, email, verified, created_at`,
+		 RETURNING id::text, email, verified, created_at, consent_at`,
 		email, passwordHash,
-	).Scan(&u.ID, &u.Email, &u.Verified, &u.CreatedAt)
+	).Scan(&u.ID, &u.Email, &u.Verified, &u.CreatedAt, &consentAt)
 	if isUniqueViolation(err) {
 		return User{}, ErrEmailTaken
 	}
 	if err != nil {
 		return User{}, fmt.Errorf("create user: %w", err)
+	}
+	if consentAt != nil {
+		u.ConsentAt = *consentAt
 	}
 	u.PasswordHash = passwordHash
 	return u, nil
@@ -52,20 +56,21 @@ func (r *PgxRepo) CreateUser(ctx context.Context, email, passwordHash string) (U
 
 func (r *PgxRepo) UserByEmail(ctx context.Context, email string) (User, error) {
 	return r.scanUser(ctx,
-		`SELECT id::text, email, password_hash, verified, created_at
+		`SELECT id::text, email, password_hash, verified, created_at, consent_at
 		 FROM users WHERE lower(email) = lower($1)`, email)
 }
 
 func (r *PgxRepo) UserByID(ctx context.Context, id string) (User, error) {
 	return r.scanUser(ctx,
-		`SELECT id::text, email, password_hash, verified, created_at
+		`SELECT id::text, email, password_hash, verified, created_at, consent_at
 		 FROM users WHERE id = $1`, id)
 }
 
 func (r *PgxRepo) scanUser(ctx context.Context, query string, arg any) (User, error) {
 	var u User
 	var hash *string
-	err := r.db.QueryRow(ctx, query, arg).Scan(&u.ID, &u.Email, &hash, &u.Verified, &u.CreatedAt)
+	var consentAt *time.Time
+	err := r.db.QueryRow(ctx, query, arg).Scan(&u.ID, &u.Email, &hash, &u.Verified, &u.CreatedAt, &consentAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -75,12 +80,20 @@ func (r *PgxRepo) scanUser(ctx context.Context, query string, arg any) (User, er
 	if hash != nil {
 		u.PasswordHash = *hash
 	}
+	if consentAt != nil {
+		u.ConsentAt = *consentAt
+	}
 	return u, nil
 }
 
 func (r *PgxRepo) SetVerified(ctx context.Context, userID string) error {
 	return r.execAffecting(ctx,
 		`UPDATE users SET verified = TRUE, updated_at = now() WHERE id = $1`, userID)
+}
+
+func (r *PgxRepo) SetConsent(ctx context.Context, userID string, at time.Time) error {
+	return r.execAffecting(ctx,
+		`UPDATE users SET consent_at = $2, updated_at = now() WHERE id = $1`, userID, at)
 }
 
 func (r *PgxRepo) UpdatePassword(ctx context.Context, userID, passwordHash string) error {

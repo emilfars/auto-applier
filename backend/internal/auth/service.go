@@ -117,6 +117,9 @@ func (s *Service) Routes() http.Handler {
 type registerReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	// Consent records the user's acceptance of data processing at signup
+	// (UU PDP No. 27/2022). Registration is refused without it.
+	Consent bool `json:"consent"`
 }
 
 func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +132,10 @@ func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validEmail(req.Email) || len(req.Password) < 8 {
 		writeErr(w, http.StatusBadRequest, "invalid email or password too short (min 8)")
+		return
+	}
+	if !req.Consent {
+		writeErr(w, http.StatusBadRequest, "consent to data processing is required")
 		return
 	}
 	hash, err := HashPassword(req.Password)
@@ -145,6 +152,11 @@ func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "create user error")
 		return
 	}
+	// Record consent as its own audit fact (UU PDP), captured at signup time.
+	if err := s.repo.SetConsent(r.Context(), u.ID, s.cfg.Now()); err != nil {
+		writeErr(w, http.StatusInternalServerError, "consent error")
+		return
+	}
 	token, err := NewToken()
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "token error")
@@ -156,7 +168,7 @@ func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	// Production emails the token; it is never returned in the response.
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"id": u.ID, "email": u.Email, "verified": u.Verified,
+		"id": u.ID, "email": u.Email, "verified": u.Verified, "consent": true,
 	})
 }
 

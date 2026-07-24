@@ -61,12 +61,12 @@ func main() {
 
 	srv := &http.Server{
 		Addr: addr,
-		Handler: api.NewRouter(authSvc.Routes(),
+		Handler: api.RequireHTTPS(api.NewRouter(authSvc.Routes(),
 			api.Mount{Pattern: "/cv", Handler: gatedCV},
 			api.Mount{Pattern: "/profile", Handler: gatedProfile},
 			api.Mount{Pattern: "/profile/", Handler: gatedProfile},
 			api.Mount{Pattern: "/feed", Handler: feedSvc.Routes()},
-		),
+		), api.SecurityConfig{EnforceHTTPS: boolEnv("ENFORCE_HTTPS", false)}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -151,6 +151,18 @@ func intEnv(name string, def int) int {
 			return n
 		}
 		log.Printf("%s=%q is not an integer; using %d", name, v, def)
+	}
+	return def
+}
+
+// boolEnv reads a boolean environment variable, falling back to def when unset
+// or unparseable.
+func boolEnv(name string, def bool) bool {
+	if v := os.Getenv(name); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+		log.Printf("%s=%q is not a boolean; using %v", name, v, def)
 	}
 	return def
 }
