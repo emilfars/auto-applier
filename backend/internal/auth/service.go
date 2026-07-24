@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +16,12 @@ type Config struct {
 	ResetTTL         time.Duration
 	LoginMaxAttempts int
 	LoginWindow      time.Duration
-	Now              func() time.Time
+	// IPMaxAttempts/IPWindow throttle expensive unauthenticated auth endpoints
+	// (register, login, password-reset request/confirm) per client IP. This
+	// caps PBKDF2 CPU cost and blunts password-spray from a single source.
+	IPMaxAttempts int
+	IPWindow      time.Duration
+	Now           func() time.Time
 	// GoogleOIDC, when set, enables the Google OAuth login route (AUTH-2).
 	GoogleOIDC OIDCProvider
 }
@@ -33,6 +39,12 @@ func (c Config) withDefaults() Config {
 	if c.LoginWindow == 0 {
 		c.LoginWindow = 15 * time.Minute
 	}
+	if c.IPMaxAttempts == 0 {
+		c.IPMaxAttempts = 30
+	}
+	if c.IPWindow == 0 {
+		c.IPWindow = 15 * time.Minute
+	}
 	if c.Now == nil {
 		c.Now = time.Now
 	}
@@ -41,18 +53,20 @@ func (c Config) withDefaults() Config {
 
 // Service exposes the auth HTTP API over a Repo.
 type Service struct {
-	repo    Repo
-	cfg     Config
-	limiter *rateLimiter
+	repo      Repo
+	cfg       Config
+	limiter   *rateLimiter
+	ipLimiter *rateLimiter
 }
 
 // NewService builds an auth service.
 func NewService(repo Repo, cfg Config) *Service {
 	cfg = cfg.withDefaults()
 	return &Service{
-		repo:    repo,
-		cfg:     cfg,
-		limiter: newRateLimiter(cfg.LoginMaxAttempts, cfg.LoginWindow),
+		repo:      repo,
+		cfg:       cfg,
+		limiter:   newRateLimiter(cfg.LoginMaxAttempts, cfg.LoginWindow),
+		ipLimiter: newRateLimiter(cfg.IPMaxAttempts, cfg.IPWindow),
 	}
 }
 
@@ -92,6 +106,9 @@ type registerReq struct {
 }
 
 func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
+	if !s.ipAllowed(w, r) {
+		return
+	}
 	var req registerReq
 	if !decode(w, r, &req) {
 		return
@@ -151,11 +168,17 @@ func (s *Service) handleVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.ipAllowed(w, r) {
+		return
+	}
 	var req registerReq
 	if !decode(w, r, &req) {
 		return
 	}
-	key := "login:" + strings.ToLower(req.Email)
+	// Composite IP+email keying: throttles targeted brute force without letting
+	// an attacker lock a victim out globally (the victim's own IP is unaffected)
+	// or bypass the limit by rotating emails (the per-IP limiter above caps that).
+	key := "login:" + clientIP(r) + "|" + strings.ToLower(req.Email)
 	if !s.limiter.Allow(key, s.cfg.Now()) {
 		writeErr(w, http.StatusTooManyRequests, "too many login attempts")
 		return
@@ -229,6 +252,9 @@ type resetReq struct {
 }
 
 func (s *Service) handleResetRequest(w http.ResponseWriter, r *http.Request) {
+	if !s.ipAllowed(w, r) {
+		return
+	}
 	var req resetReq
 	if !decode(w, r, &req) {
 		return
@@ -248,6 +274,9 @@ type resetConfirmReq struct {
 }
 
 func (s *Service) handleResetConfirm(w http.ResponseWriter, r *http.Request) {
+	if !s.ipAllowed(w, r) {
+		return
+	}
 	var req resetConfirmReq
 	if !decode(w, r, &req) {
 		return
@@ -302,6 +331,26 @@ func (s *Service) RequireVerified(next http.Handler) http.Handler {
 }
 
 // --- helpers ---
+
+// ipAllowed throttles expensive unauthenticated endpoints per client IP. It
+// writes a 429 and returns false when the caller is over the limit.
+func (s *Service) ipAllowed(w http.ResponseWriter, r *http.Request) bool {
+	if !s.ipLimiter.Allow("ip:"+clientIP(r), s.cfg.Now()) {
+		writeErr(w, http.StatusTooManyRequests, "too many requests")
+		return false
+	}
+	return true
+}
+
+// clientIP extracts the peer IP from RemoteAddr. Proxy headers such as
+// X-Forwarded-For are intentionally NOT trusted here: honoring them without a
+// configured trusted-proxy allowlist would let attackers spoof the limiter key.
+func clientIP(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
 
 func sessionToken(r *http.Request) string {
 	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {

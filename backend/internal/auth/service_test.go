@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,21 +20,38 @@ type harness struct {
 }
 
 func newHarness() *harness {
+	return newHarnessWith(nil)
+}
+
+// newHarnessWith builds a harness, optionally mutating the Config before the
+// service is constructed (used to exercise low rate-limit thresholds cheaply).
+func newHarnessWith(mut func(*Config)) *harness {
 	repo := NewMemoryRepo()
 	now := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
 	h := &harness{repo: repo, now: &now}
-	h.svc = NewService(repo, Config{
+	cfg := Config{
 		SessionTTL:       time.Hour,
 		ResetTTL:         time.Hour,
 		LoginMaxAttempts: 5,
 		LoginWindow:      15 * time.Minute,
 		Now:              func() time.Time { return *h.now },
-	})
+	}
+	if mut != nil {
+		mut(&cfg)
+	}
+	h.svc = NewService(repo, cfg)
 	h.handler = h.svc.Routes()
 	return h
 }
 
 func (h *harness) do(t *testing.T, method, path, token string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	return h.doFrom(t, method, path, "192.0.2.1", token, body)
+}
+
+// doFrom issues a request whose client IP (RemoteAddr host) is ip, so tests can
+// exercise per-IP and composite IP+email rate limiting.
+func (h *harness) doFrom(t *testing.T, method, path, ip, token string, body any) *httptest.ResponseRecorder {
 	t.Helper()
 	var buf bytes.Buffer
 	if body != nil {
@@ -42,6 +60,7 @@ func (h *harness) do(t *testing.T, method, path, token string, body any) *httpte
 		}
 	}
 	req := httptest.NewRequest(method, path, &buf)
+	req.RemoteAddr = ip + ":54321"
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -82,6 +101,13 @@ func (h *harness) registerVerifiedUser(t *testing.T, email, password string) str
 func (h *harness) login(t *testing.T, email, password string) (int, string) {
 	t.Helper()
 	rec := h.do(t, http.MethodPost, "/auth/login", "", registerReq{Email: email, Password: password})
+	tok, _ := decodeBody(t, rec)["token"].(string)
+	return rec.Code, tok
+}
+
+func (h *harness) loginFrom(t *testing.T, ip, email, password string) (int, string) {
+	t.Helper()
+	rec := h.doFrom(t, http.MethodPost, "/auth/login", ip, "", registerReq{Email: email, Password: password})
 	tok, _ := decodeBody(t, rec)["token"].(string)
 	return rec.Code, tok
 }
@@ -259,5 +285,99 @@ func TestPasswordResetExpired(t *testing.T) {
 	*h.now = h.now.Add(2 * time.Hour) // past ResetTTL
 	if rec := h.do(t, http.MethodPost, "/auth/password-reset/confirm", "", resetConfirmReq{Token: tok, NewPassword: "newpassword456"}); rec.Code != http.StatusBadRequest {
 		t.Errorf("expired reset token: got %d, want 400", rec.Code)
+	}
+}
+
+// Register runs PBKDF2 on every call; without an IP limiter an attacker can burn
+// CPU unauthenticated. Assert register is throttled per client IP.
+func TestRegisterIPRateLimited(t *testing.T) {
+	h := newHarnessWith(func(c *Config) { c.IPMaxAttempts = 3 })
+	const ip = "203.0.113.10"
+	for i := 0; i < 3; i++ {
+		rec := h.doFrom(t, http.MethodPost, "/auth/register", ip, "",
+			registerReq{Email: fmt.Sprintf("u%d@example.com", i), Password: "password123"})
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("register %d: got %d, want 201", i, rec.Code)
+		}
+	}
+	rec := h.doFrom(t, http.MethodPost, "/auth/register", ip, "",
+		registerReq{Email: "u4@example.com", Password: "password123"})
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("4th register: got %d, want 429", rec.Code)
+	}
+	// A different IP is unaffected.
+	if rec := h.doFrom(t, http.MethodPost, "/auth/register", "198.51.100.7", "",
+		registerReq{Email: "other@example.com", Password: "password123"}); rec.Code != http.StatusCreated {
+		t.Fatalf("register from fresh IP: got %d, want 201", rec.Code)
+	}
+}
+
+// password-reset/confirm also runs PBKDF2; assert it is IP-throttled.
+func TestResetConfirmIPRateLimited(t *testing.T) {
+	h := newHarnessWith(func(c *Config) { c.IPMaxAttempts = 3 })
+	const ip = "203.0.113.20"
+	for i := 0; i < 3; i++ {
+		rec := h.doFrom(t, http.MethodPost, "/auth/password-reset/confirm", ip, "",
+			resetConfirmReq{Token: "bogus", NewPassword: "newpassword456"})
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("confirm %d: got %d, want 400", i, rec.Code)
+		}
+	}
+	if rec := h.doFrom(t, http.MethodPost, "/auth/password-reset/confirm", ip, "",
+		resetConfirmReq{Token: "bogus", NewPassword: "newpassword456"}); rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("4th confirm: got %d, want 429", rec.Code)
+	}
+}
+
+// Composite IP+email keying: hammering a victim's email from an attacker IP
+// throttles that attacker but must NOT lock the victim out from their own IP.
+func TestLoginCompositeKeyNoGlobalLockout(t *testing.T) {
+	h := newHarness()
+	h.registerVerifiedUser(t, "victim@example.com", "password123")
+	const attacker = "203.0.113.55"
+	const victim = "198.51.100.9"
+
+	for i := 0; i < 5; i++ {
+		if code, _ := h.loginFrom(t, attacker, "victim@example.com", "wrongpass1"); code != http.StatusUnauthorized {
+			t.Fatalf("attacker attempt %d: got %d, want 401", i+1, code)
+		}
+	}
+	if code, _ := h.loginFrom(t, attacker, "victim@example.com", "wrongpass1"); code != http.StatusTooManyRequests {
+		t.Fatalf("attacker 6th: got %d, want 429", code)
+	}
+	// Victim, from their own IP, is not locked out.
+	if code, _ := h.loginFrom(t, victim, "victim@example.com", "password123"); code != http.StatusOK {
+		t.Fatalf("victim login from own IP: got %d, want 200", code)
+	}
+}
+
+// The per-IP limiter caps password-spray that rotates emails from one source.
+func TestLoginPerIPCapsEmailRotation(t *testing.T) {
+	h := newHarnessWith(func(c *Config) { c.IPMaxAttempts = 4 })
+	const ip = "203.0.113.77"
+	for i := 0; i < 4; i++ {
+		if code, _ := h.loginFrom(t, ip, fmt.Sprintf("target%d@example.com", i), "password123"); code != http.StatusUnauthorized {
+			t.Fatalf("spray %d: got %d, want 401", i, code)
+		}
+	}
+	if code, _ := h.loginFrom(t, ip, "target99@example.com", "password123"); code != http.StatusTooManyRequests {
+		t.Fatalf("spray past IP cap: got %d, want 429", code)
+	}
+}
+
+// Expired windows are evicted so the map cannot grow without bound.
+func TestRateLimiterEvictsExpiredWindows(t *testing.T) {
+	rl := newRateLimiter(5, time.Minute)
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 100; i++ {
+		rl.Allow(fmt.Sprintf("k%d", i), base)
+	}
+	if got := rl.size(); got != 100 {
+		t.Fatalf("initial size: got %d, want 100", got)
+	}
+	// Advance past the window; the next Allow sweeps stale keys.
+	rl.Allow("fresh", base.Add(2*time.Minute))
+	if got := rl.size(); got != 1 {
+		t.Fatalf("after eviction: got %d, want 1", got)
 	}
 }
