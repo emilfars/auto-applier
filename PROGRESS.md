@@ -5,8 +5,8 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-07-24
-**Current phase:** Planning — awaiting plan.md approval. **No application code written yet.**
-**Verify gate:** `./scripts/verify.sh` → green (0 components, all skipped).
+**Current phase:** M0 — Foundations (in progress). Backend health API landed; web shell blocked on toolchain.
+**Verify gate:** `./scripts/verify.sh` → green (backend: 4/4 pass; web/extension/fill-mappings/android skipped).
 
 ---
 
@@ -25,7 +25,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 
 | Milestone | Scope | Status | Notes |
 |---|---|---|---|
-| M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | ⬜ | Gated on plan approval |
+| M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | 🟡 | Backend health API + tests landed (Go stdlib). React shell blocked: Node/npm not installed in env. |
 | M1 Accounts | AUTH-1..4 | ⬜ | |
 | M2 CV & profile | CV-1..4 + confirm-before-apply gate | ⬜ | |
 | M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ⬜ | |
@@ -36,7 +36,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 ## 3. Component readiness
 | Component | Path | Exists | verify.sh checks | State |
 |---|---|---|---|---|
-| Backend (Go) | `/backend` | no | build, vet, gofmt, test | not scaffolded |
+| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | health API (GET /healthz) + tests, all green |
 | Web (React+TS) | `/web` | no | lint, typecheck, test, build | not scaffolded |
 | Fill mappings | `/packages/fill-mappings` | no | lint, typecheck, test, build | not scaffolded |
 | Extension (MV3) | `/extension` | no | lint, typecheck, test, build | not scaffolded |
@@ -58,9 +58,9 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** documentation & governance files complete; holding for plan review.
-- **Next (once approved):** scaffold M0 — `/backend` (go.mod, chi, pgx, migrations), `/web` (Vite+TS), CI wiring `verify.sh`, `docker compose` for API+DB+web.
-- **Blocked:** all implementation — pending `plan.md` approval.
+- **Now:** M0 backend health API implemented + tested; verify.sh green.
+- **Next:** M0 web React shell + fill-mappings package — **requires Node/npm** (see blocker). Backend-side M0 can continue (DB schema/migrations, object storage) in parallel.
+- **Blocked:** All TS/Node components (`web`, `extension`, `packages/fill-mappings`) — **Node/npm not installed in this environment**. Creating a `package.json` without Node turns verify.sh red (it fails when a package.json exists but node is absent). Needs Node toolchain provisioned before those components can be scaffolded.
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -77,6 +77,8 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-07-24** — [DONE] M0 backend health API: scaffolded `/backend` Go module (stdlib `net/http`), `GET /healthz` JSON endpoint, table-driven handler test (ok/404/405), graceful-shutdown `cmd/api`. verify.sh green (backend 4/4). Satisfies AC-GATE-1..3.
+- **2026-07-24** — [BLOCKED] M0 web/extension/fill-mappings: Node/npm not installed in environment; scaffolding a package.json would fail the gate. Paused for toolchain provisioning / human input.
 - **2026-07-24** — Added `PROGRESS.md` + `ACCEPTANCE.md`. Repo now has full doc/governance set. Still pre-implementation.
 - **2026-07-24** — Added `PRD.md`, `.github/copilot-instructions.md`, `scripts/verify.sh` (commit 471d3db). verify.sh green (all skipped).
 - **2026-07-24** — Initialized repo; added `plan.md` + `README.md` (commit d2f5a35). Locked source/salary/geo decisions.

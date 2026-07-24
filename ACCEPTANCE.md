@@ -24,9 +24,9 @@ Test-type conventions:
 ## 0. Global gates (always enforced by verify.sh)
 | Test ID | Criteria | Verification | Status |
 |---|---|---|---|
-| AC-GATE-1 | Backend compiles | `go build ./...` in `/backend` | ⬜ |
-| AC-GATE-2 | Backend vet + format clean | `go vet ./...`, `gofmt -l` empty | ⬜ |
-| AC-GATE-3 | All Go tests pass | `go test ./...` | ⬜ |
+| AC-GATE-1 | Backend compiles | `go build ./...` in `/backend` | ✅ |
+| AC-GATE-2 | Backend vet + format clean | `go vet ./...`, `gofmt -l` empty | ✅ |
+| AC-GATE-3 | All Go tests pass | `go test ./...` | ✅ |
 | AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | ⬜ |
 | AC-GATE-5 | TS components lint clean | `npm run lint` per package | ⬜ |
 | AC-GATE-6 | TS unit tests pass | `npm run test` per package | ⬜ |
