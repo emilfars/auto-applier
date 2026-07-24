@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -36,7 +37,9 @@ func main() {
 	pool, closeDB := openDB()
 	defer closeDB()
 
-	authSvc := auth.NewService(newAuthRepo(pool), auth.Config{})
+	authSvc := auth.NewService(newAuthRepo(pool), auth.Config{
+		TrustedProxyHops: intEnv("TRUSTED_PROXY_HOPS", 0),
+	})
 
 	// CV uploads are stored encrypted at rest (AC-CV-1b) and gated behind a
 	// verified session. Object-store backend is in-memory until S3 lands.
@@ -138,6 +141,18 @@ func newCVStore() storage.ObjectStore {
 		log.Fatalf("cv store: %v", err)
 	}
 	return enc
+}
+
+// intEnv reads an integer environment variable, falling back to def when unset
+// or unparseable.
+func intEnv(name string, def int) int {
+	if v := os.Getenv(name); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+		log.Printf("%s=%q is not an integer; using %d", name, v, def)
+	}
+	return def
 }
 
 // newCVParser returns the hosted CV parser when CV_PARSER_URL is set, else a

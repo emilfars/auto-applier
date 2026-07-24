@@ -21,7 +21,14 @@ type Config struct {
 	// caps PBKDF2 CPU cost and blunts password-spray from a single source.
 	IPMaxAttempts int
 	IPWindow      time.Duration
-	Now           func() time.Time
+	// TrustedProxyHops is the number of trusted reverse-proxy/load-balancer hops
+	// in front of the service. 0 (default) trusts no proxy headers and keys the
+	// limiter on the direct peer (RemoteAddr) — spoof-safe but, behind a proxy,
+	// every client shares the proxy IP. Set it to the exact number of trusted
+	// hops (e.g. 1 behind a single LB) to derive the real client IP from
+	// X-Forwarded-For without letting clients spoof the key.
+	TrustedProxyHops int
+	Now              func() time.Time
 	// GoogleOIDC, when set, enables the Google OAuth login route (AUTH-2).
 	GoogleOIDC OIDCProvider
 }
@@ -185,7 +192,7 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// Composite IP+email keying: throttles targeted brute force without letting
 	// an attacker lock a victim out globally (the victim's own IP is unaffected)
 	// or bypass the limit by rotating emails (the per-IP limiter above caps that).
-	key := "login:" + clientIP(r) + "|" + strings.ToLower(req.Email)
+	key := "login:" + s.clientIP(r) + "|" + strings.ToLower(req.Email)
 	if !s.limiter.Allow(key, s.cfg.Now()) {
 		writeErr(w, http.StatusTooManyRequests, "too many login attempts")
 		return
@@ -342,21 +349,50 @@ func (s *Service) RequireVerified(next http.Handler) http.Handler {
 // ipAllowed throttles expensive unauthenticated endpoints per client IP. It
 // writes a 429 and returns false when the caller is over the limit.
 func (s *Service) ipAllowed(w http.ResponseWriter, r *http.Request) bool {
-	if !s.ipLimiter.Allow("ip:"+clientIP(r), s.cfg.Now()) {
+	if !s.ipLimiter.Allow("ip:"+s.clientIP(r), s.cfg.Now()) {
 		writeErr(w, http.StatusTooManyRequests, "too many requests")
 		return false
 	}
 	return true
 }
 
-// clientIP extracts the peer IP from RemoteAddr. Proxy headers such as
-// X-Forwarded-For are intentionally NOT trusted here: honoring them without a
-// configured trusted-proxy allowlist would let attackers spoof the limiter key.
-func clientIP(r *http.Request) string {
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+// clientIP derives the key the rate limiters bucket on. By default it uses the
+// direct peer (RemoteAddr) and ignores proxy headers, so a client cannot spoof
+// the key. When TrustedProxyHops > 0 the service is known to sit behind that
+// many reverse-proxy hops, so the real client IP is read from X-Forwarded-For
+// by walking inward from the peer past exactly that many trusted hops — beyond
+// the trusted depth the header is attacker-controlled and is not trusted.
+func (s *Service) clientIP(r *http.Request) string {
+	peer := hostOnly(r.RemoteAddr)
+	hops := s.cfg.TrustedProxyHops
+	if hops <= 0 {
+		return peer
+	}
+	// chain, outermost (us) inward toward the client:
+	//   [peer(=closest proxy), last XFF, ..., first XFF(=claimed client)]
+	chain := []string{peer}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		items := strings.Split(xff, ",")
+		for i := len(items) - 1; i >= 0; i-- {
+			if ip := strings.TrimSpace(items[i]); ip != "" {
+				chain = append(chain, ip)
+			}
+		}
+	}
+	idx := hops
+	if idx >= len(chain) {
+		idx = len(chain) - 1
+	}
+	return chain[idx]
+}
+
+// hostOnly strips the port from a host:port address, returning the host as-is
+// when there is no port.
+func hostOnly(addr string) string {
+	if host, _, err := net.SplitHostPort(addr); err == nil {
 		return host
 	}
-	return r.RemoteAddr
+	return addr
 }
 
 func sessionToken(r *http.Request) string {
