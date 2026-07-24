@@ -1,0 +1,20 @@
+backend/internal/ingest/normalize.go
+  s_3a5ccb35454534::t_dee994e22d6b87 20
+  s_3a5ccb35454534::t_d4c175c1511438 195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ad0190f939e41b73557ce8a0ecdd0e561bca59bd",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
