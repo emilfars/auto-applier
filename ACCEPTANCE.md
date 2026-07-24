@@ -37,7 +37,7 @@ Test-type conventions:
 | Test ID | Criteria | Verification | Status |
 |---|---|---|---|
 | AC-SAFE-1 | Extension code never calls `form.submit()` / `.click()` on a submit control / dispatches a synthetic submit on external pages | static scan test in `/extension` + `/packages/fill-mappings` asserts no submit-triggering APIs in fill paths (grep-based unit test, allowlist-free) | ⬜ |
-| AC-SAFE-2 | Fill result exposes per-field state `filled | uncertain | empty`; uncertain fields are never reported as filled | unit test on fill engine | ⬜ |
+| AC-SAFE-2 | Fill result exposes per-field state `filled | uncertain | empty`; uncertain fields are never reported as filled | unit test on fill engine | ✅ |
 | AC-SAFE-3 | No backend endpoint performs application submission to a third-party portal | integration test: route table contains no submit-proxy; code scan test | ⬜ |
 
 ---
@@ -81,7 +81,7 @@ Test-type conventions:
 ## 4. Extension Autofill (M4 — core value)
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
-| AC-MAP-1 | APP-3 | Each supported portal map (Jobstreet, Glints, Kalibrr, Greenhouse, Workable, Lever, generic) has a `version` and passing map tests | unit per map in `/packages/fill-mappings` | ⬜ |
+| AC-MAP-1 | APP-3 | Each supported portal map (Jobstreet, Glints, Kalibrr, Greenhouse, Workable, Lever, generic) has a `version` and passing map tests | unit per map in `/packages/fill-mappings` | ✅ |
 | AC-APP-1 | APP-1 | On a fixture ATS page, common fields (name, contact, education, work history, expected salary, notice period, links) fill correctly | e2e against saved fixture DOMs | ⬜ |
 | AC-APP-1b | APP-1 | Fill coverage ≥80% of mappable fields on each supported fixture | e2e metric assertion | ⬜ |
 | AC-APP-2 | APP-2 | CV file auto-attaches on file-upload fields | e2e on fixture with file input | ⬜ |

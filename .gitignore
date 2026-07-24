@@ -1,0 +1,10 @@
+# Node / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store

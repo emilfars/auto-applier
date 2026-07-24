@@ -1,0 +1,27 @@
+{
+  "name": "@auto-applier/fill-mappings",
+  "version": "0.1.0",
+  "description": "Shared, framework-agnostic per-portal field maps + fill engine. Single source of truth reused by the Chrome extension and the Android WebView. Autofill only — never submits (Prime Directive).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
