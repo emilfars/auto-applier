@@ -13,7 +13,7 @@
     "verbatimModuleSyntax": true,
     "declaration": true,
     "skipLibCheck": true,
-    "types": ["node"],
+    "types": ["node", "chrome"],
     "baseUrl": ".",
     "paths": {
       "@auto-applier/fill-mappings": ["../packages/fill-mappings/src/index.ts"]

@@ -86,7 +86,7 @@ Test-type conventions:
 | AC-APP-1b | APP-1 | Fill coverage ≥80% of mappable fields on each supported fixture | e2e metric assertion | ✅ |
 | AC-APP-2 | APP-2 | CV file auto-attaches on file-upload fields | e2e on fixture with file input | ✅ |
 | AC-APP-4 | APP-4 | Filled fields marked `filled`, uncertain marked `uncertain`; **no submit is ever triggered** | e2e asserts DOM highlight states + no submit event fired (ties to AC-SAFE-1) | ✅ |
-| AC-APP-5 | APP-5 | "Open & Fill" from feed arms the extension on the source page | e2e | ⬜ |
+| AC-APP-5 | APP-5 | "Open & Fill" from feed arms the extension on the source page | e2e | ✅ |
 | AC-APP-TEL | plan | Fill-correction events are emitted when user overrides a filled value | unit on telemetry emitter | ✅ |
 
 ## 5. Post-MVP specs (write when milestone starts)
