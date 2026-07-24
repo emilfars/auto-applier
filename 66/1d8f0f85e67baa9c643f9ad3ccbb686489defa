@@ -1,0 +1,48 @@
+web/src/components/JobCard.tsx
+  s_3a5ccb35454534::t_898c5a0aabdd5a 1-55
+web/src/api/feed.ts
+  s_3a5ccb35454534::t_377a5fb99f6df5 1-79
+web/src/i18n/locales/en.json
+  s_3a5ccb35454534::t_41b6ebf478aa3d 6-21
+web/src/i18n/locales/id.json
+  s_3a5ccb35454534::t_41b6ebf478aa3d 6-21
+web/src/App.tsx
+  s_3a5ccb35454534::t_0676fdaba532c6 3,9-34,36-37
+web/src/components/JobFeed.tsx
+  s_3a5ccb35454534::t_4a5ef57000c366 1-105
+web/src/styles.css
+  s_3a5ccb35454534::t_603bcc272af9be 1-258
+web/src/components/JobCard.test.tsx
+  s_3a5ccb35454534::t_8a41f54ed3e5b3 1-51
+web/vite.config.ts
+  s_3a5ccb35454534::t_a7c73193af4ba2 7-11,14-21
+  s_3a5ccb35454534::t_77a441c7cf2173 4-6
+web/src/main.tsx
+  s_3a5ccb35454534::t_2ff6de57f9009b 4
+PROGRESS.md
+  s_3a5ccb35454534::t_f3c6ffce95bf3c 80
+  s_3a5ccb35454534::t_db7562be652e1c 40
+  s_3a5ccb35454534::t_c11117c0b7b8fc 61-62
+backend/cmd/api/main.go
+  s_3a5ccb35454534::t_c623229ed4aee9 104-121
+  s_3a5ccb35454534::t_ee8ca838fc54d3 69
+  s_3a5ccb35454534::t_9028bb7fddd7c1 25
+web/src/api/feed.test.ts
+  s_3a5ccb35454534::t_9f45351fa2a1ea 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "661d8f0f85e67baa9c643f9ad3ccbb686489defa",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
