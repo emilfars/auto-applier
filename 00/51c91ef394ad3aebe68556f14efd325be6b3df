@@ -1,0 +1,21 @@
+PROGRESS.md
+  s_912cd54d13a1eb::t_88f9861a103ccf 1-82
+ACCEPTANCE.md
+  s_912cd54d13a1eb::t_34ff07e33b119c 1-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "0051c91ef394ad3aebe68556f14efd325be6b3df",
+  "prompts": {},
+  "sessions": {
+    "s_912cd54d13a1eb": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "3138e6fa-f1b4-476b-ab48-e70c5d0d6cb7",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
