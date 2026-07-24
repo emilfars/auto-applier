@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Applier",
+  "version": "0.1.0",
+  "description": "Autofills job application forms from your confirmed profile. You always review and click apply yourself — Auto Applier never submits for you.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://*.workable.com/*",
+    "https://*.jobstreet.com/*",
+    "https://*.jobstreet.co.id/*",
+    "https://*.glints.com/*",
+    "https://*.kalibrr.com/*"
+  ],
+  "action": {
+    "default_title": "Auto Applier — review & fill"
+  }
+}

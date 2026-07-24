@@ -1,0 +1,19 @@
+{
+  "name": "@auto-applier/extension",
+  "version": "0.1.0",
+  "description": "Chrome MV3 extension that autofills job application forms using the shared @auto-applier/fill-mappings engine. Autofill only — the human always clicks apply (Prime Directive).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
