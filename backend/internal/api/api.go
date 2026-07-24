@@ -29,13 +29,25 @@ func Health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Mount is an additional route group to attach to the router at Pattern.
+type Mount struct {
+	Pattern string
+	Handler http.Handler
+}
+
 // NewRouter builds the HTTP handler for the API, optionally mounting the auth
-// service. Passing nil for authHandler mounts only the health endpoint.
-func NewRouter(authHandler http.Handler) *http.ServeMux {
+// service plus any extra route groups. Passing nil for authHandler mounts only
+// the health endpoint.
+func NewRouter(authHandler http.Handler, mounts ...Mount) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", Health)
 	if authHandler != nil {
 		mux.Handle("/auth/", authHandler)
+	}
+	for _, m := range mounts {
+		if m.Handler != nil && m.Pattern != "" {
+			mux.Handle(m.Pattern, m.Handler)
+		}
 	}
 	return mux
 }

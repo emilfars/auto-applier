@@ -82,6 +82,13 @@ func UserFrom(ctx context.Context) (User, bool) {
 	return u, ok
 }
 
+// ContextWithUser attaches an authenticated user to ctx. Exposed so other route
+// packages (and their tests) can compose with RequireVerified without importing
+// the unexported context key.
+func ContextWithUser(ctx context.Context, u User) context.Context {
+	return context.WithValue(ctx, userCtxKey, u)
+}
+
 // Routes returns the auth HTTP handler.
 func (s *Service) Routes() http.Handler {
 	mux := http.NewServeMux()

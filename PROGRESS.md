@@ -5,7 +5,7 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-07-24
-**Current phase:** M1 — Accounts (near complete). Email/password + Google OAuth auth on both in-memory and pgx-backed repos; migrations apply at startup. Remaining: real Google OIDC client wiring (needs live credentials).
+**Current phase:** M2 — CV & profile (in progress). CV upload (PDF/DOCX ≤5MB, encrypted at rest) landed; profile edit + confirm-before-apply gate next. CV parsing (AC-CV-2) deferred pending parser-strategy decision.
 **Verify gate:** `./scripts/verify.sh` → green (backend 4/4, web 4/4; extension/fill-mappings/android skipped).
 
 ---
@@ -27,7 +27,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 |---|---|---|---|
 | M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | ✅ | Health API, web+i18n shell, embedded DB migrations, AES-256-GCM object storage, docker-compose (API+DB+web). |
 | M1 Accounts | AUTH-1..4 | 🟡 | AUTH-1/1b/2/3/4/4b ✅ (email/password + Google OAuth via mocked OIDC, sessions, reset, hardened rate limiting). Now backed by **both** in-memory and **pgx** repos; migrations apply at startup (verified against real Postgres). Remaining: real Google OIDC client (needs live credentials). |
-| M2 CV & profile | CV-1..4 + confirm-before-apply gate | ⬜ | |
+| M2 CV & profile | CV-1..4 + confirm-before-apply gate | 🟡 | CV upload (AC-CV-1/1b: PDF/DOCX ≤5MB, encrypted at rest) ✅. Next: profile edit (CV-3/4) + confirm-before-apply gate (AC-CV-5). Parsing (CV-2) deferred pending parser-strategy decision. |
 | M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ⬜ | |
 | M4 Extension autofill | fill-mappings, APP-1,2,4,5 | ⬜ | **End of MVP** |
 | M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ⬜ | Post-MVP |
@@ -58,9 +58,9 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M1 auth backed by a production **pgx** repo (`PgxRepo`) alongside the in-memory one; a version-tracked migrator (`db.Apply`) runs pending migrations at startup and is idempotent. New `0002_auth_tokens` migration adds `email_verifications`, `sessions`, `password_resets`. DB-guarded integration tests (skip without `TEST_DATABASE_URL`) verified green against a real Postgres 16. Rate limiting hardened (bounded map, per-IP throttling, composite IP+email login keys). verify.sh green (8/8).
-- **Next:** Real Google OIDC client behind `OIDCProvider` (needs live client id/secret — pause point for credentials). Then M2 CV & profile (upload, parse, edit, confirm-before-apply gate).
-- **Blocked:** none. (Env notes: `npm` allow-scripts → run `npm approve-scripts esbuild` after installs. Docker daemon unavailable this session; validated pgx path against a local Homebrew Postgres instead.)
+- **Now:** M2 started — CV upload endpoint (`POST /cv`) gated behind a verified session, validates type (extension + magic bytes) and 5MB limit (201/415/413), stores encrypted at rest (AES-256-GCM) and persists metadata only. `GET /cv` lists a user's files. verify.sh green (8/8).
+- **Next:** Profile edit (GET/PATCH structured + added-info fields, AC-CV-3/4) and the prime-directive-critical confirm-before-apply gate (AC-CV-5: `confirmed=false` until user confirms; fill flow refuses to arm while unconfirmed). CV parsing (AC-CV-2) deferred pending the hosted-API-vs-Python-sidecar decision (open question #3).
+- **Blocked:** none. Pending decisions: CV parser strategy (#3) and real Google OIDC client credentials (M1 finish).
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -77,6 +77,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-07-24** — [DONE] M2 CV upload (AC-CV-1/1b): new `/backend/internal/cv` package — `POST /cv` multipart upload gated behind `RequireVerified`, validates type by extension **and** magic bytes (PDF `%PDF`, DOCX zip `PK\x03\x04`; spoofed headers fail closed) and size ≤5MB → 201/415/413; stores via encrypted `ObjectStore` (AES-256-GCM at rest, AC-CV-1b) and persists metadata only. `GET /cv` lists a user's files. `cmd/api` wires it with an encrypted store (CV_ENCRYPTION_KEY or ephemeral dev key); `api.NewRouter` now takes extra gated mounts; added `auth.ContextWithUser` for cross-package composition. Table-driven upload matrix + at-rest-ciphertext tests. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M1 pgx-backed auth persistence: added `PgxRepo` (implements `auth.Repo` over pgx; UUIDs cast to text, unique-violation→`ErrEmailTaken`, single-use token consumption via `DELETE ... RETURNING`), version-tracked idempotent migrator `db.Apply` (+`schema_migrations`), and `0002_auth_tokens` migration (`email_verifications`, `sessions`, `password_resets`). `cmd/api` now selects pgx when `DATABASE_URL` is set and applies migrations at startup, else in-memory. DB-guarded integration tests skip offline (keep gate green) and were verified green against a real Postgres 16 (5/5). verify.sh green (8/8).
 - **2026-07-24** — [DONE] M1 auth rate-limiter hardening (security review): (1) bounded the limiter map — expired windows are now swept lazily once per window (`ratelimit.go`), fixing unbounded growth / memory-exhaustion DoS; (2) added a per-client-IP limiter (default 30/15min) to `register`, `login`, and `password-reset` request/confirm, capping unauthenticated PBKDF2 CPU burn and single-source password-spray; (3) login now keyed by composite IP+email (`clientIP()` helper, RemoteAddr only — X-Forwarded-For untrusted), preventing targeted global account-lockout DoS while the per-IP limiter blocks email rotation. New tests: register/reset-confirm IP throttling, composite-key no-global-lockout, per-IP spray cap, expired-window eviction. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M1 AUTH-2 Google OAuth: added `OIDCProvider` interface (code→verified claims) + `POST /auth/oauth/google/callback` handler that links-or-creates a verified account and issues a session; refactored session issuance into shared `startSession`. Rejects unverified/absent email. Route only registers when a provider is configured. Tested with a fake OIDC provider (create, link-existing, unverified-reject, exchange-failure). verify.sh green (8/8).
