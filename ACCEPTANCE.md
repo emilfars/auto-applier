@@ -28,10 +28,10 @@ Test-type conventions:
 | AC-GATE-2 | Backend vet + format clean | `go vet ./...`, `gofmt -l` empty | ✅ |
 | AC-GATE-3 | All Go tests pass | `go test ./...` | ✅ |
 | AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | ✅ |
-| AC-GATE-5 | TS components lint clean | `npm run lint` per package | ⬜ |
+| AC-GATE-5 | TS components lint clean | `npm run lint` per package | ✅ |
 | AC-GATE-6 | TS unit tests pass | `npm run test` per package | ✅ |
 | AC-GATE-7 | All buildable components build | `npm run build` per package | ✅ |
-| AC-GATE-8 | `verify.sh` exits 0 | `./scripts/verify.sh; echo $?` == 0 | ✅ (14 checks) |
+| AC-GATE-8 | `verify.sh` exits 0 | `./scripts/verify.sh; echo $?` == 0 | ✅ (16 checks) |
 
 ## 0.1 Prime-directive guard (NON-NEGOTIABLE)
 | Test ID | Criteria | Verification | Status |
