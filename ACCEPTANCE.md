@@ -67,8 +67,8 @@ Test-type conventions:
 |---|---|---|---|---|
 | AC-SCR-1 | SCR-1 | Scheduler runs a source scraper and persists normalized jobs | integration against a local fixture HTML server | ⬜ |
 | AC-SCR-1b | SCR-1 | **Circuit breaker:** one failing source does not fail the run or empty the feed | integration: inject source error → other sources still ingest, feed non-empty | ⬜ |
-| AC-SCR-2 | SCR-2 | Normalized job has title, company, location, stated_salary, requirements, seniority, employment_type, posted_at, source_url | unit on normalizer + schema assertion | ⬜ |
-| AC-SCR-2b | SCR-2 | Only Tier 1+2 sources present; no login-walled source configured | unit: source registry excludes Tier 3 | ⬜ |
+| AC-SCR-2 | SCR-2 | Normalized job has title, company, location, stated_salary, requirements, seniority, employment_type, posted_at, source_url | unit on normalizer + schema assertion | ✅ |
+| AC-SCR-2b | SCR-2 | Only Tier 1+2 sources present; no login-walled source configured | unit: source registry excludes Tier 3 | ✅ |
 | AC-SCR-3 | SCR-3 | Duplicate listings across sources collapse to one canonical job | unit on dedup key + integration | ⬜ |
 | AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit on staleness rule with clock injection | ⬜ |
 | AC-FEED-1 | FEED-1 | Feed returns paginated cards; pay shows **stated only**, labeled; no estimated values at MVP | integration + unit: response contains no `estimated` pay field | ⬜ |
