@@ -59,7 +59,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 
 ## 6. Now / Next / Blocked
 - **Now:** M0 backend health API + React/i18n web shell implemented, tested; verify.sh green (8/8). Node/npm provisioned via Homebrew.
-- **Next:** M0 remaining foundations — DB schema + migrations, object storage wiring (backend), then M1 Accounts (AUTH-1..4). Also can scaffold `packages/fill-mappings` (core value) when M4 begins.
+- **Next:** M0 remaining — object storage wiring + `docker compose` (API+DB+web); then M1 Accounts (AUTH-1..4). DB migrations exist but are not yet applied against a live Postgres (integration tests arrive with M1/M2).
 - **Blocked:** none. (Note: env required Node install; done. `npm` here uses an allow-scripts policy — esbuild install scripts must be approved via `npm approve-scripts esbuild` after installs.)
 
 ## 7. Open questions / decisions needed
@@ -77,6 +77,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-07-24** — [DONE] M0 DB migrations: added `/backend/internal/db` embedded SQL migrations (`0001_init` up/down) for users, profiles, cv_files, jobs, applications — Jabodetabek-first, stated-salary-only (no estimated columns), `profiles.confirmed` gate, `applications.status` never defaults to 'submitted' (prime directive). `LoadMigrations()` validates contiguous versions + up/down pairing; deterministic offline Go tests assert invariants. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M0 web shell: provisioned Node 26 + npm 11 (Homebrew). Scaffolded `/web` Vite+React+TS with dependency-light i18n module (id-ID default + en, IDR currency) and Vitest locale test (AC-NFR-I18N ✅: no missing/stray keys, IDR default). Fixed `scripts/verify.sh` `has_script` bug (require needed `./` prefix; was silently skipping present Node components). Aligned vite→^5 to dedupe with vitest. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M0 backend health API: scaffolded `/backend` Go module (stdlib `net/http`), `GET /healthz` JSON endpoint, table-driven handler test (ok/404/405), graceful-shutdown `cmd/api`. verify.sh green (backend 4/4). Satisfies AC-GATE-1..3.
 - **2026-07-24** — [BLOCKED→RESOLVED] Node/npm was not installed; user approved Homebrew install. Unblocked all TS components.
