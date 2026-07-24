@@ -67,7 +67,7 @@ node_pm() {
 has_script() {
   local dir="$1" name="$2"
   [ -f "${dir}/package.json" ] || return 1
-  node -e "process.exit(((require('${dir}/package.json').scripts)||{})['${name}']?0:1)" 2>/dev/null
+  node -e "process.exit(((require('./${dir}/package.json').scripts)||{})['${name}']?0:1)" 2>/dev/null
 }
 
 # run an npm script if it exists, else skip

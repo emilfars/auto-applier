@@ -104,7 +104,7 @@ Test-type conventions:
 |---|---|---|---|
 | AC-NFR-SEC | CV/PII encrypted at rest; HTTPS enforced | integration (AC-CV-1b) + config test rejecting plain HTTP | ⬜ |
 | AC-NFR-PRIV | Consent captured at signup; deletion + export available | integration (AC-AUTH-5) + signup consent test | ⬜ |
-| AC-NFR-I18N | UI strings resolve for `id-ID` and `en`; currency defaults to IDR | unit: no missing-key in either locale bundle | ⬜ |
+| AC-NFR-I18N | UI strings resolve for `id-ID` and `en`; currency defaults to IDR | unit: no missing-key in either locale bundle | ✅ |
 | AC-NFR-SCALE | System handles seed of 50k listings without feed regression | perf stage | ⬜ |
 
 ---
