@@ -30,7 +30,11 @@ export const genericMap: PortalMap = generic;
 export function getMapForHost(hostname: string): PortalMap {
   const host = hostname.toLowerCase();
   for (const map of portalMaps) {
-    if (map.hosts.some((h) => host === h || host.endsWith(`.${h}`) || host.endsWith(h))) {
+    // Exact host, or a subdomain on a dot boundary. A bare suffix match is
+    // deliberately NOT allowed: a look-alike like "notlever.co" must fall
+    // through to the generic (low-confidence) map so its PII lands as
+    // `uncertain`, never auto-commit-eligible `filled` (safety split).
+    if (map.hosts.some((h) => host === h || host.endsWith(`.${h}`))) {
       return map;
     }
   }

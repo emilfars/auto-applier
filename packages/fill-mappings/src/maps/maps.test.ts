@@ -86,6 +86,22 @@ describe("getMapForHost resolves the right map", () => {
     expect(getMapForHost("careers.some-random-company.co.id").id).toBe(generic.id);
   });
 
+  it("does NOT match look-alike / typosquat hosts (safety split)", () => {
+    // Bare-suffix look-alikes must fall through to the generic map so their PII
+    // lands as `uncertain`, never as auto-commit-eligible `filled`.
+    expect(getMapForHost("notlever.co").id).toBe(generic.id);
+    expect(getMapForHost("fakejobstreet.com").id).toBe(generic.id);
+    expect(getMapForHost("phishingglints.com").id).toBe(generic.id);
+    expect(getMapForHost("evil-greenhouse.io").id).toBe(generic.id);
+    expect(getMapForHost("kalibrr.com.evil.example").id).toBe(generic.id);
+  });
+
+  it("still matches legitimate subdomains on a dot boundary", () => {
+    expect(getMapForHost("careers.lever.co").id).toBe(lever.id);
+    expect(getMapForHost("www.glints.com").id).toBe(glints.id);
+    expect(getMapForHost("boards.greenhouse.io").id).toBe(greenhouse.id);
+  });
+
   it("is case-insensitive", () => {
     expect(getMapForHost("BOARDS.GREENHOUSE.IO").id).toBe(greenhouse.id);
   });
