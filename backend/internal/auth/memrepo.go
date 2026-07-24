@@ -99,6 +99,35 @@ func (m *MemoryRepo) SetConsent(_ context.Context, userID string, at time.Time) 
 	return nil
 }
 
+// DeleteUser removes the user and every token/session referencing them,
+// mirroring the ON DELETE CASCADE the Postgres schema applies.
+func (m *MemoryRepo) DeleteUser(_ context.Context, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	delete(m.users, userID)
+	delete(m.byEmail, strings.ToLower(u.Email))
+	for tok, uid := range m.verifs {
+		if uid == userID {
+			delete(m.verifs, tok)
+		}
+	}
+	for tok, s := range m.sessions {
+		if s.UserID == userID {
+			delete(m.sessions, tok)
+		}
+	}
+	for tok, rec := range m.resets {
+		if rec.userID == userID {
+			delete(m.resets, tok)
+		}
+	}
+	return nil
+}
+
 func (m *MemoryRepo) UpdatePassword(_ context.Context, userID, passwordHash string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

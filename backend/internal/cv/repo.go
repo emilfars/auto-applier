@@ -29,4 +29,8 @@ type Repo interface {
 	CreateFile(ctx context.Context, f File) (File, error)
 	FileByID(ctx context.Context, id string) (File, error)
 	FilesByUser(ctx context.Context, userID string) ([]File, error)
+	// DeleteByUser removes all of a user's CV metadata rows. Idempotent
+	// (right to erasure, AC-AUTH-5). Callers must delete the referenced
+	// objects from storage separately.
+	DeleteByUser(ctx context.Context, userID string) error
 }

@@ -34,6 +34,10 @@ type Repo interface {
 	SetVerified(ctx context.Context, userID string) error
 	SetConsent(ctx context.Context, userID string, at time.Time) error
 	UpdatePassword(ctx context.Context, userID, passwordHash string) error
+	// DeleteUser removes the account and all rows that reference it
+	// (sessions, verifications, resets, profile, cv metadata). Right to
+	// erasure under UU PDP (AC-AUTH-5).
+	DeleteUser(ctx context.Context, userID string) error
 
 	CreateVerification(ctx context.Context, userID, token string) error
 	ConsumeVerification(ctx context.Context, token string) (userID string, err error)

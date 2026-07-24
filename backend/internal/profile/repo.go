@@ -55,4 +55,7 @@ func (p Profile) CanArm() bool { return p.Confirmed }
 type Repo interface {
 	Get(ctx context.Context, userID string) (Profile, error)
 	Save(ctx context.Context, p Profile) (Profile, error)
+	// Delete removes a user's profile. It is idempotent: deleting a
+	// non-existent profile is not an error (right to erasure, AC-AUTH-5).
+	Delete(ctx context.Context, userID string) error
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -78,6 +79,30 @@ func (s *Service) Routes() http.Handler {
 		mux.HandleFunc("POST /cv/{id}/parse", s.handleParse)
 	}
 	return mux
+}
+
+// FilesByUser returns a user's CV file metadata (for data export, AC-AUTH-5).
+func (s *Service) FilesByUser(ctx context.Context, userID string) ([]File, error) {
+	return s.repo.FilesByUser(ctx, userID)
+}
+
+// DeleteUserFiles erases all of a user's CV data: the encrypted objects in
+// storage and their metadata rows (right to erasure, AC-AUTH-5). Objects are
+// removed before metadata so a mid-way failure never orphans a stored blob.
+func (s *Service) DeleteUserFiles(ctx context.Context, userID string) error {
+	files, err := s.repo.FilesByUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("list cv files: %w", err)
+	}
+	for _, f := range files {
+		if err := s.store.Delete(ctx, f.ObjectKey); err != nil {
+			return fmt.Errorf("delete cv object %s: %w", f.ObjectKey, err)
+		}
+	}
+	if err := s.repo.DeleteByUser(ctx, userID); err != nil {
+		return fmt.Errorf("delete cv metadata: %w", err)
+	}
+	return nil
 }
 
 type fileResp struct {

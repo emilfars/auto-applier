@@ -32,3 +32,10 @@ func (m *MemoryRepo) Save(_ context.Context, p Profile) (Profile, error) {
 	m.profiles[p.UserID] = p
 	return p, nil
 }
+
+func (m *MemoryRepo) Delete(_ context.Context, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.profiles, userID)
+	return nil
+}

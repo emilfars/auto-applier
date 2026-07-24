@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/auto-applier/backend/internal/account"
 	"github.com/auto-applier/backend/internal/api"
 	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/cv"
@@ -37,7 +38,8 @@ func main() {
 	pool, closeDB := openDB()
 	defer closeDB()
 
-	authSvc := auth.NewService(newAuthRepo(pool), auth.Config{
+	authRepo := newAuthRepo(pool)
+	authSvc := auth.NewService(authRepo, auth.Config{
 		TrustedProxyHops: intEnv("TRUSTED_PROXY_HOPS", 0),
 	})
 
@@ -46,12 +48,18 @@ func main() {
 	// Parsing (AC-CV-2) uses a hosted resume-parse API when CV_PARSER_URL is
 	// set; otherwise it degrades to 503 (upload/edit still work fully).
 	// Profile edit + confirm-before-apply gate (AC-CV-3/4/5).
-	profileSvc := profile.NewService(newProfileRepo(pool), time.Now)
+	profileRepo := newProfileRepo(pool)
+	profileSvc := profile.NewService(profileRepo, time.Now)
 	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
 
 	cvSvc := cv.NewService(cv.NewMemoryRepo(), newCVStore(), time.Now).
 		WithParsing(newCVParser(), profileSvc)
 	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
+
+	// Data-rights endpoints (AC-AUTH-5 / UU PDP): export all user data and
+	// delete the account with every piece of PII it owns.
+	accountSvc := account.NewService(authRepo, profileRepo, cvSvc)
+	gatedAccount := authSvc.RequireVerified(accountSvc.Routes())
 
 	// Public job feed (FEED-1..3): browsable before signup, stated-pay only.
 	// Backed by an in-memory job store for now; the ingestion scheduler that
@@ -65,6 +73,8 @@ func main() {
 			api.Mount{Pattern: "/cv", Handler: gatedCV},
 			api.Mount{Pattern: "/profile", Handler: gatedProfile},
 			api.Mount{Pattern: "/profile/", Handler: gatedProfile},
+			api.Mount{Pattern: "/account", Handler: gatedAccount},
+			api.Mount{Pattern: "/account/", Handler: gatedAccount},
 			api.Mount{Pattern: "/feed", Handler: feedSvc.Routes()},
 		), api.SecurityConfig{EnforceHTTPS: boolEnv("ENFORCE_HTTPS", false)}),
 		ReadHeaderTimeout: 5 * time.Second,

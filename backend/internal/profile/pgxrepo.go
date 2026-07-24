@@ -87,6 +87,15 @@ func (r *PgxRepo) Save(ctx context.Context, p Profile) (Profile, error) {
 	return out, nil
 }
 
+// Delete removes a user's profile. Idempotent: a missing profile is not an
+// error (right to erasure, AC-AUTH-5).
+func (r *PgxRepo) Delete(ctx context.Context, userID string) error {
+	if _, err := r.db.Exec(ctx, `DELETE FROM profiles WHERE user_id = $1`, userID); err != nil {
+		return fmt.Errorf("delete profile: %w", err)
+	}
+	return nil
+}
+
 // jsonbArray coerces an empty raw message to an empty JSON array so the jsonb
 // column never receives invalid input.
 func jsonbArray(raw json.RawMessage) string {

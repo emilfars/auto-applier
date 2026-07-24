@@ -52,3 +52,14 @@ func (m *MemoryRepo) FilesByUser(_ context.Context, userID string) ([]File, erro
 	}
 	return out, nil
 }
+
+func (m *MemoryRepo) DeleteByUser(_ context.Context, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, f := range m.files {
+		if f.UserID == userID {
+			delete(m.files, id)
+		}
+	}
+	return nil
+}

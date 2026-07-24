@@ -96,6 +96,12 @@ func (r *PgxRepo) SetConsent(ctx context.Context, userID string, at time.Time) e
 		`UPDATE users SET consent_at = $2, updated_at = now() WHERE id = $1`, userID, at)
 }
 
+// DeleteUser removes the account row. Dependent rows (sessions, verifications,
+// resets, profile, cv metadata) are removed by ON DELETE CASCADE.
+func (r *PgxRepo) DeleteUser(ctx context.Context, userID string) error {
+	return r.execAffecting(ctx, `DELETE FROM users WHERE id = $1`, userID)
+}
+
 func (r *PgxRepo) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
 	return r.execAffecting(ctx,
 		`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, userID, passwordHash)
