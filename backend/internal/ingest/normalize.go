@@ -17,6 +17,7 @@ var (
 	nonAlnumRe  = regexp.MustCompile(`[^a-z0-9]+`)
 	floatTokRe  = regexp.MustCompile(`\d+(?:[.,]\d+)?`)
 	intTokRe    = regexp.MustCompile(`\d[\d.,]*`)
+	jtRe        = regexp.MustCompile(`\d\s*jt\b`)
 	remoteWords = []string{"remote", "wfh", "work from home", "kerja dari rumah", "wfa", "anywhere"}
 )
 
@@ -191,7 +192,7 @@ func ParseSalaryIDR(text string) (*int64, *int64) {
 		}
 	}
 
-	millions := strings.Contains(s, "juta") || regexp.MustCompile(`\d\s*jt\b`).MatchString(s)
+	millions := strings.Contains(s, "juta") || jtRe.MatchString(s)
 
 	var vals []int64
 	if millions {
