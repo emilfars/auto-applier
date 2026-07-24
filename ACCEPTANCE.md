@@ -27,18 +27,18 @@ Test-type conventions:
 | AC-GATE-1 | Backend compiles | `go build ./...` in `/backend` | ✅ |
 | AC-GATE-2 | Backend vet + format clean | `go vet ./...`, `gofmt -l` empty | ✅ |
 | AC-GATE-3 | All Go tests pass | `go test ./...` | ✅ |
-| AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | ⬜ |
+| AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | ✅ |
 | AC-GATE-5 | TS components lint clean | `npm run lint` per package | ⬜ |
-| AC-GATE-6 | TS unit tests pass | `npm run test` per package | ⬜ |
-| AC-GATE-7 | All buildable components build | `npm run build` per package | ⬜ |
-| AC-GATE-8 | `verify.sh` exits 0 | `./scripts/verify.sh; echo $?` == 0 | ✅ (0 components) |
+| AC-GATE-6 | TS unit tests pass | `npm run test` per package | ✅ |
+| AC-GATE-7 | All buildable components build | `npm run build` per package | ✅ |
+| AC-GATE-8 | `verify.sh` exits 0 | `./scripts/verify.sh; echo $?` == 0 | ✅ (14 checks) |
 
 ## 0.1 Prime-directive guard (NON-NEGOTIABLE)
 | Test ID | Criteria | Verification | Status |
 |---|---|---|---|
 | AC-SAFE-1 | Extension code never calls `form.submit()` / `.click()` on a submit control / dispatches a synthetic submit on external pages | static scan test in `/extension` + `/packages/fill-mappings` asserts no submit-triggering APIs in fill paths (grep-based unit test, allowlist-free) | ✅ |
 | AC-SAFE-2 | Fill result exposes per-field state `filled | uncertain | empty`; uncertain fields are never reported as filled | unit test on fill engine | ✅ |
-| AC-SAFE-3 | No backend endpoint performs application submission to a third-party portal | integration test: route table contains no submit-proxy; code scan test | ⬜ |
+| AC-SAFE-3 | No backend endpoint performs application submission to a third-party portal | integration test: route table contains no submit-proxy; code scan test | ✅ |
 
 ---
 
