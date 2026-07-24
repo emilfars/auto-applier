@@ -2,6 +2,7 @@ package cv
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -32,11 +33,21 @@ var (
 	magicZIP = []byte{0x50, 0x4B, 0x03, 0x04} // DOCX is a ZIP container
 )
 
-// Service exposes the CV upload API over a Repo and an encrypted ObjectStore.
+// ProfileWriter applies a parsed CV into a user's profile. It is implemented by
+// the profile package. Parsing writes the fields but never confirms the profile
+// — the user must review and confirm before any fill flow is armed (AC-CV-5).
+type ProfileWriter interface {
+	ApplyParsedCV(ctx context.Context, userID string, parsed ParsedCV) error
+}
+
+// Service exposes the CV upload + parse API over a Repo and an encrypted
+// ObjectStore.
 type Service struct {
-	repo  Repo
-	store storage.ObjectStore
-	now   func() time.Time
+	repo     Repo
+	store    storage.ObjectStore
+	now      func() time.Time
+	parser   Parser
+	profiles ProfileWriter
 }
 
 // NewService builds a CV service. store should be an encrypted store in
@@ -48,12 +59,24 @@ func NewService(repo Repo, store storage.ObjectStore, now func() time.Time) *Ser
 	return &Service{repo: repo, store: store, now: now}
 }
 
+// WithParsing enables the parse endpoint (AC-CV-2). parser turns CV bytes into
+// structured data; profiles persists the result into the user's profile
+// (leaving it unconfirmed for review). Returns the service for chaining.
+func (s *Service) WithParsing(parser Parser, profiles ProfileWriter) *Service {
+	s.parser = parser
+	s.profiles = profiles
+	return s
+}
+
 // Routes returns the CV HTTP handler. Callers must wrap it with auth
 // middleware (RequireVerified) so an authenticated user is in context.
 func (s *Service) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /cv", s.handleUpload)
 	mux.HandleFunc("GET /cv", s.handleList)
+	if s.parser != nil {
+		mux.HandleFunc("POST /cv/{id}/parse", s.handleParse)
+	}
 	return mux
 }
 
@@ -146,6 +169,46 @@ func (s *Service) handleList(w http.ResponseWriter, r *http.Request) {
 		out = append(out, toResp(f))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"files": out})
+}
+
+// handleParse parses a previously-uploaded CV and writes the structured result
+// into the user's profile (AC-CV-2). The profile is left unconfirmed so the
+// user reviews the parsed data before it can be used (AC-CV-3/5). Parsing is an
+// assist, never authoritative.
+func (s *Service) handleParse(w http.ResponseWriter, r *http.Request) {
+	u, ok := auth.UserFrom(r.Context())
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	rec, err := s.repo.FileByID(r.Context(), r.PathValue("id"))
+	// A file that doesn't exist or belongs to another user is reported as 404
+	// so ownership is not leaked.
+	if err != nil || rec.UserID != u.ID {
+		writeErr(w, http.StatusNotFound, "cv not found")
+		return
+	}
+	data, err := s.store.Get(r.Context(), rec.ObjectKey)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "read error")
+		return
+	}
+	parsed, err := s.parser.Parse(r.Context(), data, rec.Filename, rec.ContentType)
+	if err != nil {
+		if errors.Is(err, ErrParserUnavailable) {
+			writeErr(w, http.StatusServiceUnavailable, "cv parsing is not available")
+			return
+		}
+		writeErr(w, http.StatusBadGateway, "parse failed")
+		return
+	}
+	if s.profiles != nil {
+		if err := s.profiles.ApplyParsedCV(r.Context(), u.ID, parsed); err != nil {
+			writeErr(w, http.StatusInternalServerError, "persist error")
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, parsed)
 }
 
 // detectType validates the upload by both extension and magic bytes, returning

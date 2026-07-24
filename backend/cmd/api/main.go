@@ -38,12 +38,15 @@ func main() {
 
 	// CV uploads are stored encrypted at rest (AC-CV-1b) and gated behind a
 	// verified session. Object-store backend is in-memory until S3 lands.
-	cvSvc := cv.NewService(cv.NewMemoryRepo(), newCVStore(), time.Now)
-	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
-
+	// Parsing (AC-CV-2) uses a hosted resume-parse API when CV_PARSER_URL is
+	// set; otherwise it degrades to 503 (upload/edit still work fully).
 	// Profile edit + confirm-before-apply gate (AC-CV-3/4/5).
 	profileSvc := profile.NewService(newProfileRepo(pool), time.Now)
 	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
+
+	cvSvc := cv.NewService(cv.NewMemoryRepo(), newCVStore(), time.Now).
+		WithParsing(newCVParser(), profileSvc)
+	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
 
 	srv := &http.Server{
 		Addr: addr,
@@ -126,6 +129,18 @@ func newCVStore() storage.ObjectStore {
 		log.Fatalf("cv store: %v", err)
 	}
 	return enc
+}
+
+// newCVParser returns the hosted CV parser when CV_PARSER_URL is set, else a
+// disabled parser so the parse endpoint responds 503 without breaking upload or
+// profile editing.
+func newCVParser() cv.Parser {
+	url := os.Getenv("CV_PARSER_URL")
+	if url == "" {
+		log.Println("CV_PARSER_URL not set; CV parsing disabled")
+		return cv.NewDisabledParser()
+	}
+	return cv.NewHostedParser(url, os.Getenv("CV_PARSER_API_KEY"), nil)
 }
 
 func decodeCVKey() []byte {

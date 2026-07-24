@@ -1,0 +1,29 @@
+{
+  "full_name": "Budi Santoso",
+  "email": "budi.santoso@gmail.com",
+  "phone": "+6281234567890",
+  "education": [
+    {
+      "institution": "Universitas Indonesia",
+      "degree": "Sarjana Teknik",
+      "field": "Teknik Informatika",
+      "start_year": "2014",
+      "end_year": "2018"
+    }
+  ],
+  "work_history": [
+    {
+      "company": "PT Tokopedia",
+      "title": "Backend Engineer",
+      "start_date": "2019",
+      "end_date": ""
+    },
+    {
+      "company": "PT Gojek",
+      "title": "Software Engineer Intern",
+      "start_date": "2018",
+      "end_date": "2019"
+    }
+  ],
+  "skills": ["Docker", "Go", "PostgreSQL", "React"]
+}

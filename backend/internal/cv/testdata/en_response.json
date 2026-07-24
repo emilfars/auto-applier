@@ -1,0 +1,25 @@
+{
+  "data": {
+    "name": "Jane  Doe",
+    "email": "jane.doe@example.com ",
+    "phone": "+62 811 2233 4455",
+    "education": [
+      {
+        "institution": "Institut Teknologi Bandung",
+        "degree": "Bachelor of Science",
+        "field_of_study": "Computer Science",
+        "start_year": "2012",
+        "end_year": "2016"
+      }
+    ],
+    "work_history": [
+      {
+        "company": "Traveloka",
+        "title": "Data Analyst",
+        "start_date": "2017",
+        "end_date": "Present"
+      }
+    ],
+    "skills": ["Python", "SQL", "python", "Tableau"]
+  }
+}
