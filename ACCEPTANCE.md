@@ -45,12 +45,12 @@ Test-type conventions:
 ## 1. Accounts (M1)
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
-| AC-AUTH-1 | AUTH-1 | Register with email+password creates unverified user; verification token issued | integration: POST /auth/register → 201, user row `verified=false`, token persisted | ⬜ |
-| AC-AUTH-1b | AUTH-1 | Unverified user cannot access gated routes | integration: gated GET → 403 pre-verify, 200 post-verify | ⬜ |
+| AC-AUTH-1 | AUTH-1 | Register with email+password creates unverified user; verification token issued | integration: POST /auth/register → 201, user row `verified=false`, token persisted | ✅ |
+| AC-AUTH-1b | AUTH-1 | Unverified user cannot access gated routes | integration: gated GET → 403 pre-verify, 200 post-verify | ✅ |
 | AC-AUTH-2 | AUTH-2 | Google OAuth callback creates/links account and issues session | integration with mocked OIDC provider | ⬜ |
-| AC-AUTH-3 | AUTH-3 | Password reset: request → token → set new password → old password rejected | integration flow | ⬜ |
-| AC-AUTH-4 | AUTH-4 | Login issues session token; logout invalidates it; token expiry enforced | integration | ⬜ |
-| AC-AUTH-4b | AUTH-4 | Auth endpoints rate-limited after N failures | integration: N+1th attempt → 429 | ⬜ |
+| AC-AUTH-3 | AUTH-3 | Password reset: request → token → set new password → old password rejected | integration flow | ✅ |
+| AC-AUTH-4 | AUTH-4 | Login issues session token; logout invalidates it; token expiry enforced | integration | ✅ |
+| AC-AUTH-4b | AUTH-4 | Auth endpoints rate-limited after N failures | integration: N+1th attempt → 429 | ✅ |
 
 ## 2. CV & Profile (M2)
 | Test ID | ID | Criteria | Verification | Status |

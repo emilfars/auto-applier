@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/auto-applier/backend/internal/api"
+	"github.com/auto-applier/backend/internal/auth"
 )
 
 func main() {
@@ -20,9 +21,13 @@ func main() {
 		addr = ":8080"
 	}
 
+	// NOTE (M1): auth currently uses an in-memory repo. A pgx-backed Repo +
+	// startup migration apply lands with the M1 DB-integration sub-task.
+	authSvc := auth.NewService(auth.NewMemoryRepo(), auth.Config{})
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           api.NewRouter(),
+		Handler:           api.NewRouter(authSvc.Routes()),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -20,7 +20,7 @@ func TestHealthEndpoint(t *testing.T) {
 		{name: "wrong method 405", method: http.MethodPost, path: "/healthz", wantStatus: http.StatusMethodNotAllowed},
 	}
 
-	router := NewRouter()
+	router := NewRouter(nil)
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

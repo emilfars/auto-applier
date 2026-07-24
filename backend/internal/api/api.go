@@ -29,9 +29,13 @@ func Health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// NewRouter builds the HTTP handler for the API.
-func NewRouter() *http.ServeMux {
+// NewRouter builds the HTTP handler for the API, optionally mounting the auth
+// service. Passing nil for authHandler mounts only the health endpoint.
+func NewRouter(authHandler http.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", Health)
+	if authHandler != nil {
+		mux.Handle("/auth/", authHandler)
+	}
 	return mux
 }

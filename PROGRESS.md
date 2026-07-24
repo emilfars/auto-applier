@@ -5,7 +5,7 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-07-24
-**Current phase:** M0 — Foundations (near complete). Health API, web+i18n shell, DB migrations, encrypted object storage, docker-compose all landed.
+**Current phase:** M1 — Accounts (in progress). Email/password auth (register/verify/login/logout/reset + rate limit) landed against in-memory repo; OAuth + pgx repo pending.
 **Verify gate:** `./scripts/verify.sh` → green (backend 4/4, web 4/4; extension/fill-mappings/android skipped).
 
 ---
@@ -25,8 +25,8 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 
 | Milestone | Scope | Status | Notes |
 |---|---|---|---|
-| M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | 🟡 | Health API, web+i18n shell, embedded DB migrations, AES-256-GCM object storage, docker-compose (API+DB+web) all landed + green. Remaining: apply migrations against live PG (deferred to M1 integration). |
-| M1 Accounts | AUTH-1..4 | ⬜ | |
+| M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | ✅ | Health API, web+i18n shell, embedded DB migrations, AES-256-GCM object storage, docker-compose (API+DB+web). |
+| M1 Accounts | AUTH-1..4 | 🟡 | AUTH-1/1b/3/4/4b ✅ (email/password register+verify, login/logout sessions, reset, rate limit) on in-memory repo. AUTH-2 (OAuth) + pgx-backed repo pending. |
 | M2 CV & profile | CV-1..4 + confirm-before-apply gate | ⬜ | |
 | M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ⬜ | |
 | M4 Extension autofill | fill-mappings, APP-1,2,4,5 | ⬜ | **End of MVP** |
@@ -58,9 +58,9 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M0 near-complete. Landed: health API, web+i18n shell, embedded DB migrations, AES-256-GCM encrypted object storage (AC-CV-1b groundwork), docker-compose (Postgres+API+web) validated via `docker compose config`. verify.sh green (8/8).
-- **Next:** M1 Accounts (AUTH-1..4) — needs pgx DB layer + live-Postgres integration tests (apply migrations on startup), register/verify/login/logout, rate limiting. This is where DB wiring + integration testing lands.
-- **Blocked:** none. (Env note: `npm` uses an allow-scripts policy — run `npm approve-scripts esbuild` after installs so vite/vitest native binaries build.)
+- **Now:** M1 email/password auth complete (AUTH-1/1b/3/4/4b ✅). PBKDF2-SHA256 hashing (stdlib), opaque session tokens, verification + reset tokens, fixed-window login rate limiter, `RequireVerified` middleware (401/403). In-memory `Repo` behind an interface; HTTP integration tests green; smoke-tested against the running server. verify.sh green (8/8).
+- **Next:** AUTH-2 Google OAuth (mocked OIDC) and pgx-backed `Repo` + startup migration apply (live-Postgres integration test, guarded to skip without DB). Then M2 CV & profile.
+- **Blocked:** none. (Env note: `npm` allow-scripts policy — run `npm approve-scripts esbuild` after installs.)
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -77,6 +77,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-07-24** — [DONE] M1 email/password auth (AUTH-1/1b/3/4/4b): `/backend/internal/auth` — PBKDF2-SHA256 hashing (stdlib crypto/pbkdf2), opaque tokens, in-memory `Repo` behind interface, fixed-window login rate limiter, `RequireVerified` middleware (401 no session / 403 unverified). Endpoints: register, verify, login, logout, me, password-reset request/confirm. Mounted in `cmd/api`. HTTP integration tests green + server smoke test. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M0 object storage + docker-compose: `/backend/internal/storage` ObjectStore + in-memory backend + AES-256-GCM `EncryptedStore` (encryption at rest); tests cover round-trip, at-rest ciphertext≠plaintext (AC-CV-1b), tamper detection, missing key. Added Dockerfiles (backend distroless, web nginx) + root `docker-compose.yml` (Postgres+API+web), validated via `docker compose config`. README documents dev + gate. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M0 DB migrations: added `/backend/internal/db` embedded SQL migrations (`0001_init` up/down) for users, profiles, cv_files, jobs, applications — Jabodetabek-first, stated-salary-only (no estimated columns), `profiles.confirmed` gate, `applications.status` never defaults to 'submitted' (prime directive). `LoadMigrations()` validates contiguous versions + up/down pairing; deterministic offline Go tests assert invariants. verify.sh green (8/8).
 - **2026-07-24** — [DONE] M0 web shell: provisioned Node 26 + npm 11 (Homebrew). Scaffolded `/web` Vite+React+TS with dependency-light i18n module (id-ID default + en, IDR currency) and Vitest locale test (AC-NFR-I18N ✅: no missing/stray keys, IDR default). Fixed `scripts/verify.sh` `has_script` bug (require needed `./` prefix; was silently skipping present Node components). Aligned vite→^5 to dedupe with vitest. verify.sh green (8/8).
