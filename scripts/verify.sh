@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+#
+# verify.sh — The Deterministic Feedback Gate for Auto Applier.
+#
+# Detects which components exist and runs their checks. Components that do not
+# exist yet are skipped (not failed), so this is safe to run from day one and
+# grows automatically as the repo fills in.
+#
+# Exit 0 = all present components passed. Non-zero = at least one check failed.
+#
+# Usage:
+#   ./scripts/verify.sh          # run all detected component checks
+#   VERBOSE=1 ./scripts/verify.sh
+#
+set -euo pipefail
+
+# --- locate repo root (script lives in /scripts) ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${ROOT_DIR}"
+
+# --- pretty output ---
+if [ -t 1 ]; then
+  C_RESET=$'\033[0m'; C_RED=$'\033[31m'; C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'; C_BLUE=$'\033[34m'; C_BOLD=$'\033[1m'
+else
+  C_RESET=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""; C_BOLD=""
+fi
+
+FAILED=0
+RAN=0
+SKIPPED=0
+declare -a RESULTS
+
+section() { printf "\n%s==> %s%s\n" "${C_BOLD}${C_BLUE}" "$1" "${C_RESET}"; }
+pass()    { RAN=$((RAN+1));     RESULTS+=("${C_GREEN}PASS${C_RESET}  $1"); printf "  %sPASS%s %s\n" "${C_GREEN}" "${C_RESET}" "$1"; }
+skip()    { SKIPPED=$((SKIPPED+1)); RESULTS+=("${C_YELLOW}SKIP${C_RESET}  $1"); printf "  %sSKIP%s %s\n" "${C_YELLOW}" "${C_RESET}" "$1"; }
+fail()    { RAN=$((RAN+1)); FAILED=1; RESULTS+=("${C_RED}FAIL${C_RESET}  $1"); printf "  %sFAIL%s %s\n" "${C_RED}" "${C_RESET}" "$1"; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# run <label> <cmd...>: run a command, record pass/fail (never aborts the script).
+run() {
+  local label="$1"; shift
+  if [ "${VERBOSE:-0}" = "1" ]; then
+    if "$@"; then pass "${label}"; else fail "${label}"; fi
+  else
+    if "$@" >/tmp/verify_out.$$ 2>&1; then
+      pass "${label}"
+    else
+      fail "${label}"
+      sed 's/^/      | /' /tmp/verify_out.$$ || true
+    fi
+    rm -f /tmp/verify_out.$$
+  fi
+}
+
+# pick the right node package-manager run command for a dir
+node_pm() {
+  local dir="$1"
+  if [ -f "${dir}/pnpm-lock.yaml" ] && have pnpm; then echo "pnpm"; 
+  elif [ -f "${dir}/yarn.lock" ] && have yarn; then echo "yarn";
+  else echo "npm"; fi
+}
+
+# has_script <dir> <script>: true if package.json defines the npm script.
+has_script() {
+  local dir="$1" name="$2"
+  [ -f "${dir}/package.json" ] || return 1
+  node -e "process.exit(((require('${dir}/package.json').scripts)||{})['${name}']?0:1)" 2>/dev/null
+}
+
+# run an npm script if it exists, else skip
+node_script() {
+  local dir="$1" name="$2" label="$3"
+  if has_script "${dir}" "${name}"; then
+    local pm; pm="$(node_pm "${dir}")"
+    run "${label}" bash -c "cd '${dir}' && ${pm} run ${name} --if-present"
+  else
+    skip "${label} (no '${name}' script)"
+  fi
+}
+
+check_node_component() {
+  local dir="$1" title="$2"
+  section "${title}  (${dir})"
+  if [ ! -d "${dir}" ]; then skip "${title} — directory not present"; return; fi
+  if [ ! -f "${dir}/package.json" ]; then skip "${title} — no package.json"; return; fi
+  if ! have node; then fail "${title} — node not installed but ${dir}/package.json exists"; return; fi
+  if [ ! -d "${dir}/node_modules" ]; then
+    skip "${title} — dependencies not installed (run install in ${dir})"
+    return
+  fi
+  node_script "${dir}" lint       "${title}: lint"
+  node_script "${dir}" typecheck  "${title}: typecheck"
+  node_script "${dir}" test       "${title}: test"
+  node_script "${dir}" build      "${title}: build"
+}
+
+# ---------------------------------------------------------------------------
+# Backend (Go)
+# ---------------------------------------------------------------------------
+section "Backend (Go)  (backend/)"
+if [ -d backend ] && [ -f backend/go.mod ]; then
+  if have go; then
+    run "backend: go build"  bash -c "cd backend && go build ./..."
+    run "backend: go vet"    bash -c "cd backend && go vet ./..."
+    if [ -n "$(cd backend && gofmt -l . 2>/dev/null)" ]; then
+      fail "backend: gofmt (unformatted files below)"
+      (cd backend && gofmt -l . | sed 's/^/      | /')
+    else
+      pass "backend: gofmt"
+    fi
+    run "backend: go test"   bash -c "cd backend && go test ./..."
+  else
+    fail "backend: Go not installed but backend/go.mod exists"
+  fi
+else
+  skip "backend — not present (no backend/go.mod)"
+fi
+
+# ---------------------------------------------------------------------------
+# Node/TS components
+# ---------------------------------------------------------------------------
+check_node_component "packages/fill-mappings" "Fill mappings"
+check_node_component "web"                     "Web app"
+check_node_component "extension"               "Chrome extension"
+
+# ---------------------------------------------------------------------------
+# Android (fast-follow) — only if a Gradle project exists
+# ---------------------------------------------------------------------------
+section "Android  (android/)"
+if [ -d android ] && { [ -f android/gradlew ] || [ -f android/build.gradle ] || [ -f android/build.gradle.kts ]; }; then
+  if [ -f android/gradlew ]; then
+    run "android: gradle build" bash -c "cd android && ./gradlew --no-daemon assembleDebug -q"
+  else
+    skip "android — no gradlew wrapper yet"
+  fi
+else
+  skip "android — not present"
+fi
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+section "Summary"
+for line in "${RESULTS[@]:-}"; do
+  [ -n "${line}" ] && printf "  %s\n" "${line}"
+done
+printf "\n  ran=%d  skipped=%d  failed=%s\n" "${RAN}" "${SKIPPED}" "$([ ${FAILED} -eq 0 ] && echo 0 || echo yes)"
+
+if [ "${RAN}" -eq 0 ]; then
+  printf "\n%s⚠  No components to verify yet — nothing built.%s\n" "${C_YELLOW}" "${C_RESET}"
+  printf "   This is expected before implementation starts; the gate is green.\n"
+fi
+
+if [ ${FAILED} -ne 0 ]; then
+  printf "\n%sx VERIFY FAILED - fix the checks above before marking work done.%s\n" "${C_RED}${C_BOLD}" "${C_RESET}"
+  exit 1
+fi
+
+printf "\n%s✓ VERIFY PASSED%s\n" "${C_GREEN}${C_BOLD}" "${C_RESET}"
+exit 0
