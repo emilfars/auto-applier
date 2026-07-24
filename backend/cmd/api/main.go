@@ -17,6 +17,7 @@ import (
 	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/cv"
 	"github.com/auto-applier/backend/internal/db"
+	"github.com/auto-applier/backend/internal/profile"
 	"github.com/auto-applier/backend/internal/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -27,21 +28,29 @@ func main() {
 		addr = ":8080"
 	}
 
-	// With DATABASE_URL set, auth persists to Postgres (migrations applied at
-	// startup). Without it, an in-memory repo backs local/dev runs.
-	authRepo, closeRepo := newAuthRepo()
-	defer closeRepo()
-	authSvc := auth.NewService(authRepo, auth.Config{})
+	// With DATABASE_URL set, data persists to Postgres (migrations applied at
+	// startup) and the pool is shared across repos. Without it, in-memory repos
+	// back local/dev runs.
+	pool, closeDB := openDB()
+	defer closeDB()
+
+	authSvc := auth.NewService(newAuthRepo(pool), auth.Config{})
 
 	// CV uploads are stored encrypted at rest (AC-CV-1b) and gated behind a
 	// verified session. Object-store backend is in-memory until S3 lands.
 	cvSvc := cv.NewService(cv.NewMemoryRepo(), newCVStore(), time.Now)
 	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
 
+	// Profile edit + confirm-before-apply gate (AC-CV-3/4/5).
+	profileSvc := profile.NewService(newProfileRepo(pool), time.Now)
+	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
+
 	srv := &http.Server{
 		Addr: addr,
 		Handler: api.NewRouter(authSvc.Routes(),
 			api.Mount{Pattern: "/cv", Handler: gatedCV},
+			api.Mount{Pattern: "/profile", Handler: gatedProfile},
+			api.Mount{Pattern: "/profile/", Handler: gatedProfile},
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -65,14 +74,14 @@ func main() {
 	log.Println("api stopped")
 }
 
-// newAuthRepo selects the auth persistence backend. When DATABASE_URL is set it
-// connects to Postgres, applies pending migrations, and returns a pgx-backed
-// repo; otherwise it falls back to the in-memory repo for local development.
-func newAuthRepo() (auth.Repo, func()) {
+// openDB opens a shared Postgres pool and applies migrations when DATABASE_URL
+// is set, returning (nil, no-op) otherwise so callers fall back to in-memory
+// repos for local development.
+func openDB() (*pgxpool.Pool, func()) {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
-		log.Println("DATABASE_URL not set; using in-memory auth repo")
-		return auth.NewMemoryRepo(), func() {}
+		log.Println("DATABASE_URL not set; using in-memory repos")
+		return nil, func() {}
 	}
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, url)
@@ -85,7 +94,25 @@ func newAuthRepo() (auth.Repo, func()) {
 		log.Fatalf("apply migrations: %v", err)
 	}
 	log.Printf("database ready (%d migration(s) applied)", applied)
-	return auth.NewPgxRepo(pool), pool.Close
+	return pool, pool.Close
+}
+
+// newAuthRepo returns a pgx-backed auth repo when a pool is available, else the
+// in-memory repo.
+func newAuthRepo(pool *pgxpool.Pool) auth.Repo {
+	if pool == nil {
+		return auth.NewMemoryRepo()
+	}
+	return auth.NewPgxRepo(pool)
+}
+
+// newProfileRepo returns a pgx-backed profile repo when a pool is available,
+// else the in-memory repo.
+func newProfileRepo(pool *pgxpool.Pool) profile.Repo {
+	if pool == nil {
+		return profile.NewMemoryRepo()
+	}
+	return profile.NewPgxRepo(pool)
 }
 
 // newCVStore builds the CV object store. CV bytes are always encrypted at rest
