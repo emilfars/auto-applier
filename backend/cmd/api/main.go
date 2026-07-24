@@ -22,6 +22,7 @@ import (
 	"github.com/auto-applier/backend/internal/feed"
 	"github.com/auto-applier/backend/internal/ingest"
 	"github.com/auto-applier/backend/internal/profile"
+	"github.com/auto-applier/backend/internal/seed"
 	"github.com/auto-applier/backend/internal/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -65,6 +66,7 @@ func main() {
 	// Backed by an in-memory job store for now; the ingestion scheduler that
 	// populates it is wired in a later milestone (job-queue choice pending).
 	jobStore := ingest.NewMemoryStore()
+	seedFeed(jobStore)
 	feedSvc := feed.NewService(jobStore)
 
 	srv := &http.Server{
@@ -97,6 +99,24 @@ func main() {
 		log.Fatalf("shutdown error: %v", err)
 	}
 	log.Println("api stopped")
+}
+
+// seedFeed populates the in-memory job store with deterministic synthetic
+// Jabodetabek listings so the public feed is demoable without a live scraper
+// run. FEED_SEED_COUNT sets the volume (0 disables). Listings carry
+// employer-stated pay only (locked decision) — the generator never fabricates
+// an estimated salary.
+func seedFeed(store *ingest.MemoryStore) {
+	count := intEnv("FEED_SEED_COUNT", 200)
+	if count <= 0 {
+		return
+	}
+	n, err := seed.Seed(context.Background(), store, count, 1, time.Now())
+	if err != nil {
+		log.Printf("seed feed: %v", err)
+		return
+	}
+	log.Printf("seeded %d demo listing(s) into feed", n)
 }
 
 // openDB opens a shared Postgres pool and applies migrations when DATABASE_URL

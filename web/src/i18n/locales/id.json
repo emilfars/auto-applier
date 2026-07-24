@@ -3,5 +3,20 @@
   "app.tagline": "Unggah CV Anda sekali; browser mengisi setiap lamaran untuk Anda — Anda tinggal klik lamar.",
   "app.safety": "Sistem tidak pernah mengirim lamaran. Anda selalu yang menekan tombol Lamar.",
   "nav.feed": "Daftar Lowongan",
-  "nav.profile": "Profil"
+  "nav.profile": "Profil",
+  "feed.heading": "Lowongan terbaru di Jabodetabek",
+  "feed.search.placeholder": "Cari posisi atau perusahaan",
+  "feed.filter.location": "Lokasi",
+  "feed.filter.remote": "Hanya remote",
+  "feed.filter.apply": "Cari",
+  "feed.results.count": "lowongan cocok",
+  "feed.loading": "Memuat lowongan…",
+  "feed.error": "Tidak dapat memuat lowongan. Apakah backend berjalan?",
+  "feed.empty": "Tidak ada lowongan yang cocok dengan filter Anda.",
+  "feed.remote": "Remote",
+  "feed.salary.undisclosed": "Gaji tidak dicantumkan",
+  "feed.requirements": "Persyaratan",
+  "feed.experience": "thn pengalaman",
+  "feed.viewApply": "Lihat & lamar",
+  "feed.applyNote": "Membuka lowongan asli — Anda meninjau dan mengirimnya sendiri."
 }

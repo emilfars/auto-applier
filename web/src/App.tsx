@@ -1,33 +1,40 @@
 import { useState } from "react";
 import { t, locales, DEFAULT_LOCALE, type Locale } from "./i18n";
+import { JobFeed } from "./components/JobFeed";
 
 export default function App() {
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
 
   return (
-    <main>
-      <header>
-        <h1>{t(locale, "app.title")}</h1>
-        <p>{t(locale, "app.tagline")}</p>
-        <p role="note">{t(locale, "app.safety")}</p>
+    <main className="app">
+      <header className="app__header">
+        <div className="app__brand">
+          <h1>{t(locale, "app.title")}</h1>
+          <label className="app__lang">
+            Language
+            <select
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+            >
+              {locales.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="app__tagline">{t(locale, "app.tagline")}</p>
+        <p className="app__safety" role="note">
+          {t(locale, "app.safety")}
+        </p>
+        <nav className="app__nav">
+          <a href="#feed">{t(locale, "nav.feed")}</a>
+          <a href="#profile">{t(locale, "nav.profile")}</a>
+        </nav>
       </header>
-      <nav>
-        <a href="#feed">{t(locale, "nav.feed")}</a>
-        <a href="#profile">{t(locale, "nav.profile")}</a>
-      </nav>
-      <label>
-        Language
-        <select
-          value={locale}
-          onChange={(e) => setLocale(e.target.value as Locale)}
-        >
-          {locales.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
-      </label>
+
+      <JobFeed locale={locale} />
     </main>
   );
 }

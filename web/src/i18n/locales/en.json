@@ -3,5 +3,20 @@
   "app.tagline": "Upload your CV once; the browser fills every application for you — you just click apply.",
   "app.safety": "The system never submits. You always click Apply.",
   "nav.feed": "Job Feed",
-  "nav.profile": "Profile"
+  "nav.profile": "Profile",
+  "feed.heading": "Latest jobs in Jabodetabek",
+  "feed.search.placeholder": "Search title or company",
+  "feed.filter.location": "Location",
+  "feed.filter.remote": "Remote only",
+  "feed.filter.apply": "Search",
+  "feed.results.count": "matching jobs",
+  "feed.loading": "Loading jobs…",
+  "feed.error": "Could not load jobs. Is the backend running?",
+  "feed.empty": "No jobs match your filters.",
+  "feed.remote": "Remote",
+  "feed.salary.undisclosed": "Salary not disclosed",
+  "feed.requirements": "Requirements",
+  "feed.experience": "yrs experience",
+  "feed.viewApply": "View & apply",
+  "feed.applyNote": "Opens the original posting — you review and submit it yourself."
 }
