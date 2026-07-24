@@ -1,0 +1,24 @@
+scripts/verify.sh
+  s_912cd54d13a1eb::t_bdd423b9e8443d 1-157,159-163
+  s_912cd54d13a1eb::t_452a5bf631709a 158
+.github/copilot-instructions.md
+  s_912cd54d13a1eb::t_f1760ae899ec7c 1-76
+PRD.md
+  s_912cd54d13a1eb::t_eaf73b14b83701 1-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "471d3dbce4127c9368fc69696a4f57642f2d5e3b",
+  "prompts": {},
+  "sessions": {
+    "s_912cd54d13a1eb": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "3138e6fa-f1b4-476b-ab48-e70c5d0d6cb7",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
