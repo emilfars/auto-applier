@@ -31,6 +31,11 @@ type Config struct {
 	Now              func() time.Time
 	// GoogleOIDC, when set, enables the Google OAuth login route (AUTH-2).
 	GoogleOIDC OIDCProvider
+	// DevExposeTokens, when true, returns the email-verification and
+	// password-reset tokens in the API response instead of only emailing them.
+	// It exists solely so the flow is demoable locally without an email service
+	// and MUST stay false in production. Default false.
+	DevExposeTokens bool
 }
 
 func (c Config) withDefaults() Config {
@@ -166,10 +171,15 @@ func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "verification error")
 		return
 	}
-	// Production emails the token; it is never returned in the response.
-	writeJSON(w, http.StatusCreated, map[string]any{
+	// Production emails the token; it is never returned in the response unless
+	// DevExposeTokens is set for local demos.
+	resp := map[string]any{
 		"id": u.ID, "email": u.Email, "verified": u.Verified, "consent": true,
-	})
+	}
+	if s.cfg.DevExposeTokens {
+		resp["verification_token"] = token
+	}
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 type tokenReq struct {
@@ -286,12 +296,16 @@ func (s *Service) handleResetRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Always 200 to avoid account enumeration.
+	resp := map[string]any{"status": "ok"}
 	if u, err := s.repo.UserByEmail(r.Context(), req.Email); err == nil {
 		if token, err := NewToken(); err == nil {
 			_ = s.repo.CreateReset(r.Context(), u.ID, token, s.cfg.Now().Add(s.cfg.ResetTTL))
+			if s.cfg.DevExposeTokens {
+				resp["reset_token"] = token
+			}
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	writeJSON(w, http.StatusOK, resp)
 }
 
 type resetConfirmReq struct {

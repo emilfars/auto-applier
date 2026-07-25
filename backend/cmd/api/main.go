@@ -43,6 +43,7 @@ func main() {
 	authRepo := newAuthRepo(pool)
 	authSvc := auth.NewService(authRepo, auth.Config{
 		TrustedProxyHops: intEnv("TRUSTED_PROXY_HOPS", 0),
+		DevExposeTokens:  boolEnv("AUTH_DEV_EXPOSE_TOKENS", false),
 	})
 
 	// CV uploads are stored encrypted at rest (AC-CV-1b) and gated behind a

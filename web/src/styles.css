@@ -256,3 +256,168 @@ body {
   font-size: 0.72rem;
   color: var(--muted);
 }
+
+/* --- panels, auth, profile, cv (seeker account UI) --- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+}
+.panel__heading {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+}
+.panel__status {
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+.panel__status--error {
+  color: #fca5a5;
+}
+.btn {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid #3b4a63;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+}
+.btn:hover {
+  border-color: var(--accent);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+.btn--ghost {
+  background: transparent;
+}
+.linklike {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.25rem 0;
+  font: inherit;
+}
+.auth__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+.tab {
+  flex: 1;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid #3b4a63;
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font: inherit;
+}
+.tab--active {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.auth__form {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.auth__form label,
+.profile__form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.auth__form input,
+.profile__form input,
+.profile__form select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid #3b4a63;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font: inherit;
+}
+.auth__consent {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+.auth--signedin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.profile__form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.profile__form .full {
+  grid-column: 1 / -1;
+}
+.profile__confirm {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-2);
+}
+.profile__confirm-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.badge--confirmed {
+  background: var(--ok);
+  color: #04240f;
+}
+.cv__list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.cv__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+.cv__note {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.feed__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.job-card__openfill {
+  background: var(--accent-strong);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  font: inherit;
+}
+.job-card__openfill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

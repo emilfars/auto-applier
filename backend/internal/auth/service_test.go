@@ -413,3 +413,34 @@ func TestRateLimiterEvictsExpiredWindows(t *testing.T) {
 		t.Fatalf("after eviction: got %d, want 1", got)
 	}
 }
+
+// DevExposeTokens is off by default (production-safe) and, when enabled for
+// local demos, returns the verification and reset tokens so the full signup ->
+// verify -> login flow works without an email service.
+func TestDevExposeTokens(t *testing.T) {
+	off := newHarness()
+	rec := off.do(t, "POST", "/auth/register", "", map[string]any{
+		"email": "a@example.com", "password": "password123", "consent": true,
+	})
+	if _, ok := decodeBody(t, rec)["verification_token"]; ok {
+		t.Fatal("verification_token must not be exposed by default")
+	}
+
+	on := newHarnessWith(func(c *Config) { c.DevExposeTokens = true })
+	rec = on.do(t, "POST", "/auth/register", "", map[string]any{
+		"email": "b@example.com", "password": "password123", "consent": true,
+	})
+	tok, _ := decodeBody(t, rec)["verification_token"].(string)
+	if tok == "" {
+		t.Fatal("verification_token should be exposed when DevExposeTokens is set")
+	}
+	// The exposed token verifies the account end to end.
+	if code := on.do(t, "POST", "/auth/verify", "", map[string]any{"token": tok}).Code; code != http.StatusOK {
+		t.Fatalf("verify with exposed token: got %d, want 200", code)
+	}
+
+	rec = on.do(t, "POST", "/auth/password-reset/request", "", map[string]any{"email": "b@example.com"})
+	if rt, _ := decodeBody(t, rec)["reset_token"].(string); rt == "" {
+		t.Fatal("reset_token should be exposed when DevExposeTokens is set")
+	}
+}

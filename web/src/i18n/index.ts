@@ -13,9 +13,20 @@ const bundles: Record<Locale, Record<string, string>> = {
 
 export type TranslationKey = keyof typeof en;
 
-/** Translate a key for a locale, falling back to the key itself if missing. */
-export function t(locale: Locale, key: TranslationKey): string {
-  return bundles[locale][key] ?? key;
+/** Translate a key for a locale, falling back to the key itself if missing.
+ * Optional params interpolate `{name}` placeholders in the translation. */
+export function t(
+  locale: Locale,
+  key: TranslationKey,
+  params?: Record<string, string | number>,
+): string {
+  let s = bundles[locale][key] ?? key;
+  if (params) {
+    for (const [name, value] of Object.entries(params)) {
+      s = s.replace(new RegExp(`\\{${name}\\}`, "g"), String(value));
+    }
+  }
+  return s;
 }
 
 /** Format a number as currency, defaulting to IDR. */
