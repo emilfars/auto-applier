@@ -1,0 +1,39 @@
+web/src/api/openfill.ts
+  s_3a5ccb35454534::t_f7b0812ed17ffc 1-111
+web/src/components/JobCard.test.tsx
+  s_3a5ccb35454534::t_d1fd6c6cf04a3e 1-2
+  s_3a5ccb35454534::t_12ed07f1106c81 51-68
+web/src/vite-env.d.ts
+  s_3a5ccb35454534::t_93ae7576a53107 1-10
+web/src/styles.css
+  s_3a5ccb35454534::t_eee10867e25841 240-243,246,249-265,276-292
+web/src/api/openfill.test.ts
+  s_3a5ccb35454534::t_0dbfb9659af1ea 1-59
+web/src/components/JobCard.tsx
+  s_3a5ccb35454534::t_de8d4f5c1ad26b 2
+  s_3a5ccb35454534::t_3eae1a22bff04e 38
+  s_3a5ccb35454534::t_a4342a18df5699 1,4-9,14-19,21-33,35-37,39-61
+  s_3a5ccb35454534::t_4b71b996df5a9f 93-100,110-118
+web/src/App.tsx
+  s_3a5ccb35454534::t_f1961e59239f4f 13-20
+  s_3a5ccb35454534::t_f44d5c41cbf840 66-70,75
+web/src/components/JobFeed.tsx
+  s_3a5ccb35454534::t_7573d14dc27e63 15-23
+  s_3a5ccb35454534::t_a3a4a7ea6cbae6 118-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "b6189e61445c4893876d27dec70da6a8a6d8989f",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
