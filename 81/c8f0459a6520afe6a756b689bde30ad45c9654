@@ -1,0 +1,23 @@
+backend/internal/ingest/sources.go
+  s_3a5ccb35454534::t_fd16e83526d36a 1-45
+backend/internal/ingest/jooblesource.go
+  s_3a5ccb35454534::t_329026385f500a 1-166
+backend/internal/ingest/jooblesource_test.go
+  s_3a5ccb35454534::t_5ba94c21910203 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "81c8f0459a6520afe6a756b689bde30ad45c9654",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
