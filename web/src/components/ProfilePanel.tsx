@@ -1,0 +1,247 @@
+import { useCallback, useEffect, useState } from "react";
+import { t, type Locale } from "../i18n";
+import { useSession } from "../auth/session";
+import {
+  confirmProfile,
+  getProfile,
+  patchProfile,
+  EMPLOYMENT_TYPES,
+  type Profile,
+  type ProfilePatch,
+} from "../api/profile";
+import { ApiError } from "../api/http";
+
+interface FormState {
+  full_name: string;
+  phone: string;
+  expected_salary: string;
+  notice_period_days: string;
+  work_authorization: string;
+  employment_type: string;
+  open_to_relocation: boolean;
+  skills: string;
+  preferred_locations: string;
+}
+
+function toForm(p: Profile): FormState {
+  return {
+    full_name: p.full_name,
+    phone: p.phone,
+    expected_salary: p.expected_salary != null ? String(p.expected_salary) : "",
+    notice_period_days: p.notice_period_days != null ? String(p.notice_period_days) : "",
+    work_authorization: p.work_authorization,
+    employment_type: p.employment_type,
+    open_to_relocation: p.open_to_relocation,
+    skills: (p.skills ?? []).join(", "),
+    preferred_locations: (p.preferred_locations ?? []).join(", "),
+  };
+}
+
+function splitList(s: string): string[] {
+  return s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function toPatch(f: FormState): ProfilePatch {
+  const patch: ProfilePatch = {
+    full_name: f.full_name,
+    phone: f.phone,
+    work_authorization: f.work_authorization,
+    employment_type: f.employment_type,
+    open_to_relocation: f.open_to_relocation,
+    skills: splitList(f.skills),
+    preferred_locations: splitList(f.preferred_locations),
+  };
+  if (f.expected_salary.trim()) patch.expected_salary = Number(f.expected_salary);
+  if (f.notice_period_days.trim()) patch.notice_period_days = Number(f.notice_period_days);
+  return patch;
+}
+
+/**
+ * ProfilePanel lets a signed-in user review and edit the profile that backs
+ * application autofill, then confirm it. Editing resets confirmation, so the
+ * user always re-reviews before the fill flow can be armed (CV-3/4/5).
+ * `onConfirmedChange` lets the feed enable/disable Open & Fill.
+ */
+export function ProfilePanel({
+  locale,
+  onConfirmedChange,
+}: {
+  locale: Locale;
+  onConfirmedChange?: (confirmed: boolean) => void;
+}) {
+  const { user } = useSession();
+  const [form, setForm] = useState<FormState | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const applyProfile = useCallback(
+    (p: Profile) => {
+      setForm(toForm(p));
+      setConfirmed(p.confirmed);
+      onConfirmedChange?.(p.confirmed);
+    },
+    [onConfirmedChange],
+  );
+
+  useEffect(() => {
+    if (!user) {
+      setForm(null);
+      return;
+    }
+    const controller = new AbortController();
+    getProfile(controller.signal)
+      .then(applyProfile)
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(t(locale, "auth.error"));
+      });
+    return () => controller.abort();
+  }, [user, applyProfile, locale]);
+
+  if (!user) {
+    return <p className="panel__status">{t(locale, "profile.loginRequired")}</p>;
+  }
+  if (!form) {
+    return <p className="panel__status">{t(locale, "common.loading")}</p>;
+  }
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const onSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    void run(async () => {
+      const saved = await patchProfile(toPatch(form));
+      applyProfile(saved);
+      setNotice(t(locale, "profile.saved"));
+    });
+  };
+
+  const onConfirm = () =>
+    void run(async () => {
+      const saved = await confirmProfile();
+      applyProfile(saved);
+      setNotice(t(locale, "profile.confirmed"));
+    });
+
+  return (
+    <div className="profile">
+      <form className="profile__form" onSubmit={onSave}>
+        <label className="full">
+          {t(locale, "profile.fullName")}
+          <input value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.phone")}
+          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.workAuth")}
+          <input
+            value={form.work_authorization}
+            onChange={(e) => set("work_authorization", e.target.value)}
+          />
+        </label>
+        <label>
+          {t(locale, "profile.expectedSalary")}
+          <input
+            type="number"
+            min={0}
+            value={form.expected_salary}
+            onChange={(e) => set("expected_salary", e.target.value)}
+          />
+        </label>
+        <label>
+          {t(locale, "profile.noticePeriod")}
+          <input
+            type="number"
+            min={0}
+            max={365}
+            value={form.notice_period_days}
+            onChange={(e) => set("notice_period_days", e.target.value)}
+          />
+        </label>
+        <label>
+          {t(locale, "profile.employmentType")}
+          <select
+            value={form.employment_type}
+            onChange={(e) => set("employment_type", e.target.value)}
+          >
+            <option value="">—</option>
+            {EMPLOYMENT_TYPES.map((et) => (
+              <option key={et} value={et}>
+                {et.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="profile__checkbox">
+          <input
+            type="checkbox"
+            checked={form.open_to_relocation}
+            onChange={(e) => set("open_to_relocation", e.target.checked)}
+          />
+          {t(locale, "profile.relocation")}
+        </label>
+        <label className="full">
+          {t(locale, "profile.skills")}
+          <input value={form.skills} onChange={(e) => set("skills", e.target.value)} />
+        </label>
+        <label className="full">
+          {t(locale, "profile.preferredLocations")}
+          <input
+            value={form.preferred_locations}
+            onChange={(e) => set("preferred_locations", e.target.value)}
+          />
+        </label>
+        <div className="full">
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {t(locale, "profile.save")}
+          </button>
+        </div>
+      </form>
+
+      <div className="profile__confirm">
+        {confirmed ? (
+          <p className="panel__status">
+            <span className="badge badge--confirmed">✓</span>{" "}
+            {t(locale, "profile.confirmed")}
+          </p>
+        ) : (
+          <>
+            <p className="profile__confirm-note">{t(locale, "profile.confirmNote")}</p>
+            <button type="button" className="btn" disabled={busy} onClick={onConfirm}>
+              {t(locale, "profile.confirm")}
+            </button>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <p className="panel__status panel__status--error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && <p className="panel__status">{notice}</p>}
+    </div>
+  );
+}

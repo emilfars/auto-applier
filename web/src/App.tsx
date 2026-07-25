@@ -2,9 +2,14 @@ import { useState } from "react";
 import { t, locales, DEFAULT_LOCALE, type Locale } from "./i18n";
 import { JobFeed } from "./components/JobFeed";
 import { AuthPanel } from "./components/AuthPanel";
+import { ProfilePanel } from "./components/ProfilePanel";
+import { CvPanel } from "./components/CvPanel";
+import { useSession } from "./auth/session";
 
 export default function App() {
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  const { user } = useSession();
+  const [profileRefresh, setProfileRefresh] = useState(0);
 
   return (
     <main className="app">
@@ -32,6 +37,7 @@ export default function App() {
         <nav className="app__nav">
           <a href="#feed">{t(locale, "nav.feed")}</a>
           <a href="#account">{t(locale, "nav.account")}</a>
+          {user && <a href="#profile">{t(locale, "nav.profile")}</a>}
         </nav>
       </header>
 
@@ -39,6 +45,20 @@ export default function App() {
         <h2 className="panel__heading">{t(locale, "auth.heading")}</h2>
         <AuthPanel locale={locale} />
       </section>
+
+      {user && (
+        <>
+          <section id="cv" className="panel">
+            <h2 className="panel__heading">{t(locale, "cv.heading")}</h2>
+            <CvPanel locale={locale} onParsed={() => setProfileRefresh((n) => n + 1)} />
+          </section>
+
+          <section id="profile" className="panel">
+            <h2 className="panel__heading">{t(locale, "profile.heading")}</h2>
+            <ProfilePanel key={profileRefresh} locale={locale} />
+          </section>
+        </>
+      )}
 
       <JobFeed locale={locale} />
     </main>
