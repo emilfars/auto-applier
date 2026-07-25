@@ -22,6 +22,7 @@ import (
 	"github.com/auto-applier/backend/internal/feed"
 	"github.com/auto-applier/backend/internal/ingest"
 	"github.com/auto-applier/backend/internal/profile"
+	"github.com/auto-applier/backend/internal/queue"
 	"github.com/auto-applier/backend/internal/seed"
 	"github.com/auto-applier/backend/internal/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -66,8 +67,13 @@ func main() {
 	// Postgres-backed when DATABASE_URL is set (jobs persist across restarts and
 	// are populated by the seed/ingestion); otherwise an in-memory store with a
 	// synthetic demo seed backs local dev.
-	jobStore := newJobStore(pool)
+	jobStore, pgxJobStore := newJobStore(pool)
 	feedSvc := feed.NewService(jobStore)
+
+	// Background ingestion + staleness sweep via River (Postgres only). Falls
+	// back to the boot-time synthetic seed when no DB/sources are configured.
+	stopQueue := startIngestQueue(pool, pgxJobStore)
+	defer stopQueue()
 
 	srv := &http.Server{
 		Addr: addr,
@@ -101,17 +107,54 @@ func main() {
 	log.Println("api stopped")
 }
 
-// newJobStore returns the feed's job provider: a Postgres-backed store when a
-// pool is available (jobs persist and are populated by the seed/ingestion), or
-// an in-memory store with a synthetic demo seed for local dev without a DB.
-func newJobStore(pool *pgxpool.Pool) feed.Provider {
+// newJobStore returns the feed's job provider and, when Postgres backs it, the
+// concrete pgx store (so the ingestion queue can also sweep stale listings). In
+// in-memory mode the second return is nil and a synthetic demo seed is loaded.
+func newJobStore(pool *pgxpool.Pool) (feed.Provider, *ingest.PgxStore) {
 	if pool == nil {
 		ms := ingest.NewMemoryStore()
 		seedFeed(ms)
-		return ms
+		return ms, nil
 	}
 	log.Println("using Postgres-backed job store")
-	return ingest.NewPgxStore(pool)
+	store := ingest.NewPgxStore(pool)
+	return store, store
+}
+
+// startIngestQueue starts the River-backed periodic ingestion + staleness
+// sweep. It is a no-op (returning a no-op stop) when Postgres is not configured
+// or no live sources are enabled, so local dev without a DB still runs. A start
+// failure is logged and degraded — the API keeps serving the existing feed.
+func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) func() {
+	noop := func() {}
+	if pool == nil || store == nil {
+		return noop
+	}
+	reg := ingest.BuildRegistry(ingest.SourceConfig{
+		KalibrrLimit: intEnv("KALIBRR_LIMIT", 25),
+		JoobleAPIKey: os.Getenv("JOOBLE_API_KEY"),
+	})
+	if len(reg.Sources()) == 0 {
+		log.Println("no live sources enabled; skipping background ingestion")
+		return noop
+	}
+	runner := ingest.NewRunner(reg, store, time.Now, 0, 0)
+	client, err := queue.Start(context.Background(), pool, runner, store, queue.Config{
+		IngestInterval: durEnv("INGEST_INTERVAL", 6*time.Hour),
+		SweepInterval:  durEnv("SWEEP_INTERVAL", time.Hour),
+		StaleAfter:     durEnv("STALE_AFTER", 14*24*time.Hour),
+	})
+	if err != nil {
+		log.Printf("river: %v (continuing without background ingestion)", err)
+		return noop
+	}
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := client.Stop(ctx); err != nil {
+			log.Printf("river stop: %v", err)
+		}
+	}
 }
 
 // seedFeed populates the in-memory job store with deterministic synthetic
@@ -216,6 +259,18 @@ func boolEnv(name string, def bool) bool {
 			return b
 		}
 		log.Printf("%s=%q is not a boolean; using %v", name, v, def)
+	}
+	return def
+}
+
+// durEnv reads a Go duration environment variable (e.g. "6h", "30m"), falling
+// back to def when unset or unparseable.
+func durEnv(name string, def time.Duration) time.Duration {
+	if v := os.Getenv(name); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+		log.Printf("%s=%q is not a duration; using %s", name, v, def)
 	}
 	return def
 }
