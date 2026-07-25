@@ -1,6 +1,6 @@
 # Auto Applier — Build Plan
 
-> Status: **Draft for review — do not start implementation until approved.**
+> Status: **APPROVED (2026-07-25).** Implementation proceeding. MVP-solidification decisions recorded below.
 > Based on PRD v0.1 (Owner: Hanif, 17 Jul 2026).
 
 ## Core product decision (non-negotiable)
@@ -17,8 +17,26 @@ Semi-automated, **human-in-the-loop**. The system fills forms; the **user always
 | Monetization | Out of MVP (free). |
 | Employer side | Out of scope. |
 
+## MVP-solidification decisions (locked 2026-07-25)
+Recorded so the loop does not re-litigate them. These solidify the MVP before any post-MVP milestone.
+
+| Topic | Decision |
+|---|---|
+| plan.md | **Approved** — implementation proceeds. |
+| GitHub remote | Create a remote and push (done: `emilfars/auto-applier`). |
+| Job queue | **River** (`github.com/riverqueue/river`, Postgres-backed) — chosen over asynq. Drives scheduled scrape + parse. |
+| Jobs storage | **Postgres (pgx-backed job store)** — approved. Replaces the in-memory feed store in prod; in-memory kept for tests/perf-gate. |
+| CV metadata | **Postgres (pgx-backed CV repo)** — approved. (CV *bytes* stay in encrypted object storage; only metadata in PG.) |
+| Seed | **Real listings, not synthetic** for MVP — pull a *small* volume (~25 per working job board) via the real sources. Synthetic generator retained only for the 50k perf gate. |
+| Database (dev) | **Run Postgres locally** for now (homebrew `postgresql@18`); `DATABASE_URL` wired. No cloud DB yet. |
+| Google OAuth (AUTH-2) | **Deferred** — needs live Google credentials. Email+password path is the MVP auth. |
+| Tier 2 sources | Target list: **Jobstreet, Glints, Kalibrr, Indeed.** Reality (2026-07-25 probe): **Kalibrr** exposes a usable public JSON API (shipped). **Glints** = WAF firewall, **Jobstreet/SEEK** = anti-bot HTML, **Indeed** = no public API + ToS prohibits scraping → all three are **blocked for static ingestion** and deferred pending official API/partner access or a ToS-cleared headless approach. Do not ship fragile/ToS-violating scrapers. |
+| Tier 1 sources | Seek a free API with Indonesian coverage. Findings: Adzuna/The Muse lack Indonesia; **Careerjet** (locale `id_ID`) and **Jooble** (id) cover Indonesia but need a free `affid`/API key. Implement a keyed, env-gated, mockable Tier-1 REST source (degrades when unset, like the CV parser) and document how to obtain the free key. |
+| Held until MVP is solid | Extension runtime bundler (already shipped — no further work), backend telemetry ingestion endpoint for `fill_correction`, and perf-stage NFRs (AC-FEED-1p 4G, AC-NFR-SCALE). |
+| Web UI (in MVP) | Ship the seeker web UI: **profile + CV-upload screens, feed pagination, and an "Open & Fill" button on feed cards.** |
+
 ## Tech stack
-- **Backend:** Go (net/http or chi/gin), `pgx` for Postgres, job queue (`asynq`/River) for scrape + parse, `colly`/`chromedp` for scrapers.
+- **Backend:** Go (net/http or chi/gin), `pgx` for Postgres, job queue: **River** (Postgres-backed) for scrape + parse, `colly`/`chromedp` for scrapers.
 - **DB / storage:** Postgres (users, profiles, jobs, applications) + Postgres full-text search (defer OpenSearch until latency demands) + S3-compatible object storage for CV files (encrypted at rest).
 - **Frontend:** React + TypeScript (Vite), TanStack Query, Tailwind, i18n (id-ID + en, IDR default).
 - **Extension:** Chrome MV3 + TypeScript.
