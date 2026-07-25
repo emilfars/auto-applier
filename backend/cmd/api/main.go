@@ -53,7 +53,7 @@ func main() {
 	profileSvc := profile.NewService(profileRepo, time.Now)
 	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
 
-	cvSvc := cv.NewService(cv.NewMemoryRepo(), newCVStore(), time.Now).
+	cvSvc := cv.NewService(newCVRepo(pool), newCVStore(), time.Now).
 		WithParsing(newCVParser(), profileSvc)
 	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
 
@@ -63,10 +63,10 @@ func main() {
 	gatedAccount := authSvc.RequireVerified(accountSvc.Routes())
 
 	// Public job feed (FEED-1..3): browsable before signup, stated-pay only.
-	// Backed by an in-memory job store for now; the ingestion scheduler that
-	// populates it is wired in a later milestone (job-queue choice pending).
-	jobStore := ingest.NewMemoryStore()
-	seedFeed(jobStore)
+	// Postgres-backed when DATABASE_URL is set (jobs persist across restarts and
+	// are populated by the seed/ingestion); otherwise an in-memory store with a
+	// synthetic demo seed backs local dev.
+	jobStore := newJobStore(pool)
 	feedSvc := feed.NewService(jobStore)
 
 	srv := &http.Server{
@@ -99,6 +99,19 @@ func main() {
 		log.Fatalf("shutdown error: %v", err)
 	}
 	log.Println("api stopped")
+}
+
+// newJobStore returns the feed's job provider: a Postgres-backed store when a
+// pool is available (jobs persist and are populated by the seed/ingestion), or
+// an in-memory store with a synthetic demo seed for local dev without a DB.
+func newJobStore(pool *pgxpool.Pool) feed.Provider {
+	if pool == nil {
+		ms := ingest.NewMemoryStore()
+		seedFeed(ms)
+		return ms
+	}
+	log.Println("using Postgres-backed job store")
+	return ingest.NewPgxStore(pool)
 }
 
 // seedFeed populates the in-memory job store with deterministic synthetic
@@ -158,6 +171,16 @@ func newProfileRepo(pool *pgxpool.Pool) profile.Repo {
 		return profile.NewMemoryRepo()
 	}
 	return profile.NewPgxRepo(pool)
+}
+
+// newCVRepo returns a pgx-backed CV metadata repo when a pool is available, else
+// the in-memory repo. CV bytes always live in the encrypted object store; only
+// metadata (object-key references) go to Postgres.
+func newCVRepo(pool *pgxpool.Pool) cv.Repo {
+	if pool == nil {
+		return cv.NewMemoryRepo()
+	}
+	return cv.NewPgxRepo(pool)
 }
 
 // newCVStore builds the CV object store. CV bytes are always encrypted at rest
