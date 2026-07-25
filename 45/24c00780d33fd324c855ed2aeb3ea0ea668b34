@@ -1,0 +1,22 @@
+backend/internal/ingest/kalibrrsource_test.go
+  s_3a5ccb35454534::t_a2e436105b78fa 81,83-84,86,88,92
+  s_3a5ccb35454534::t_906c004e827e4d 1-80,82,85,87,89-91,93-111
+backend/internal/ingest/kalibrrsource.go
+  s_3a5ccb35454534::t_eb6710423244b9 1-195
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "4524c00780d33fd324c855ed2aeb3ea0ea668b34",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
