@@ -1,0 +1,31 @@
+backend/internal/ingest/pgxstore_test.go
+  s_3a5ccb35454534::t_32652681bf1ea1 1-30,32-145
+  s_3a5ccb35454534::t_17fe7afb19b454 31
+backend/cmd/api/main.go
+  s_3a5ccb35454534::t_e991d68a1de0f0 66-69
+  s_3a5ccb35454534::t_971e8f21a5773e 176-185
+  s_3a5ccb35454534::t_a7809ae74d26ff 104-116
+  s_3a5ccb35454534::t_9d443954a29935 56
+backend/internal/ingest/pgxstore.go
+  s_3a5ccb35454534::t_3267a2ea8ed23e 1-146
+backend/internal/cv/pgxrepo.go
+  s_3a5ccb35454534::t_0f755a926cbf3a 1-89
+backend/internal/cv/pgxrepo_test.go
+  s_3a5ccb35454534::t_5d18a9fc47c47f 1-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "27c21cef4556582894adcd7d707fcdc9c7a1913e",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
