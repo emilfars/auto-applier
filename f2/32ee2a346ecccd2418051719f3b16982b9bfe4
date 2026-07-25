@@ -1,0 +1,30 @@
+web/src/api/profile.ts
+  s_3a5ccb35454534::t_b676b0858e01fa 1-67
+web/src/App.tsx
+  s_3a5ccb35454534::t_7bf936a33ec433 5-7,11-12,40,49-57,59-62
+  s_3a5ccb35454534::t_0f8ab43152541a 58
+web/src/api/cv.ts
+  s_3a5ccb35454534::t_b504f70ffdfbd7 1-30
+web/src/components/CvPanel.tsx
+  s_3a5ccb35454534::t_535aeccaa856d7 1-129
+web/src/components/ProfilePanel.tsx
+  s_3a5ccb35454534::t_4c5509601de7be 1-247
+web/src/api/profile.test.ts
+  s_3a5ccb35454534::t_0d2eb5b31b2a83 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "f232ee2a346ecccd2418051719f3b16982b9bfe4",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
