@@ -12,7 +12,15 @@ const PAGE_SIZE = 24;
  * search and filters. Queries are debounced so typing doesn't spam the API, and
  * in-flight requests are aborted when inputs change.
  */
-export function JobFeed({ locale }: { locale: Locale }) {
+export function JobFeed({
+  locale,
+  canFill = false,
+  fillReason,
+}: {
+  locale: Locale;
+  canFill?: boolean;
+  fillReason?: "needLogin" | "needProfile";
+}) {
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
@@ -107,7 +115,13 @@ export function JobFeed({ locale }: { locale: Locale }) {
           ) : (
             <div className="feed__list">
               {data.jobs.map((job) => (
-                <JobCard key={`${job.source}:${job.source_url}`} job={job} locale={locale} />
+                <JobCard
+                  key={`${job.source}:${job.source_url}`}
+                  job={job}
+                  locale={locale}
+                  canFill={canFill}
+                  fillReason={fillReason}
+                />
               ))}
             </div>
           )}

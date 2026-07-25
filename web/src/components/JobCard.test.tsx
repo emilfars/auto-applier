@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { JobCard } from "./JobCard";
 import type { JobCard as Job } from "../api/feed";
 
@@ -47,5 +47,23 @@ describe("JobCard", () => {
     expect(link.getAttribute("href")).toBe("https://example.com/jobs/1");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("prompts to sign in when Open & Fill is used while gated", async () => {
+    const run = vi.fn();
+    render(
+      <JobCard job={makeJob()} locale="en" canFill={false} fillReason="needLogin" runOpenFill={run} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /open & fill/i }));
+    expect(await screen.findByText(/sign in to use open & fill/i)).toBeTruthy();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("runs the arm+open flow and shows the armed notice when allowed", async () => {
+    const run = vi.fn().mockResolvedValue({ status: "armed" });
+    render(<JobCard job={makeJob()} locale="en" canFill runOpenFill={run} />);
+    fireEvent.click(screen.getByRole("button", { name: /open & fill/i }));
+    expect(await screen.findByText(/review the filled fields/i)).toBeTruthy();
+    expect(run).toHaveBeenCalledWith("https://example.com/jobs/1");
   });
 });

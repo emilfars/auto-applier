@@ -237,14 +237,32 @@ body {
   margin-top: auto;
   padding-top: 0.5rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.job-card__fill {
+  background: var(--accent-strong);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.job-card__fill:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .job-card__apply {
   align-self: flex-start;
-  background: var(--accent-strong);
-  color: #fff;
+  background: transparent;
+  color: var(--accent-strong);
+  border: 1px solid var(--accent-strong);
   text-decoration: none;
   padding: 0.45rem 0.9rem;
   border-radius: 8px;
@@ -255,6 +273,23 @@ body {
 .job-card__apply-note {
   font-size: 0.72rem;
   color: var(--muted);
+  margin-top: 0.35rem;
+}
+
+.job-card__fill-notice {
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.job-card__fill-notice--armed {
+  background: #e7f6ec;
+  color: #1a7f37;
+}
+.job-card__fill-notice--error {
+  background: #fdecea;
+  color: #b42318;
 }
 
 /* --- panels, auth, profile, cv (seeker account UI) --- */

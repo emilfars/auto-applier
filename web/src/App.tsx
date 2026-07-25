@@ -10,6 +10,14 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
   const { user } = useSession();
   const [profileRefresh, setProfileRefresh] = useState(0);
+  const [profileConfirmed, setProfileConfirmed] = useState(false);
+
+  const canFill = !!user && profileConfirmed;
+  const fillReason: "needLogin" | "needProfile" | undefined = !user
+    ? "needLogin"
+    : !profileConfirmed
+      ? "needProfile"
+      : undefined;
 
   return (
     <main className="app">
@@ -55,12 +63,16 @@ export default function App() {
 
           <section id="profile" className="panel">
             <h2 className="panel__heading">{t(locale, "profile.heading")}</h2>
-            <ProfilePanel key={profileRefresh} locale={locale} />
+            <ProfilePanel
+              key={profileRefresh}
+              locale={locale}
+              onConfirmedChange={setProfileConfirmed}
+            />
           </section>
         </>
       )}
 
-      <JobFeed locale={locale} />
+      <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} />
     </main>
   );
 }

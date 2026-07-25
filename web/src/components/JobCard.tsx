@@ -1,14 +1,64 @@
-import { t, type Locale } from "../i18n";
+import { useState } from "react";
+import { t, type Locale, type TranslationKey } from "../i18n";
 import { hasStatedSalary, type JobCard as Job } from "../api/feed";
+import {
+  openFillDeps,
+  requestOpenAndFill,
+  type OpenFillResult,
+  type OpenFillStatus,
+} from "../api/openfill";
 
 /**
  * JobCard renders a single feed listing. Salary is shown only when the employer
  * stated it; otherwise a neutral "not disclosed" label is shown — never an
- * estimate (locked decision). The apply link opens the original posting in a
- * new tab; the user reviews and submits it themselves. The system never submits.
+ * estimate (locked decision).
+ *
+ * "Open & Fill" arms the browser extension to autofill the posting and opens it
+ * in a new tab. The user reviews every field and clicks Apply themselves — the
+ * system never submits (Prime Directive). The plain apply link is always
+ * available as a manual fallback.
  */
-export function JobCard({ job, locale }: { job: Job; locale: Locale }) {
+export function JobCard({
+  job,
+  locale,
+  canFill = false,
+  fillReason,
+  runOpenFill = (url) => requestOpenAndFill(url, openFillDeps),
+}: {
+  job: Job;
+  locale: Locale;
+  canFill?: boolean;
+  fillReason?: "needLogin" | "needProfile";
+  runOpenFill?: (url: string) => Promise<OpenFillResult>;
+}) {
   const stated = hasStatedSalary(job.salary);
+  const [notice, setNotice] = useState<OpenFillStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const noticeKey: Record<OpenFillStatus, TranslationKey> = {
+    armed: "feed.openFill.armed",
+    noExtension: "feed.openFill.noExtension",
+    needLogin: "feed.openFill.needLogin",
+    needProfile: "feed.openFill.needProfile",
+    error: "feed.error",
+  };
+
+  async function onOpenFill() {
+    if (!canFill) {
+      setNotice(fillReason ?? "needLogin");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await runOpenFill(job.source_url);
+      setNotice(result.status);
+    } catch {
+      setNotice("error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <article className="job-card">
       <div className="job-card__head">
@@ -40,6 +90,14 @@ export function JobCard({ job, locale }: { job: Job; locale: Locale }) {
         </ul>
       )}
       <div className="job-card__foot">
+        <button
+          type="button"
+          className="job-card__fill"
+          onClick={onOpenFill}
+          disabled={busy}
+        >
+          {t(locale, "feed.openFill")}
+        </button>
         <a
           className="job-card__apply"
           href={job.source_url}
@@ -48,8 +106,16 @@ export function JobCard({ job, locale }: { job: Job; locale: Locale }) {
         >
           {t(locale, "feed.viewApply")}
         </a>
-        <span className="job-card__apply-note">{t(locale, "feed.applyNote")}</span>
       </div>
+      <p className="job-card__apply-note">{t(locale, "feed.openFill.note")}</p>
+      {notice && (
+        <p
+          className={`job-card__fill-notice job-card__fill-notice--${notice}`}
+          role="status"
+        >
+          {t(locale, noticeKey[notice])}
+        </p>
+      )}
     </article>
   );
 }
