@@ -1,0 +1,19 @@
+backend/cmd/seed/main.go
+  s_3a5ccb35454534::t_59e533dab663af 1,3-14,21,24,27,31-33,36-52,56,61-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "2e00e6f050a341ff85bb9266bd28a70a983865ed",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
