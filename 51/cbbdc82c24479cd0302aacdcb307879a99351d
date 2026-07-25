@@ -1,0 +1,26 @@
+web/src/components/JobFeed.tsx
+  s_3a5ccb35454534::t_d59140ff3092a0 80
+  s_3a5ccb35454534::t_3fec3c7487a2fa 19,24-29,32,55-61
+  s_3a5ccb35454534::t_9316f6ad135431 114-136
+  s_3a5ccb35454534::t_313511fe39d94e 72
+  s_3a5ccb35454534::t_b84e1555eb97f6 88
+web/src/components/JobFeed.test.tsx
+  s_3a5ccb35454534::t_02ac9a69ab771c 1-48,51-53,55-63,66-67
+  s_3a5ccb35454534::t_676d77bc219004 49-50,54,64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "51cbbdc82c24479cd0302aacdcb307879a99351d",
+  "prompts": {},
+  "sessions": {
+    "s_3a5ccb35454534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "bf3d402f-0be9-4d93-b901-990fa49e0e00",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
