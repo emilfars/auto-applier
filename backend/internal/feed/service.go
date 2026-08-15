@@ -11,10 +11,13 @@ import (
 	"github.com/auto-applier/backend/internal/ingest"
 )
 
-// Provider supplies the active (non-stale) jobs the feed serves. A pgx-backed
-// implementation can push filters into SQL later; the HTTP contract is the same.
+// Provider supplies the active (non-stale) jobs the feed serves.
 type Provider interface {
 	ActiveJobs(ctx context.Context) ([]ingest.Job, error)
+}
+
+type queryProvider interface {
+	SearchFeed(ctx context.Context, q ingest.JobQuery) (ingest.JobPage, error)
 }
 
 // Service exposes the feed HTTP API.
@@ -71,22 +74,43 @@ func (s *Service) handleFeed(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	jobs, err := s.provider.ActiveJobs(r.Context())
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "feed unavailable")
-		return
+	q = normalizeQuery(q)
+
+	var res Result
+	if provider, ok := s.provider.(queryProvider); ok {
+		page, queryErr := provider.SearchFeed(r.Context(), q)
+		if queryErr != nil {
+			writeErr(w, http.StatusInternalServerError, "feed unavailable")
+			return
+		}
+		res = Result{Total: page.Total, Jobs: page.Jobs}
+	} else {
+		jobs, activeErr := s.provider.ActiveJobs(r.Context())
+		if activeErr != nil {
+			writeErr(w, http.StatusInternalServerError, "feed unavailable")
+			return
+		}
+		res = NewIndex(jobs).Search(q)
 	}
-	res := NewIndex(jobs).Search(q)
 
 	cards := make([]card, 0, len(res.Jobs))
 	for _, j := range res.Jobs {
 		cards = append(cards, toCard(j))
 	}
-	limit := q.Limit
-	if limit <= 0 {
-		limit = defaultLimit
+	writeJSON(w, http.StatusOK, feedResp{Total: res.Total, Limit: q.Limit, Offset: q.Offset, Jobs: cards})
+}
+
+func normalizeQuery(q Query) Query {
+	if q.Limit <= 0 {
+		q.Limit = defaultLimit
 	}
-	writeJSON(w, http.StatusOK, feedResp{Total: res.Total, Limit: limit, Offset: q.Offset, Jobs: cards})
+	if q.Limit > 100 {
+		q.Limit = 100
+	}
+	if q.Offset < 0 {
+		q.Offset = 0
+	}
+	return q
 }
 
 func parseQuery(r *http.Request) (Query, error) {
@@ -129,6 +153,9 @@ func parseQuery(r *http.Request) (Query, error) {
 	}
 	if q.Offset, err = intDefault(v.Get("offset"), 0); err != nil {
 		return q, err
+	}
+	if err := ingest.ValidateJobQuery(q); err != nil {
+		return q, errBad(err.Error())
 	}
 	if q.Limit > 100 {
 		q.Limit = 100

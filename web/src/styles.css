@@ -113,6 +113,14 @@ body {
   flex: 1 1 240px;
 }
 
+.feed__field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .feed__remote {
   display: inline-flex;
   align-items: center;

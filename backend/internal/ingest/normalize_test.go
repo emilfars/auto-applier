@@ -60,6 +60,35 @@ func TestNormalizePopulatesAllFields(t *testing.T) {
 	}
 }
 
+func TestNormalizeDerivesOnlyRecognizedSeniority(t *testing.T) {
+	cases := []struct {
+		name         string
+		title        string
+		requirements []string
+		raw          string
+		want         string
+	}{
+		{name: "title synonym", title: "Senior Backend Engineer", want: "senior"},
+		{name: "requirement synonym", title: "Backend Engineer", requirements: []string{"Junior candidates welcome"}, want: "junior"},
+		{name: "unknown text stays empty", title: "Backend Engineer", requirements: []string{"Build APIs with Go"}, want: ""},
+		{name: "unknown raw value stays empty", title: "Backend Engineer", raw: "experienced", want: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			job, err := Normalize(RawJob{
+				Source: "board", SourceURL: "https://example.test/job", Title: tc.title,
+				Company: "Acme", Seniority: tc.raw, Requirements: tc.requirements,
+			})
+			if err != nil {
+				t.Fatalf("Normalize: %v", err)
+			}
+			if job.Seniority != tc.want {
+				t.Fatalf("seniority = %q, want %q", job.Seniority, tc.want)
+			}
+		})
+	}
+}
+
 func TestNormalizeRejectsIncomplete(t *testing.T) {
 	cases := []RawJob{
 		{SourceURL: "u", Title: "t", Company: "c"},              // no source
@@ -75,9 +104,58 @@ func TestNormalizeRejectsIncomplete(t *testing.T) {
 	}
 }
 
+func TestNormalizeRejectsUnsafeSourceURLs(t *testing.T) {
+	cases := []string{
+		"http://jobs.example.com/listing",
+		"javascript:alert(1)",
+		"data:text/plain,job",
+		"file:///etc/passwd",
+		"/jobs/123",
+		"jobs.example.com/listing",
+		"https:///jobs/123",
+		"https://user:pass@jobs.example.com/listing",
+	}
+	for _, sourceURL := range cases {
+		t.Run(sourceURL, func(t *testing.T) {
+			_, err := Normalize(RawJob{
+				Source: "board", SourceURL: sourceURL, Title: "Developer", Company: "Acme",
+			})
+			if !errors.Is(err, ErrInvalidSourceURL) {
+				t.Fatalf("Normalize(%q) error = %v, want ErrInvalidSourceURL", sourceURL, err)
+			}
+		})
+	}
+}
+
+func TestNormalizeAllowsHTTPSAndLoopbackHTTPSourceURLs(t *testing.T) {
+	for _, sourceURL := range []string{
+		"https://jobs.example.com/listing",
+		"http://localhost:8080/jobs/123",
+		"http://127.0.0.1:8080/jobs/123",
+		"http://[::1]:8080/jobs/123",
+	} {
+		t.Run(sourceURL, func(t *testing.T) {
+			if _, err := Normalize(RawJob{
+				Source: "board", SourceURL: sourceURL, Title: "Developer", Company: "Acme",
+			}); err != nil {
+				t.Fatalf("Normalize(%q): %v", sourceURL, err)
+			}
+		})
+	}
+}
+
+func TestMemoryStoreRejectsUnsafeSourceURL(t *testing.T) {
+	_, err := NewMemoryStore().Upsert(context.Background(), Job{
+		Source: "board", SourceURL: "javascript:alert(1)", Title: "Developer", Company: "Acme",
+	})
+	if !errors.Is(err, ErrInvalidSourceURL) {
+		t.Fatalf("Upsert error = %v, want ErrInvalidSourceURL", err)
+	}
+}
+
 func TestNormalizeDetectsRemote(t *testing.T) {
 	for _, loc := range []string{"Remote", "Jakarta (WFH)", "Kerja dari rumah"} {
-		j, err := Normalize(RawJob{Source: "s", SourceURL: "u", Title: "Dev", Company: "c", Location: loc})
+		j, err := Normalize(RawJob{Source: "s", SourceURL: "https://example.test/u", Title: "Dev", Company: "c", Location: loc})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,9 +185,15 @@ func TestParseSalaryIDR(t *testing.T) {
 	}{
 		{"Rp 8.000.000 - Rp 12.000.000", i(8_000_000), i(12_000_000)},
 		{"8 - 12 juta", i(8_000_000), i(12_000_000)},
+		{"8 jt - 12 jt", i(8_000_000), i(12_000_000)},
 		{"Rp5jt", i(5_000_000), i(5_000_000)},
+		{"Rp5000000", i(5_000_000), i(5_000_000)},
+		{"IDR 10.000.000", i(10_000_000), i(10_000_000)},
 		{"Rp 10.000.000", i(10_000_000), i(10_000_000)},
 		{"8,5 - 10 juta", i(8_500_000), i(10_000_000)},
+		{"10000000", nil, nil},
+		{"USD 3,000 - 4,000", nil, nil},
+		{"$3,000 - $4,000", nil, nil},
 		{"Negotiable", nil, nil},
 		{"Gaji kompetitif", nil, nil},
 		{"", nil, nil},

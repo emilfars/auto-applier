@@ -102,3 +102,46 @@ func TestHTMLSourceNon200(t *testing.T) {
 		t.Fatal("expected error on non-200")
 	}
 }
+
+func TestHTMLSourceDoesNotLabelUntrustedSalaryAsIDR(t *testing.T) {
+	const html = `<!doctype html><html><body>
+		<div class="job-card">
+			<h2 class="job-title">USD Role</h2>
+			<span class="job-company">Acme</span>
+			<span class="job-location">Jakarta</span>
+			<span class="job-salary">USD 3,000 - 4,000</span>
+			<a class="job-link" href="/jobs/usd">Detail</a>
+		</div>
+		<div class="job-card">
+			<h2 class="job-title">Numeric Role</h2>
+			<span class="job-company">Acme</span>
+			<span class="job-location">Jakarta</span>
+			<span class="job-salary">10000000 - 12000000</span>
+			<a class="job-link" href="/jobs/numeric">Detail</a>
+		</div>
+	</body></html>`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(html))
+	}))
+	t.Cleanup(srv.Close)
+
+	src := NewHTMLSource("fixture-board", srv.URL, CardSelectors{
+		Card: "job-card", Title: "job-title", Company: "job-company",
+		Location: "job-location", Salary: "job-salary", URL: "job-link",
+	}, srv.Client())
+	store := NewMemoryStore()
+	reg := NewRegistry()
+	if err := reg.Register(src); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	report := NewRunner(reg, store, nil, 0, 0).RunOnce(context.Background())
+	if report.TotalCreated() != 2 {
+		t.Fatalf("created=%d, want 2", report.TotalCreated())
+	}
+	for _, job := range store.All() {
+		if job.SalaryStatedMin != nil || job.SalaryStatedMax != nil {
+			t.Fatalf("untrusted salary was normalized as stated IDR: %+v", job)
+		}
+	}
+}

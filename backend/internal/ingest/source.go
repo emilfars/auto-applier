@@ -33,8 +33,10 @@ var ErrTierExcluded = errors.New("ingest: source tier not allowed (Tier 1/2 only
 // RawJob is a single listing as scraped, before normalization. Fields are raw
 // strings; SalaryText is parsed by the normalizer.
 type RawJob struct {
-	Source         string
-	SourceURL      string
+	Source    string
+	SourceURL string
+	// Synthetic is true only for deterministic seed fixtures.
+	Synthetic      bool
 	Title          string
 	Company        string
 	Location       string
@@ -49,8 +51,10 @@ type RawJob struct {
 // Job is a normalized listing ready for the feed. Salary is stated-only at MVP
 // (no estimated fields) and defaults to IDR.
 type Job struct {
-	Source          string
-	SourceURL       string
+	Source    string
+	SourceURL string
+	// Synthetic distinguishes generated seed rows from real source listings.
+	Synthetic       bool
 	DedupKey        string
 	Title           string
 	Company         string

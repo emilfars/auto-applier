@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -41,6 +42,9 @@ func NewMemoryStoreClock(now func() time.Time) *MemoryStore {
 // Upsert inserts or replaces a job by its dedup key. Re-seeing a listing
 // refreshes its last-seen time and clears any stale flag.
 func (m *MemoryStore) Upsert(_ context.Context, j Job) (bool, error) {
+	if err := ValidateSourceURL(j.SourceURL); err != nil {
+		return false, fmt.Errorf("validate job source url: %w", err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	_, existed := m.jobs[j.DedupKey]
@@ -72,6 +76,19 @@ func (m *MemoryStore) Len() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.jobs)
+}
+
+// RealActiveCount returns the number of active, non-synthetic jobs.
+func (m *MemoryStore) RealActiveCount(context.Context) (int, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	count := 0
+	for _, sj := range m.jobs {
+		if !sj.stale && !sj.job.Synthetic {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // IsStaleKey reports whether the job with the given dedup key is marked stale.

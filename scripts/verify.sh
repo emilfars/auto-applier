@@ -31,6 +31,8 @@ FAILED=0
 RAN=0
 SKIPPED=0
 declare -a RESULTS
+VERIFY_OUT="${ROOT_DIR}/.verify-out.$$"
+trap 'rm -f "${VERIFY_OUT}"' EXIT
 
 section() { printf "\n%s==> %s%s\n" "${C_BOLD}${C_BLUE}" "$1" "${C_RESET}"; }
 pass()    { RAN=$((RAN+1));     RESULTS+=("${C_GREEN}PASS${C_RESET}  $1"); printf "  %sPASS%s %s\n" "${C_GREEN}" "${C_RESET}" "$1"; }
@@ -45,13 +47,12 @@ run() {
   if [ "${VERBOSE:-0}" = "1" ]; then
     if "$@"; then pass "${label}"; else fail "${label}"; fi
   else
-    if "$@" >/tmp/verify_out.$$ 2>&1; then
+    if "$@" >"${VERIFY_OUT}" 2>&1; then
       pass "${label}"
     else
       fail "${label}"
-      sed 's/^/      | /' /tmp/verify_out.$$ || true
+      sed 's/^/      | /' "${VERIFY_OUT}" || true
     fi
-    rm -f /tmp/verify_out.$$
   fi
 }
 
@@ -103,6 +104,14 @@ check_node_component() {
 section "Backend (Go)  (backend/)"
 if [ -d backend ] && [ -f backend/go.mod ]; then
   if have go; then
+    section "M3 Postgres verification"
+    if [ -z "${TEST_DATABASE_URL:-}" ]; then
+      fail "M3: TEST_DATABASE_URL is required for Postgres-backed ingest/feed and 50k HTTP p95 checks"
+    else
+      run "M3: ingest/feed Postgres integration and 50k HTTP p95" \
+        bash -c "cd backend && go test -count=1 -p 1 ./internal/ingest ./internal/feed"
+    fi
+
     run "backend: go build"  bash -c "cd backend && go build ./..."
     run "backend: go vet"    bash -c "cd backend && go vet ./..."
     if [ -n "$(cd backend && gofmt -l . 2>/dev/null)" ]; then
@@ -111,7 +120,12 @@ if [ -d backend ] && [ -f backend/go.mod ]; then
     else
       pass "backend: gofmt"
     fi
-    run "backend: go test"   bash -c "cd backend && go test ./..."
+    if [ -n "${TEST_DATABASE_URL:-}" ]; then
+      run "backend: go test (serialized, M3 packages run above)" bash -c \
+        "set -euo pipefail; cd backend; packages=\$(go list ./... | grep -Ev '/internal/(ingest|feed)\$'); test -n \"\${packages}\"; go test -count=1 -p 1 \${packages}"
+    else
+      run "backend: go test (serialized)" bash -c "cd backend && go test -p 1 ./..."
+    fi
   else
     fail "backend: Go not installed but backend/go.mod exists"
   fi
@@ -129,6 +143,7 @@ if have docker; then
     CV_ENCRYPTION_KEY=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
     S3_ACCESS_KEY=verify S3_SECRET_KEY=verify-secret \
     docker compose -f docker-compose.yml -f docker-compose.production.yml config --quiet
+  run "deployment: Docker/API/S3 smoke" "${ROOT_DIR}/scripts/docker-smoke.sh"
 else
   fail "deployment: Docker CLI not installed"
 fi

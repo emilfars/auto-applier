@@ -18,6 +18,8 @@ import (
 // ingested (see plan.md sourcing-reality note).
 const kalibrrSearchURL = "https://www.kalibrr.com/kjs/job_board/search"
 
+const kalibrrPageSize = 100
+
 // KalibrrSource is a Tier 2 source backed by Kalibrr's public JSON search API.
 // It pulls Indonesia listings and maps them to RawJob values. Salary is only
 // carried through when the employer stated it in IDR — no currency conversion,
@@ -55,51 +57,85 @@ func (k *KalibrrSource) Tier() Tier { return Tier2 }
 
 // Fetch queries the search endpoint and returns one RawJob per listing.
 func (k *KalibrrSource) Fetch(ctx context.Context) ([]RawJob, error) {
+	jobs := make([]RawJob, 0, min(k.limit, kalibrrPageSize))
+	offset := 0
+	for len(jobs) < k.limit {
+		pageLimit := min(k.limit-len(jobs), kalibrrPageSize)
+		body, err := k.fetchPage(ctx, pageLimit, offset)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, j := range body.Jobs {
+			if strings.TrimSpace(j.Name) == "" {
+				continue
+			}
+			jobs = append(jobs, k.toRaw(j))
+			if len(jobs) == k.limit {
+				break
+			}
+		}
+
+		pageLength := len(body.Jobs)
+		if pageLength == 0 || pageLength < pageLimit {
+			break
+		}
+		offset += pageLength
+		if body.Count > 0 && offset >= body.Count {
+			break
+		}
+	}
+	return jobs, nil
+}
+
+func (k *KalibrrSource) fetchPage(ctx context.Context, limit, offset int) (kalibrrResponse, error) {
 	u, err := url.Parse(k.baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("ingest: parse kalibrr url: %w", err)
+		return kalibrrResponse{}, fmt.Errorf("ingest: parse kalibrr url: %w", err)
 	}
 	q := u.Query()
-	q.Set("limit", strconv.Itoa(k.limit))
-	q.Set("offset", "0")
+	q.Set("limit", strconv.Itoa(limit))
+	q.Set("offset", strconv.Itoa(offset))
 	q.Set("country", k.country)
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("ingest: build kalibrr request: %w", err)
+		return kalibrrResponse{}, fmt.Errorf("ingest: build kalibrr request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; AutoApplierBot/1.0)")
 
 	resp, err := k.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("ingest: fetch %s: %w", k.id, err)
+		return kalibrrResponse{}, fmt.Errorf("ingest: fetch %s: %w", k.id, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ingest: %s returned status %d", k.id, resp.StatusCode)
+		return kalibrrResponse{}, fmt.Errorf("ingest: %s returned status %d", k.id, resp.StatusCode)
 	}
 
 	var body kalibrrResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("ingest: decode %s: %w", k.id, err)
+		return kalibrrResponse{}, fmt.Errorf("ingest: decode %s: %w", k.id, err)
 	}
-
-	jobs := make([]RawJob, 0, len(body.Jobs))
-	for _, j := range body.Jobs {
-		if strings.TrimSpace(j.Name) == "" {
-			continue
-		}
-		jobs = append(jobs, k.toRaw(j))
-	}
-	return jobs, nil
+	return body, nil
 }
 
 func (k *KalibrrSource) toRaw(j kalibrrJob) RawJob {
 	company := j.CompanyName
 	if company == "" {
 		company = j.Company.Name
+	}
+	requirements := make([]string, 0, 2)
+	for _, text := range []string{j.Description, j.Qualifications} {
+		if plain := htmlToPlainText(text); plain != "" {
+			requirements = append(requirements, plain)
+		}
+	}
+	seniority := ""
+	if j.IsOpenToFreshGrads {
+		seniority = "fresh grad"
 	}
 	return RawJob{
 		Source:         k.id,
@@ -109,7 +145,9 @@ func (k *KalibrrSource) toRaw(j kalibrrJob) RawJob {
 		Location:       kalibrrLocation(j),
 		Remote:         j.IsWorkFromHome,
 		SalaryText:     kalibrrSalaryText(j),
+		Seniority:      seniority,
 		EmploymentType: strings.TrimSpace(j.Tenure),
+		Requirements:   requirements,
 		PostedAt:       kalibrrPostedAt(j.ActivationDate),
 	}
 }
@@ -167,22 +205,26 @@ func kalibrrPostedAt(s string) *time.Time {
 // --- JSON shapes (only the fields we consume) ---
 
 type kalibrrResponse struct {
-	Jobs []kalibrrJob `json:"jobs"`
+	Count int          `json:"count"`
+	Jobs  []kalibrrJob `json:"jobs"`
 }
 
 type kalibrrJob struct {
-	ID             int64    `json:"id"`
-	Name           string   `json:"name"`
-	Slug           string   `json:"slug"`
-	CompanyName    string   `json:"company_name"`
-	Tenure         string   `json:"tenure"`
-	SalaryShown    bool     `json:"salary_shown"`
-	MinimumSalary  *float64 `json:"minimum_salary"`
-	MaximumSalary  *float64 `json:"maximum_salary"`
-	SalaryCurrency string   `json:"salary_currency"`
-	IsWorkFromHome bool     `json:"is_work_from_home"`
-	ActivationDate string   `json:"activation_date"`
-	Company        struct {
+	ID                 int64    `json:"id"`
+	Name               string   `json:"name"`
+	Slug               string   `json:"slug"`
+	CompanyName        string   `json:"company_name"`
+	Tenure             string   `json:"tenure"`
+	SalaryShown        bool     `json:"salary_shown"`
+	MinimumSalary      *float64 `json:"minimum_salary"`
+	MaximumSalary      *float64 `json:"maximum_salary"`
+	SalaryCurrency     string   `json:"salary_currency"`
+	IsWorkFromHome     bool     `json:"is_work_from_home"`
+	Description        string   `json:"description"`
+	Qualifications     string   `json:"qualifications"`
+	IsOpenToFreshGrads bool     `json:"is_open_to_fresh_grads"`
+	ActivationDate     string   `json:"activation_date"`
+	Company            struct {
 		Code string `json:"code"`
 		Name string `json:"name"`
 	} `json:"company"`

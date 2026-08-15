@@ -15,6 +15,9 @@ type SourceConfig struct {
 	// JoobleAPIKey enables the Tier 1 Jooble source when non-empty. Without it
 	// the source is not registered (graceful degradation).
 	JoobleAPIKey string
+	// JoobleLimit caps how many Jooble listings to pull per run. A non-positive
+	// value falls back to KalibrrLimit for compatibility with existing callers.
+	JoobleLimit int
 	// HTTPClient is shared by all sources; nil uses a default with a timeout.
 	HTTPClient *http.Client
 }
@@ -37,7 +40,11 @@ func BuildRegistry(cfg SourceConfig) *Registry {
 		}
 	}
 	if cfg.JoobleAPIKey != "" {
-		if err := reg.Register(NewJoobleSource(cfg.JoobleAPIKey, client)); err != nil {
+		joobleLimit := cfg.JoobleLimit
+		if joobleLimit <= 0 {
+			joobleLimit = cfg.KalibrrLimit
+		}
+		if err := reg.Register(NewJoobleSourceWithLimit(cfg.JoobleAPIKey, joobleLimit, client)); err != nil {
 			log.Printf("ingest: register jooble: %v", err)
 		}
 	}

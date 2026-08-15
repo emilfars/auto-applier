@@ -11,3 +11,4 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
       ENFORCE_HTTPS: "true"
       TRUSTED_PROXY_HOPS: "2"
+      AUTH_DEV_EXPOSE_TOKENS: "false"

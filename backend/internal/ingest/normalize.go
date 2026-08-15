@@ -4,6 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,14 +15,21 @@ import (
 // ErrIncomplete is returned by Normalize when a required field is missing.
 var ErrIncomplete = errors.New("ingest: raw job missing required field")
 
+// ErrInvalidSourceURL is returned when a listing URL is not safe to persist.
+var ErrInvalidSourceURL = errors.New("ingest: invalid source url")
+
 var (
 	wsRe        = regexp.MustCompile(`\s+`)
 	nonAlnumRe  = regexp.MustCompile(`[^a-z0-9]+`)
 	floatTokRe  = regexp.MustCompile(`\d+(?:[.,]\d+)?`)
 	intTokRe    = regexp.MustCompile(`\d[\d.,]*`)
-	jtRe        = regexp.MustCompile(`\d\s*jt\b`)
+	jtRe        = regexp.MustCompile(`\d+(?:[.,]\d+)?\s*jt\b`)
+	idrRe       = regexp.MustCompile(`(?i)(?:\brp(?:\s*[\d.,]|\b)|\bidr(?:\s*[\d.,]|\b)|(?:\b|\d)juta\b|\d+(?:[.,]\d+)?\s*jt\b)`)
+	foreignRe   = regexp.MustCompile(`(?i)(?:[$€£¥]|(?:aud|cad|cny|eur|gbp|inr|jpy|myr|php|sgd|thb|usd|vnd)\b)`)
 	remoteWords = []string{"remote", "wfh", "work from home", "kerja dari rumah", "wfa", "anywhere"}
 )
+
+var jabodetabekTokens = []string{"jakarta", "bogor", "depok", "tangerang", "bekasi"}
 
 // Normalize converts a RawJob into a normalized Job (AC-SCR-2). It validates the
 // required fields, parses stated salary (IDR), and derives a cross-source dedup
@@ -31,6 +41,9 @@ func Normalize(raw RawJob) (Job, error) {
 	company := collapse(raw.Company)
 	if source == "" || url == "" || title == "" || company == "" {
 		return Job{}, ErrIncomplete
+	}
+	if err := ValidateSourceURL(url); err != nil {
+		return Job{}, err
 	}
 
 	location := collapse(raw.Location)
@@ -44,10 +57,15 @@ func Normalize(raw RawJob) (Job, error) {
 			reqs = append(reqs, c)
 		}
 	}
+	seniority := normalizeSeniority(raw.Seniority)
+	if strings.TrimSpace(raw.Seniority) == "" {
+		seniority = deriveSeniority(append([]string{title}, reqs...)...)
+	}
 
 	j := Job{
 		Source:          source,
 		SourceURL:       url,
+		Synthetic:       raw.Synthetic,
 		Title:           title,
 		Company:         company,
 		Location:        location,
@@ -55,7 +73,7 @@ func Normalize(raw RawJob) (Job, error) {
 		SalaryStatedMin: min,
 		SalaryStatedMax: max,
 		SalaryCurrency:  "IDR",
-		Seniority:       normalizeSeniority(raw.Seniority),
+		Seniority:       seniority,
 		EmploymentType:  normalizeEmploymentType(raw.EmploymentType),
 		YearsExperience: parseYearsExperience(append(append([]string{title}, reqs...), raw.Seniority)...),
 		Requirements:    reqs,
@@ -63,6 +81,32 @@ func Normalize(raw RawJob) (Job, error) {
 	}
 	j.DedupKey = dedupKey(company, title, location)
 	return j, nil
+}
+
+// ValidateSourceURL permits HTTPS listing URLs and HTTP loopback fixture URLs.
+func ValidateSourceURL(raw string) error {
+	value := strings.TrimSpace(raw)
+	parsed, err := url.Parse(value)
+	if err != nil || !parsed.IsAbs() || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
+		return fmt.Errorf("%w: %q", ErrInvalidSourceURL, raw)
+	}
+
+	switch {
+	case strings.EqualFold(parsed.Scheme, "https"):
+		return nil
+	case strings.EqualFold(parsed.Scheme, "http") && isLoopbackHost(parsed.Hostname()):
+		return nil
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidSourceURL, raw)
+	}
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func collapse(s string) string {
@@ -73,6 +117,22 @@ func detectRemote(s string) bool {
 	l := strings.ToLower(s)
 	for _, w := range remoteWords {
 		if strings.Contains(l, w) {
+			return true
+		}
+	}
+	return false
+}
+
+func isJabodetabekOrRemote(j Job) bool {
+	if j.Remote {
+		return true
+	}
+	location := strings.ToLower(strings.TrimSpace(j.Location))
+	if location == "" {
+		return false
+	}
+	for _, token := range jabodetabekTokens {
+		if strings.Contains(location, token) {
 			return true
 		}
 	}
@@ -149,7 +209,16 @@ func normalizeSeniority(s string) string {
 			return m.value
 		}
 	}
-	return key
+	return ""
+}
+
+func deriveSeniority(texts ...string) string {
+	for _, text := range texts {
+		if seniority := normalizeSeniority(text); seniority != "" {
+			return seniority
+		}
+	}
+	return ""
 }
 
 // yoeRe matches the minimum years-of-experience mentioned in a requirement or
@@ -190,6 +259,9 @@ func ParseSalaryIDR(text string) (*int64, *int64) {
 		if strings.Contains(s, skip) {
 			return nil, nil
 		}
+	}
+	if foreignRe.MatchString(s) || !idrRe.MatchString(s) {
+		return nil, nil
 	}
 
 	millions := strings.Contains(s, "juta") || jtRe.MatchString(s)

@@ -50,7 +50,7 @@ func TestSweepStaleWithClockInjection(t *testing.T) {
 	clock := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	store := NewMemoryStoreClock(func() time.Time { return clock })
 
-	job, _ := Normalize(RawJob{Source: "s", SourceURL: "u", Title: "Dev", Company: "PT Co", Location: "Jakarta"})
+	job, _ := Normalize(RawJob{Source: "s", SourceURL: "https://example.test/u", Title: "Dev", Company: "PT Co", Location: "Jakarta"})
 	if _, err := store.Upsert(context.Background(), job); err != nil {
 		t.Fatal(err)
 	}
@@ -75,6 +75,9 @@ func TestSweepStaleWithClockInjection(t *testing.T) {
 	if len(store.Active()) != 0 || len(store.All()) != 1 {
 		t.Fatalf("active=%d all=%d, want 0/1", len(store.Active()), len(store.All()))
 	}
+	if count, err := store.RealActiveCount(context.Background()); err != nil || count != 0 {
+		t.Fatalf("active count after sweep = %d, err=%v; want 0", count, err)
+	}
 
 	// Re-seeing the listing clears staleness.
 	if _, err := store.Upsert(context.Background(), job); err != nil {
@@ -82,5 +85,8 @@ func TestSweepStaleWithClockInjection(t *testing.T) {
 	}
 	if store.IsStaleKey(job.DedupKey) || len(store.Active()) != 1 {
 		t.Fatal("re-seen job should be active again")
+	}
+	if count, err := store.RealActiveCount(context.Background()); err != nil || count != 1 {
+		t.Fatalf("active count after re-seen = %d, err=%v; want 1", count, err)
 	}
 }

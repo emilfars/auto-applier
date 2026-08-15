@@ -183,3 +183,50 @@ func textContent(n *html.Node) string {
 	}
 	return b.String()
 }
+
+func htmlToPlainText(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	doc, err := html.Parse(strings.NewReader(raw))
+	if err != nil {
+		return ""
+	}
+	return strings.Join(strings.Fields(textContentWithSpacing(doc)), " ")
+}
+
+func textContentWithSpacing(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	if n.Type == html.ElementNode {
+		switch n.Data {
+		case "script", "style":
+			return ""
+		}
+	}
+	var b strings.Builder
+	if n.Type == html.ElementNode && isHTMLBlock(n.Data) {
+		b.WriteByte(' ')
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		b.WriteString(textContentWithSpacing(c))
+	}
+	if n.Type == html.ElementNode && isHTMLBlock(n.Data) {
+		b.WriteByte(' ')
+	}
+	return b.String()
+}
+
+func isHTMLBlock(tag string) bool {
+	switch tag {
+	case "address", "article", "aside", "blockquote", "br", "dd", "div", "dl",
+		"dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2",
+		"h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav", "ol", "p",
+		"pre", "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr",
+		"ul":
+		return true
+	default:
+		return false
+	}
+}

@@ -138,6 +138,7 @@ func (g *Generator) RawJob(i int) ingest.RawJob {
 	return ingest.RawJob{
 		Source:         sources[r.Intn(len(sources))],
 		SourceURL:      fmt.Sprintf("https://example.test/%s/%d", companyBase, i),
+		Synthetic:      true,
 		Title:          displayTitle,
 		Company:        company,
 		Location:       location,

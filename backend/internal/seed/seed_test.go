@@ -11,8 +11,9 @@ import (
 
 var fixedBase = time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 
-// AC-SEED-1: the seed job loads >= 5,000 distinct listings.
-func TestSeedProducesAtLeast5000Distinct(t *testing.T) {
+// Synthetic seed behavior: generated listings stay distinct for perf and demos.
+// The AC-SEED-1 launch proof uses real fixture-source ingestion in ingest tests.
+func TestSeedProducesAtLeast5000SyntheticDistinct(t *testing.T) {
 	store := ingest.NewMemoryStore()
 	created, err := Seed(context.Background(), store, DefaultCount, 42, fixedBase)
 	if err != nil {
@@ -27,6 +28,9 @@ func TestSeedProducesAtLeast5000Distinct(t *testing.T) {
 	}
 	if len(active) < 5000 {
 		t.Fatalf("active = %d, want >= 5000 (dedup must not collapse distinct listings)", len(active))
+	}
+	if real, err := store.RealActiveCount(context.Background()); err != nil || real != 0 {
+		t.Fatalf("real active count = %d, err=%v; synthetic seed must not count", real, err)
 	}
 }
 
@@ -63,6 +67,9 @@ func TestGeneratedListingsAreValidAndJabodetabek(t *testing.T) {
 		}
 		if j.SalaryCurrency != "IDR" {
 			t.Fatalf("listing %d currency = %q, want IDR", i, j.SalaryCurrency)
+		}
+		if !j.Synthetic {
+			t.Fatalf("listing %d should be synthetic", i)
 		}
 		ok := false
 		for _, c := range jabo {

@@ -7,6 +7,7 @@ package queue
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -38,12 +39,19 @@ type ingestWorker struct {
 
 func (w *ingestWorker) Work(ctx context.Context, _ *river.Job[IngestArgs]) error {
 	rep := w.runner.RunOnce(ctx)
+	var persistErrs []error
 	for _, s := range rep.Sources {
 		if s.Err != nil {
 			log.Printf("river ingest: source %s failed: %v", s.Source, s.Err)
 		}
+		if s.PersistErr != nil {
+			persistErrs = append(persistErrs, fmt.Errorf("source %s: %w", s.Source, s.PersistErr))
+		}
 	}
 	log.Printf("river ingest: %d new listing(s) across %d source(s)", rep.TotalCreated(), len(rep.Sources))
+	if len(persistErrs) > 0 {
+		return fmt.Errorf("queue ingest persistence: %w", errors.Join(persistErrs...))
+	}
 	return nil
 }
 
@@ -71,6 +79,9 @@ type Config struct {
 	StaleAfter     time.Duration // age past which a listing is expired
 }
 
+// ErrStaleAfterTooLong identifies a queue threshold wider than the ingest rule.
+var ErrStaleAfterTooLong = errors.New("queue staleness threshold exceeds ingest.StaleAfter")
+
 func (c Config) withDefaults() Config {
 	if c.IngestInterval <= 0 {
 		c.IngestInterval = 6 * time.Hour
@@ -79,9 +90,17 @@ func (c Config) withDefaults() Config {
 		c.SweepInterval = time.Hour
 	}
 	if c.StaleAfter <= 0 {
-		c.StaleAfter = 14 * 24 * time.Hour
+		c.StaleAfter = ingest.StaleAfter
 	}
 	return c
+}
+
+// Validate rejects a staleness threshold wider than the ingest rule.
+func (c Config) Validate() error {
+	if c.StaleAfter > ingest.StaleAfter {
+		return fmt.Errorf("stale after %s exceeds maximum %s: %w", c.StaleAfter, ingest.StaleAfter, ErrStaleAfterTooLong)
+	}
+	return nil
 }
 
 // Start migrates River's schema, registers the workers, schedules the periodic
@@ -90,6 +109,9 @@ func (c Config) withDefaults() Config {
 // populates the feed promptly.
 func Start(ctx context.Context, pool *pgxpool.Pool, runner *ingest.Runner, store *ingest.PgxStore, cfg Config) (*river.Client[pgx.Tx], error) {
 	cfg = cfg.withDefaults()
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("queue: invalid configuration: %w", err)
+	}
 	driver := riverpgxv5.New(pool)
 
 	migrator, err := rivermigrate.New(driver, nil)

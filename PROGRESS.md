@@ -5,8 +5,8 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-08-15
-**Current phase:** **MVP hardening.** M0 foundation blockers are fixed. The end-to-end product is not launch-ready because web profile/CV data is not synchronized into the extension, profile editing is incomplete, and runtime staleness is 14 days instead of the required 48 hours.
-**Verify gate:** `./scripts/verify.sh` → 18 passed, Android skipped, 0 failed. Missing dependencies now fail; CI installs locked dependencies, provisions Postgres, and runs a Docker/S3 smoke job.
+**Current phase:** **MVP hardening.** M0-M3 are complete. The end-to-end product is not launch-ready because web profile/CV data is not synchronized into the extension. Registration remains closed until Postgres contains at least 5,000 active real listings.
+**Verify gate:** `TEST_DATABASE_URL=... ./scripts/verify.sh` → 20 passed, Android absent/skipped, 0 failed. CI provisions Postgres and runs the required Docker/API/S3 smoke check.
 
 ---
 
@@ -17,7 +17,7 @@
 | Product | Auto Applier — human-in-the-loop job-application autofill |
 | Stage | **MVP hardening** — components built; end-to-end wiring incomplete |
 | Active milestone | Close M0→M4 launch blockers before M5 |
-| Blocking gate | Open & Fill data sync, complete profile editing, 48h staleness |
+| Blocking gate | Open & Fill profile/CV data sync; 5,000 active real listings before registration opens |
 | Prime directive | System never submits; user always clicks Apply |
 
 ## 2. Milestone status
@@ -28,7 +28,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | ✅ | CI and strict local gate exist; migrations are atomic and serialized; encrypted CV bytes persist in S3-compatible storage; nginx proxies API routes; production proxy TLS is enforced. |
 | M1 Accounts | AUTH-1..4 | ✅ | Email/password registration, SMTP verification/reset delivery, expiring HttpOnly sessions, logout, rate limiting, and explicit web consent are complete. Postgres stores bearer tokens only as SHA-256 digests; password reset atomically revokes sessions. Google OAuth is covered through the mocked OIDC boundary; live credentials remain held by decision. |
 | M2 CV & profile | CV-1..4 + confirm-before-apply gate | ✅ | PDF/DOCX upload, encrypted storage boundary, hosted parsing, complete structured editing, Postgres persistence, and confirm-before-apply are verified. Confirmation requires reviewed contact, education, skills, work authorization, preferred location, and employment type. |
-| M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | 🟡 | Real Kalibrr/Jooble ingestion, pgx storage, River scheduling, feed filters, and seed tooling exist. Runtime staleness defaults to 14 days rather than 48 hours; feed requests load and filter all rows in Go; DB/4G/scale gates remain unproven. |
+| M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ✅ | Paginated Kalibrr/Jooble ingestion, pgx filtering, River scheduling and 48h sweeping, stable pagination, stated-only pay, and all FEED-2 controls are verified. Registration counts only active, fresh, non-synthetic rows and stays closed below 5,000. |
 | M4 Extension autofill | fill-mappings, APP-1,2,4,5 | 🟡 | Fill engine, versioned maps, visual states, no-submit guards, and bundles are implemented. Runtime Open & Fill is incomplete: no code synchronizes the server profile or CV bytes into `chrome.storage`, and the in-memory MV3 arm can be lost on worker suspension. Current tests inject profile/file fixtures rather than exercising real web→extension transfer. |
 | M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ⬜ | Post-MVP |
 | M6 Android fast-follow | MOB-1..4 | ⬜ | After desktop mappings proven |
@@ -36,7 +36,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 ## 3. Component readiness
 | Component | Path | Exists | verify.sh checks | State |
 |---|---|---|---|---|
-| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | Component tests green; CI supplies Postgres. Staleness default and SQL-side feed filtering remain incomplete. |
+| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | Component tests green; CI supplies Postgres. M3 SQL filtering, ingestion recovery, 48h staleness, launch gating, and encrypted object persistence are verified. |
 | Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Dev and production proxy flows build and test. M2 profile editing is complete; extension data transfer remains incomplete. |
 | Fill mappings | `/packages/fill-mappings` | yes | lint, typecheck, test, build | zero-dep shared engine + 7 versioned maps; lint/typecheck/test/build all green |
 | Extension (MV3) | `/extension` | yes | lint, typecheck, test, build | Engine/bundle tests green. No runtime profile/CV synchronization; browser-level E2E coverage is absent. |
@@ -58,10 +58,10 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M0→M4 component code builds, but the product is in MVP hardening rather than post-MVP work.
-- **Next:** wire one authenticated profile/CV transfer path into the extension; persist encrypted CV objects; proxy API routes in nginx; use the 48-hour staleness constant; then run real Postgres and browser E2E gates.
+- **Now:** M0-M3 are complete; M4 runtime Open & Fill remains the MVP blocker.
+- **Next:** wire one authenticated profile/CV transfer path into durable extension storage, then run the real browser E2E gate.
 - **Held (by decision, not blocking MVP):** backend telemetry ingestion, AC-FEED-1p 4G, AC-NFR-SCALE, and real Google OAuth credentials. Sources Glints/Jobstreet/Indeed remain excluded from static ingestion (WAF/anti-bot/ToS).
-- **Blocked:** launch readiness is blocked by the four items listed in Snapshot. M5 should not start before they are closed.
+- **Blocked:** launch readiness requires the M4 runtime path and at least 5,000 active real listings in Postgres. Synthetic fixtures never open registration. M5 should not start before these gates close.
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -78,6 +78,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-08-15** — [DONE] M3 ingestion/feed milestone review. Added paginated Tier 1/2 ingestion, synthetic provenance, active-real registration gating, 48-hour runtime staleness and recovery, parameterized Postgres filtering with stable pagination, complete web filters, URL/currency/location trust-boundary validation, and secret-safe source errors. The required gate now includes serialized Postgres tests, a concurrent 50,000-row HTTP/Postgres p95 check, and a production-like Docker/nginx/API/S3 persistence and ciphertext smoke test. Full gate: 20 passed, Android absent/skipped, 0 failed; feed p95 remained below 500 ms.
 - **2026-08-15** — [DONE] M1 accounts hardening review. Added generic STARTTLS-only SMTP delivery for verification/reset email; registration now fails before account creation when neither SMTP nor explicit dev-token mode is available. Normalized email identity prevents case/whitespace duplicates. Migration `0005_auth_hardening` hashes persisted verification/session/reset tokens and adds verification expiry. Verification and password reset are atomic in both repos; reset revokes every active session. Login/OAuth no longer expose bearer tokens to browser JavaScript, logout reports revocation failures, OAuth creation requires consent and shares IP throttling, and middleware distinguishes invalid sessions from repository outages. Web signup now requires an unchecked consent checkbox instead of silently sending `consent=true`. Full gate passed with real Postgres: 16 checks passed, Android absent/skipped.
 - **2026-08-15** — [DONE] M2 CV/profile milestone review. Persisted parsed email through memory/Postgres/API/export with migration `0006_profile_email`; added typed web editing for email, education, and work history; save-before-confirm prevents confirming stale unsaved data. The server now validates structured array shapes and email, supports clearing optional salary/notice values, rejects incomplete confirmation, and keeps edits/parses unconfirmed. Upload hardening rejects ZIP files renamed to DOCX. Hosted parsing requires HTTPS outside loopback and blocks HTTPS→HTTP redirects so CV PII cannot downgrade in transit. Added backend/web regression coverage and verified the full 16-check gate against local Postgres with no required check skipped.
 - **2026-08-15** — [DONE] M0 hardening: encrypted CV bytes now persist in S3-compatible storage (MinIO locally) with restart-safe configuration; migration application is one serialized transaction; nginx proxies all API routes; production TLS termination is enforced through a trusted external proxy without exposing the API; forwarded HTTPS is ignored unless proxy trust is configured; missing Node dependencies fail the gate; GitHub Actions runs Postgres-backed verification and Docker/S3 smoke checks. Local gate: 18 passed, Android skipped, 0 failed.

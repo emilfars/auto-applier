@@ -34,6 +34,7 @@ func TestInitMigrationInvariants(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMigrations() error: %v", err)
 	}
+
 	up := migrations[0].Up
 
 	mustContain := []string{
@@ -60,5 +61,25 @@ func TestInitMigrationInvariants(t *testing.T) {
 	// Prime directive: default application status is never 'submitted'.
 	if strings.Contains(up, "DEFAULT 'submitted'") {
 		t.Error("applications must not default to 'submitted' — submission is always a human action")
+	}
+}
+
+func TestJobProvenanceMigrationBackfillsOnlyGeneratorURLs(t *testing.T) {
+	migrations, err := LoadMigrations()
+	if err != nil {
+		t.Fatalf("LoadMigrations() error: %v", err)
+	}
+	var up string
+	for _, migration := range migrations {
+		if migration.Version == 7 {
+			up = migration.Up
+			break
+		}
+	}
+	if !strings.Contains(up, "synthetic BOOLEAN NOT NULL DEFAULT FALSE") {
+		t.Fatal("job provenance migration must add a non-null synthetic flag")
+	}
+	if !strings.Contains(up, "source_url LIKE 'https://example.test/%'") {
+		t.Fatal("job provenance migration must backfill known generator URLs only")
 	}
 }

@@ -42,12 +42,13 @@ func (b *breaker) onFailure(now time.Time) {
 
 // SourceReport is the per-source outcome of a run.
 type SourceReport struct {
-	Source  string
-	Fetched int
-	Created int
-	Updated int
-	Skipped bool  // circuit breaker open
-	Err     error // fetch error (isolated — does not fail the run)
+	Source     string
+	Fetched    int
+	Created    int
+	Updated    int
+	Skipped    bool  // circuit breaker open
+	Err        error // fetch error (isolated — does not fail the run)
+	PersistErr error // normalized job persistence error
 }
 
 // RunReport aggregates a single ingestion pass.
@@ -73,6 +74,7 @@ type Runner struct {
 	now      func() time.Time
 
 	mu       sync.Mutex
+	runMu    sync.Mutex // ponytail: global lock caps throughput at one pass; use per-source locks if throughput matters.
 	breakers map[string]*breaker
 
 	maxFailures int
@@ -116,6 +118,9 @@ func (r *Runner) breakerFor(id string) *breaker {
 // It never returns an error for an individual source failure — those are
 // captured per-source so one bad source cannot abort the run (SCR-1b).
 func (r *Runner) RunOnce(ctx context.Context) RunReport {
+	r.runMu.Lock()
+	defer r.runMu.Unlock()
+
 	var report RunReport
 	now := r.now()
 
@@ -143,10 +148,13 @@ func (r *Runner) RunOnce(ctx context.Context) RunReport {
 			if nerr != nil {
 				continue // drop malformed listings, keep going
 			}
+			if !isJabodetabekOrRemote(job) {
+				continue
+			}
 			sr.Fetched++
 			created, serr := r.store.Upsert(ctx, job)
 			if serr != nil {
-				sr.Err = serr
+				sr.PersistErr = serr
 				continue
 			}
 			if created {

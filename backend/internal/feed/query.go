@@ -6,30 +6,15 @@ package feed
 import (
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/auto-applier/backend/internal/ingest"
 )
 
 // Query is a feed request: free-text search (FEED-3) plus filters (FEED-2).
 // Zero-valued fields are ignored.
-type Query struct {
-	Search         string     // matches title + company (FEED-3)
-	PayMin         *int64     // job's stated max >= PayMin
-	PayMax         *int64     // job's stated min <= PayMax
-	Location       string     // city substring match
-	Remote         *bool      // remote-only / on-site-only
-	Skills         []string   // all must appear in requirements
-	MaxYoE         *int       // listings requiring <= MaxYoE years
-	EmploymentType string     // normalized employment type
-	Source         string     // exact source id
-	PostedAfter    *time.Time // posted on/after this time
-	Limit          int
-	Offset         int
-}
+type Query = ingest.JobQuery
 
-// Index is an in-memory, queryable snapshot of active jobs. A production
-// implementation would push these filters into SQL; the interface is the same.
+// Index is the in-memory query path used by tests and local development.
 type Index struct {
 	jobs []ingest.Job
 }
@@ -50,7 +35,7 @@ type Result struct {
 }
 
 // Search applies the query filters and returns a page ordered by posting date
-// (newest first), then title for stability.
+// (newest first), then title and dedup key for stability.
 func (ix *Index) Search(q Query) Result {
 	var matched []ingest.Job
 	for _, j := range ix.jobs {
@@ -65,8 +50,10 @@ func (ix *Index) Search(q Query) Result {
 			return ti.After(*tk)
 		case (ti == nil) != (tk == nil):
 			return ti != nil // dated listings sort ahead of undated
-		default:
+		case matched[i].Title != matched[k].Title:
 			return matched[i].Title < matched[k].Title
+		default:
+			return matched[i].DedupKey < matched[k].DedupKey
 		}
 	})
 

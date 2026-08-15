@@ -79,17 +79,19 @@ func main() {
 	// Postgres-backed when DATABASE_URL is set (jobs persist across restarts and
 	// are populated by the seed/ingestion); otherwise an in-memory store with a
 	// synthetic demo seed backs local dev.
-	jobStore, pgxJobStore := newJobStore(pool)
+	jobStore, jobCounter, pgxJobStore := newJobStore(pool)
 	feedSvc := feed.NewService(jobStore)
 
-	// Background ingestion + staleness sweep via River (Postgres only). Falls
-	// back to the boot-time synthetic seed when no DB/sources are configured.
-	stopQueue := startIngestQueue(pool, pgxJobStore)
+	// Background ingestion + staleness sweep via River (Postgres only).
+	stopQueue, err := startIngestQueue(pool, pgxJobStore)
+	if err != nil {
+		log.Fatalf("queue startup: %v", err)
+	}
 	defer stopQueue()
 
 	srv := &http.Server{
 		Addr: addr,
-		Handler: api.RequireHTTPS(api.NewRouter(authSvc.Routes(),
+		Handler: api.RequireHTTPS(api.NewRouter(registrationGate(authSvc.Routes(), jobCounter),
 			api.Mount{Pattern: "/cv", Handler: gatedCV},
 			api.Mount{Pattern: "/profile", Handler: gatedProfile},
 			api.Mount{Pattern: "/profile/", Handler: gatedProfile},
@@ -122,46 +124,85 @@ func main() {
 	log.Println("api stopped")
 }
 
-// newJobStore returns the feed's job provider and, when Postgres backs it, the
-// concrete pgx store (so the ingestion queue can also sweep stale listings). In
-// in-memory mode the second return is nil and a synthetic demo seed is loaded.
-func newJobStore(pool *pgxpool.Pool) (feed.Provider, *ingest.PgxStore) {
+// newJobStore returns the feed provider, its real-active counter, and, when
+// Postgres backs it, the concrete pgx store for the ingestion queue. In-memory
+// mode loads a synthetic demo seed.
+type realActiveJobCounter interface {
+	RealActiveCount(context.Context) (int, error)
+}
+
+func newJobStore(pool *pgxpool.Pool) (feed.Provider, realActiveJobCounter, *ingest.PgxStore) {
 	if pool == nil {
 		ms := ingest.NewMemoryStore()
 		seedFeed(ms)
-		return ms, nil
+		return ms, nil, nil
 	}
 	log.Println("using Postgres-backed job store")
 	store := ingest.NewPgxStore(pool)
-	return store, store
+	return store, store, store
 }
 
-// startIngestQueue starts the River-backed periodic ingestion + staleness
-// sweep. It is a no-op (returning a no-op stop) when Postgres is not configured
-// or no live sources are enabled, so local dev without a DB still runs. A start
-// failure is logged and degraded — the API keeps serving the existing feed.
-func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) func() {
+func registrationGate(next http.Handler, jobs realActiveJobCounter) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/auth/register" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if jobs == nil {
+			http.Error(w,
+				fmt.Sprintf("registration unavailable until feed has at least %d real active job listings", seed.DefaultCount),
+				http.StatusServiceUnavailable,
+			)
+			return
+		}
+		count, err := jobs.RealActiveCount(r.Context())
+		if err != nil || count < seed.DefaultCount {
+			http.Error(w,
+				fmt.Sprintf("registration unavailable until feed has at least %d real active job listings", seed.DefaultCount),
+				http.StatusServiceUnavailable,
+			)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+type queueClient interface {
+	Stop(context.Context) error
+}
+
+type queueStarter func(context.Context, *pgxpool.Pool, *ingest.Runner, *ingest.PgxStore, queue.Config) (queueClient, error)
+
+func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) (func(), error) {
+	return startIngestQueueWith(pool, store, func(
+		ctx context.Context,
+		pool *pgxpool.Pool,
+		runner *ingest.Runner,
+		store *ingest.PgxStore,
+		cfg queue.Config,
+	) (queueClient, error) {
+		return queue.Start(ctx, pool, runner, store, cfg)
+	})
+}
+
+func startIngestQueueWith(pool *pgxpool.Pool, store *ingest.PgxStore, start queueStarter) (func(), error) {
 	noop := func() {}
 	if pool == nil || store == nil {
-		return noop
+		return noop, nil
 	}
 	reg := ingest.BuildRegistry(ingest.SourceConfig{
-		KalibrrLimit: intEnv("KALIBRR_LIMIT", 25),
+		KalibrrLimit: intEnv("KALIBRR_LIMIT", seed.DefaultCount),
 		JoobleAPIKey: os.Getenv("JOOBLE_API_KEY"),
+		JoobleLimit:  intEnv("JOOBLE_LIMIT", seed.DefaultCount),
 	})
-	if len(reg.Sources()) == 0 {
-		log.Println("no live sources enabled; skipping background ingestion")
-		return noop
-	}
 	runner := ingest.NewRunner(reg, store, time.Now, 0, 0)
-	client, err := queue.Start(context.Background(), pool, runner, store, queue.Config{
-		IngestInterval: durEnv("INGEST_INTERVAL", 6*time.Hour),
-		SweepInterval:  durEnv("SWEEP_INTERVAL", time.Hour),
-		StaleAfter:     durEnv("STALE_AFTER", 14*24*time.Hour),
-	})
+	cfg, err := ingestQueueConfig()
 	if err != nil {
-		log.Printf("river: %v (continuing without background ingestion)", err)
-		return noop
+		return noop, fmt.Errorf("queue configuration: %w", err)
+	}
+	client, err := start(context.Background(), pool, runner, store, cfg)
+	if err != nil {
+		return noop, fmt.Errorf("queue start: %w", err)
 	}
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -169,7 +210,19 @@ func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) func() {
 		if err := client.Stop(ctx); err != nil {
 			log.Printf("river stop: %v", err)
 		}
+	}, nil
+}
+
+func ingestQueueConfig() (queue.Config, error) {
+	cfg := queue.Config{
+		IngestInterval: durEnv("INGEST_INTERVAL", 6*time.Hour),
+		SweepInterval:  durEnv("SWEEP_INTERVAL", time.Hour),
+		StaleAfter:     durEnv("STALE_AFTER", ingest.StaleAfter),
 	}
+	if err := cfg.Validate(); err != nil {
+		return queue.Config{}, fmt.Errorf("STALE_AFTER: %w", err)
+	}
+	return cfg, nil
 }
 
 // seedFeed populates the in-memory job store with deterministic synthetic

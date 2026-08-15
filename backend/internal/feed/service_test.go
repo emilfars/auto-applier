@@ -109,6 +109,20 @@ func TestPaginationOrder(t *testing.T) {
 	}
 }
 
+func TestPaginationUsesDedupKeyForEqualDateAndTitle(t *testing.T) {
+	posted := base
+	ix := NewIndex([]ingest.Job{
+		{DedupKey: "z", Title: "Same Role", PostedAt: &posted},
+		{DedupKey: "a", Title: "Same Role", PostedAt: &posted},
+	})
+	for offset, want := range []string{"a", "z"} {
+		page := ix.Search(Query{Limit: 1, Offset: offset})
+		if len(page.Jobs) != 1 || page.Jobs[0].DedupKey != want {
+			t.Fatalf("offset %d = %#v, want %q", offset, page.Jobs, want)
+		}
+	}
+}
+
 // AC-FEED-1: response carries stated pay, labeled, and NO estimated field.
 func TestFeedResponseNoEstimatedField(t *testing.T) {
 	svc := NewService(stubProvider{seed()})
@@ -165,5 +179,39 @@ func TestFeedHTTPBadParam(t *testing.T) {
 	svc.Routes().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/feed?pay_min=abc", nil))
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestFeedHTTPRejectsInvalidNumericFilters(t *testing.T) {
+	for _, query := range []string{
+		"pay_min=-1",
+		"pay_max=-1",
+		"max_yoe=-1",
+		"pay_min=20000000&pay_max=10000000",
+	} {
+		t.Run(query, func(t *testing.T) {
+			svc := NewService(stubProvider{seed()})
+			rr := httptest.NewRecorder()
+			svc.Routes().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/feed?"+query, nil))
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400; body=%s", rr.Code, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestFeedHTTPPreservesPaginationNormalization(t *testing.T) {
+	svc := NewService(stubProvider{seed()})
+	rr := httptest.NewRecorder()
+	svc.Routes().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/feed?limit=1000&offset=-3", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var resp feedResp
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Limit != 100 || resp.Offset != 0 {
+		t.Fatalf("pagination = limit %d offset %d, want 100/0", resp.Limit, resp.Offset)
 	}
 }

@@ -37,16 +37,14 @@ Recorded so the loop does not re-litigate them. These solidify the MVP before an
 
 ## Current implementation checkpoint (2026-08-15)
 
-M0→M4 component code exists and the full local build/lint/typecheck/unit-test gate passes after dependencies are installed. The MVP is still in hardening; do not start M5 until these launch blockers are closed:
+M0-M3 are complete and the required Postgres plus Docker/API/S3 gate passes. M4 component code exists, but the MVP is still in hardening; do not start M5 until these launch blockers are closed:
 
 | Blocker | Current state |
 |---|---|
 | Web → extension data path | Open & Fill transfers only a URL. No runtime path writes the confirmed profile or CV file into extension storage. |
-| Docker full stack | Production nginx serves the SPA but does not proxy `/auth`, `/profile`, `/cv`, `/feed`, `/account`, or `/healthz` to the API. |
-| CV object persistence | CV metadata persists in Postgres, but encrypted CV bytes use an in-memory object store and disappear on API restart. |
-| SCR-4 staleness | The shared rule is 48 hours, but River runtime configuration defaults to 14 days. |
+| Live listing threshold | Registration remains closed until Postgres contains at least 5,000 active real listings; synthetic fixtures never count. |
 
-Before declaring MVP complete, add one browser-level Open & Fill test using the real web profile/CV path, one Docker/API smoke test, and Postgres-backed verification that does not silently skip.
+Before declaring MVP complete, add one browser-level Open & Fill test using the real web profile/CV path. Docker/API/S3 smoke and non-skipping Postgres verification are enforced by `./scripts/verify.sh`.
 
 ## Agentic loop protocol
 

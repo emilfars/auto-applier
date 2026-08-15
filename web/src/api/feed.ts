@@ -40,6 +40,12 @@ export interface FeedQuery {
   location?: string;
   employment_type?: string;
   remote?: boolean;
+  pay_min?: number;
+  pay_max?: number;
+  skills?: string | string[];
+  max_yoe?: number;
+  posted_after?: string;
+  source?: string;
   limit?: number;
   offset?: number;
 }
@@ -52,6 +58,14 @@ export function buildFeedPath(query: FeedQuery = {}): string {
   if (query.employment_type?.trim())
     params.set("employment_type", query.employment_type.trim());
   if (query.remote != null) params.set("remote", String(query.remote));
+  if (query.pay_min != null) params.set("pay_min", String(query.pay_min));
+  if (query.pay_max != null) params.set("pay_max", String(query.pay_max));
+  const skills = Array.isArray(query.skills) ? query.skills : query.skills?.split(",");
+  const normalizedSkills = skills?.map((skill) => skill.trim()).filter(Boolean).join(",");
+  if (normalizedSkills) params.set("skills", normalizedSkills);
+  if (query.max_yoe != null) params.set("max_yoe", String(query.max_yoe));
+  if (query.posted_after?.trim()) params.set("posted_after", query.posted_after.trim());
+  if (query.source?.trim()) params.set("source", query.source.trim());
   if (query.limit != null) params.set("limit", String(query.limit));
   if (query.offset != null) params.set("offset", String(query.offset));
   const qs = params.toString();
