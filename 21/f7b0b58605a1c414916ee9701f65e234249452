@@ -1,0 +1,99 @@
+web/src/styles.css
+  s_577b14ca21d3e5::t_6163857aa83647 388-390
+backend/internal/auth/pgxrepo.go
+  s_577b14ca21d3e5::t_c10d17a66b8286 205-209
+  s_577b14ca21d3e5::t_84c9c3a7a3b05f 203-204
+  s_577b14ca21d3e5::t_6849265dd3e4e9 210-212
+  s_577b14ca21d3e5::t_e06bb52a540142 5-6,39,63,126,128-129,136,139-147,150,153,155,161,171-172,179,184,193,200,213-216,218,221,223-228
+PROGRESS.md
+  s_577b14ca21d3e5::t_f42aa6f5494785 29,39,81
+backend/internal/auth/service.go
+  s_577b14ca21d3e5::t_03bf59ed6262f8 391,397-400
+  s_577b14ca21d3e5::t_6163857aa83647 174,180,184-185,192-196,217,220,330-331,333-335,338-341
+  s_577b14ca21d3e5::t_bb35d1c237ce98 293-296,336-337
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 190,261,300,332,373-374,396,401-404,408-411
+  s_577b14ca21d3e5::t_cf51eab258e7c4 433-435
+  s_577b14ca21d3e5::t_b5797e6c5d9015 189
+  s_577b14ca21d3e5::t_567c357a0b8d35 191
+  s_577b14ca21d3e5::t_392b379430f4ad 328-329
+  s_577b14ca21d3e5::t_88929f183445be 370-372
+  s_577b14ca21d3e5::t_4b7e30fea1ad40 436-438
+  s_577b14ca21d3e5::t_0060a4217a2a6d 7-8,18,37,49-51,145,154-157,238-239
+backend/internal/auth/oauth.go
+  s_577b14ca21d3e5::t_da2f2ec2a50450 79-89
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 97,102
+  s_577b14ca21d3e5::t_6163857aa83647 25-26,32-34,55-58,65-69,71
+web/src/api/auth.ts
+  s_577b14ca21d3e5::t_6163857aa83647 24,26
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 36-37
+web/src/i18n/locales/id.json
+  s_577b14ca21d3e5::t_6163857aa83647 40
+README.md
+  s_577b14ca21d3e5::t_da2f2ec2a50450 58
+  s_577b14ca21d3e5::t_6163857aa83647 59-61
+backend/internal/auth/service_test.go
+  s_577b14ca21d3e5::t_e5569b88454e2c 7
+  s_577b14ca21d3e5::t_78377059e2b36f 19,24-28,35-39,48,50,57,179-180,327,351-353,384,386,505-506
+  s_577b14ca21d3e5::t_e8a20dcb42cee6 181,290-291,374-383,385,387-398,507
+  s_577b14ca21d3e5::t_893211eda88e86 276-289
+  s_577b14ca21d3e5::t_bb35d1c237ce98 29-34
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 124,130-139
+  s_577b14ca21d3e5::t_7cf3576a1e30f2 292
+  s_577b14ca21d3e5::t_36573640670acf 399
+backend/internal/auth/mailer.go
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 5,21,40,62-94
+  s_577b14ca21d3e5::t_6163857aa83647 1-4,6-20,22-39,41-61,97-98
+  s_577b14ca21d3e5::t_da2f2ec2a50450 95-96
+backend/internal/auth/mailer_test.go
+  s_577b14ca21d3e5::t_03bf59ed6262f8 1-49
+web/src/components/AuthPanel.test.tsx
+  s_577b14ca21d3e5::t_bb35d1c237ce98 1-19,23-24
+  s_577b14ca21d3e5::t_893211eda88e86 20-22
+ACCEPTANCE.md
+  s_577b14ca21d3e5::t_f42aa6f5494785 48,50-53
+backend/internal/auth/oauth_test.go
+  s_577b14ca21d3e5::t_458b6e08fa05ae 55,102-106,108-111,113-122
+  s_577b14ca21d3e5::t_78377059e2b36f 44,76,107,112
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 49,53-54
+  s_577b14ca21d3e5::t_abfd3150ed0017 123
+backend/cmd/api/main.go
+  s_577b14ca21d3e5::t_ddf2422d8ac632 216-221
+  s_577b14ca21d3e5::t_6163857aa83647 44-47,51
+  s_577b14ca21d3e5::t_33032f0298704c 222-223
+backend/internal/db/migrations/0005_auth_hardening.down.sql
+  s_577b14ca21d3e5::t_6163857aa83647 1-2
+web/src/components/AuthPanel.tsx
+  s_577b14ca21d3e5::t_6163857aa83647 28,72,159-169
+backend/internal/auth/pgxrepo_test.go
+  s_577b14ca21d3e5::t_39aa2922c6ef8d 155-156,160,163,168,175,178,181,191
+  s_577b14ca21d3e5::t_bb35d1c237ce98 8,58-59
+  s_577b14ca21d3e5::t_78377059e2b36f 60,94,97,99,102-114,117,123,131-137,151,172-174,176-177,179-180,182-187,189
+  s_577b14ca21d3e5::t_baff3fded9d34e 157,171,188
+web/src/api/auth.test.ts
+  s_577b14ca21d3e5::t_06065e7ac7ffd5 35
+  s_577b14ca21d3e5::t_78377059e2b36f 20,56-57
+web/src/i18n/locales/en.json
+  s_577b14ca21d3e5::t_6163857aa83647 40
+backend/internal/db/migrations/0005_auth_hardening.up.sql
+  s_577b14ca21d3e5::t_6163857aa83647 1-8
+backend/internal/auth/memrepo.go
+  s_577b14ca21d3e5::t_2c69248068365a 17,32,41-42,62,114-115,144,147,151,154-159,161,163-164,166,200,205,209-220,223,231-232
+backend/internal/auth/repo.go
+  s_577b14ca21d3e5::t_47ce541966da27 5,43-44,51-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "21f7b0b58605a1c414916ee9701f65e234249452",
+  "prompts": {},
+  "sessions": {
+    "s_577b14ca21d3e5": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "7a055577-84e0-41c6-b7f7-1fccf752402a",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
