@@ -1,0 +1,19 @@
+backend/internal/db/apply_test.go
+  s_b4522cb39c0314::t_7e9aad64585444 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "551474406db73448d90593b21d92d8c5885afd3f",
+  "prompts": {},
+  "sessions": {
+    "s_b4522cb39c0314": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "f056d535-2e77-4caa-945f-8d0417e04aef",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
