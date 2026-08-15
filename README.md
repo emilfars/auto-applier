@@ -75,6 +75,7 @@ Environment variables (all optional for local dev):
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | Optional SMTP credentials. |
 | `SMTP_FROM` | Sender address; required when `SMTP_ADDR` is set. |
 | `AUTH_DEV_EXPOSE_TOKENS` | Return verification/reset tokens in API responses for local demos only. |
+| `AUTH_DEV_ALLOW_IN_MEMORY_REGISTRATION` | Local browser E2E only: allow registration without the 5,000-real-listing gate when dev tokens are enabled. |
 
 ## Verification gate
 

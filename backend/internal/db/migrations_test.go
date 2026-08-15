@@ -69,6 +69,7 @@ func TestJobProvenanceMigrationBackfillsOnlyGeneratorURLs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMigrations() error: %v", err)
 	}
+
 	var up string
 	for _, migration := range migrations {
 		if migration.Version == 7 {
@@ -81,5 +82,27 @@ func TestJobProvenanceMigrationBackfillsOnlyGeneratorURLs(t *testing.T) {
 	}
 	if !strings.Contains(up, "source_url LIKE 'https://example.test/%'") {
 		t.Fatal("job provenance migration must backfill known generator URLs only")
+	}
+}
+
+func TestProfileAppFieldsMigration(t *testing.T) {
+	migrations, err := LoadMigrations()
+	if err != nil {
+		t.Fatalf("LoadMigrations() error: %v", err)
+	}
+	var up string
+	for _, migration := range migrations {
+		if migration.Version == 8 {
+			up = migration.Up
+			break
+		}
+	}
+	for _, column := range []string{
+		"linkedin_url", "github_url", "portfolio_url", "address", "city",
+		"summary", "current_employer", "current_title", "highest_education",
+	} {
+		if !strings.Contains(up, column) {
+			t.Errorf("profile app-fields migration missing %q", column)
+		}
 	}
 }

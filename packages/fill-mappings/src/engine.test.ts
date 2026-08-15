@@ -41,10 +41,9 @@ const confirmed: ProfileData = {
 };
 
 describe("AC-CV-5: fill is not armed for an unconfirmed profile", () => {
-  it("returns all-empty outcomes and zero coverage", () => {
+  it("returns all-empty outcomes", () => {
     const plan = buildFillPlan(testMap, { ...confirmed, confirmed: false }, root({ "#name": el(), "#email": el() }));
     expect(plan.filled).toBe(0);
-    expect(plan.coverage).toBe(0);
     for (const o of plan.outcomes) {
       expect(o.state).toBe("empty");
       expect(o.note).toMatch(/not confirmed/);
@@ -114,10 +113,9 @@ describe("AC-SAFE-2: per-field filled | uncertain | empty", () => {
   });
 });
 
-describe("coverage metrics", () => {
-  it("counts filled/uncertain/empty and computes coverage", () => {
+describe("plan counts", () => {
+  it("counts filled, uncertain, and empty outcomes without implying writes", () => {
     const plan = buildFillPlan(testMap, confirmed, root({ "#name": el(), "#email": el() }));
     expect(plan.filled + plan.uncertain + plan.empty).toBe(testMap.fields.length);
-    expect(plan.coverage).toBeCloseTo(plan.filled / testMap.fields.length);
   });
 });

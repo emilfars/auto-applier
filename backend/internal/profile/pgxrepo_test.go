@@ -57,6 +57,15 @@ func TestPgxRepo_SaveAndUpdate(t *testing.T) {
 	p := emptyProfile(userID)
 	p.FullName = "Dina Putri"
 	p.Email = "dina@example.com"
+	p.LinkedInURL = "https://linkedin.com/in/dina"
+	p.GitHubURL = "https://github.com/dina"
+	p.PortfolioURL = "https://dina.example.com"
+	p.Address = "Jl. Merdeka 1"
+	p.City = "Jakarta"
+	p.Summary = "Engineer"
+	p.CurrentEmployer = "Acme"
+	p.CurrentTitle = "SWE"
+	p.HighestEducation = "S.Kom"
 	p.Skills = json.RawMessage(`["Go","React"]`)
 	p.ExpectedSalary = &salary
 	p.NoticePeriodDays = &notice
@@ -80,6 +89,13 @@ func TestPgxRepo_SaveAndUpdate(t *testing.T) {
 	}
 	if got.ExpectedSalary == nil || *got.ExpectedSalary != salary {
 		t.Fatalf("expected_salary round-trip failed: %+v", got.ExpectedSalary)
+	}
+	if got.LinkedInURL != p.LinkedInURL || got.GitHubURL != p.GitHubURL ||
+		got.PortfolioURL != p.PortfolioURL || got.Address != p.Address ||
+		got.City != p.City || got.Summary != p.Summary ||
+		got.CurrentEmployer != p.CurrentEmployer || got.CurrentTitle != p.CurrentTitle ||
+		got.HighestEducation != p.HighestEducation {
+		t.Fatalf("application profile fields did not round-trip: %+v", got)
 	}
 
 	// update: confirm the profile

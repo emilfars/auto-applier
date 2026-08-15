@@ -1,0 +1,10 @@
+ALTER TABLE profiles
+    ADD COLUMN linkedin_url TEXT NOT NULL DEFAULT '',
+    ADD COLUMN github_url TEXT NOT NULL DEFAULT '',
+    ADD COLUMN portfolio_url TEXT NOT NULL DEFAULT '',
+    ADD COLUMN address TEXT NOT NULL DEFAULT '',
+    ADD COLUMN city TEXT NOT NULL DEFAULT '',
+    ADD COLUMN summary TEXT NOT NULL DEFAULT '',
+    ADD COLUMN current_employer TEXT NOT NULL DEFAULT '',
+    ADD COLUMN current_title TEXT NOT NULL DEFAULT '',
+    ADD COLUMN highest_education TEXT NOT NULL DEFAULT '';

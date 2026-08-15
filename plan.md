@@ -37,14 +37,14 @@ Recorded so the loop does not re-litigate them. These solidify the MVP before an
 
 ## Current implementation checkpoint (2026-08-15)
 
-M0-M3 are complete and the required Postgres plus Docker/API/S3 gate passes. M4 component code exists, but the MVP is still in hardening; do not start M5 until these launch blockers are closed:
+M0-M4 are complete and the required Postgres plus Docker/API/S3 gate passes. The native Chrome MV3 Open & Fill browser gate is green; do not start M5 until the remaining launch blocker is closed:
 
 | Blocker | Current state |
 |---|---|
-| Web → extension data path | Open & Fill transfers only a URL. No runtime path writes the confirmed profile or CV file into extension storage. |
+| Web → extension data path | Closed. The confirmed profile/CV snapshot is transferred through the web-page bridge into tab-scoped `chrome.storage.session`, with CV bytes in IndexedDB. |
 | Live listing threshold | Registration remains closed until Postgres contains at least 5,000 active real listings; synthetic fixtures never count. |
 
-Before declaring MVP complete, add one browser-level Open & Fill test using the real web profile/CV path. Docker/API/S3 smoke and non-skipping Postgres verification are enforced by `./scripts/verify.sh`.
+Before declaring MVP complete, seed at least 5,000 active real listings in Postgres and keep registration closed below that threshold. The browser-level Open & Fill test now uses the real web profile/CV path; Docker/API/S3 smoke and non-skipping Postgres verification are enforced by `./scripts/verify.sh`.
 
 ## Agentic loop protocol
 

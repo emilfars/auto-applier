@@ -7,7 +7,7 @@ import { digitsOnly } from "../transforms.js";
  */
 export const jobstreet: PortalMap = {
   id: "jobstreet",
-  version: "1.0.0",
+  version: "1.1.0",
   hosts: ["jobstreet.com", "jobstreet.co.id", "id.jobstreet.com"],
   fields: [
     {
@@ -33,7 +33,11 @@ export const jobstreet: PortalMap = {
     },
     {
       key: "cv_file",
-      selectors: ['[data-automation="resume-upload"] input[type="file"]', 'input[type="file"]'],
+      selectors: [
+        '[data-automation="resume-upload"] input[type="file"]',
+        'input[type="file"][name*="resume" i]',
+        'input[type="file"][name*="cv" i]',
+      ],
       confidence: 0.8,
       file: true,
     },

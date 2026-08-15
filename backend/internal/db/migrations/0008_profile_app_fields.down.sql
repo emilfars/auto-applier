@@ -1,0 +1,10 @@
+ALTER TABLE profiles
+    DROP COLUMN highest_education,
+    DROP COLUMN current_title,
+    DROP COLUMN current_employer,
+    DROP COLUMN summary,
+    DROP COLUMN city,
+    DROP COLUMN address,
+    DROP COLUMN portfolio_url,
+    DROP COLUMN github_url,
+    DROP COLUMN linkedin_url;

@@ -1,4 +1,8 @@
 services:
+  web:
+    build:
+      args:
+        VITE_EXTENSION_ID: ${VITE_EXTENSION_ID:-kkmfcjjjcajmjkeaaffplfkiaemlhmnl}
   object-storage:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}

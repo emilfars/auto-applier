@@ -44,12 +44,21 @@ func newFixture(t *testing.T) fixture {
 
 	profRepo := profile.NewMemoryRepo()
 	if _, err := profRepo.Save(ctx, profile.Profile{
-		UserID:      u.ID,
-		FullName:    "Dina Sari",
-		Phone:       "+628123456789",
-		Education:   json.RawMessage("[]"),
-		WorkHistory: json.RawMessage("[]"),
-		Skills:      json.RawMessage("[]"),
+		UserID:           u.ID,
+		FullName:         "Dina Sari",
+		LinkedInURL:      "https://linkedin.com/in/dina",
+		GitHubURL:        "https://github.com/dina",
+		PortfolioURL:     "https://dina.example.com",
+		Address:          "Jl. Merdeka 1",
+		City:             "Jakarta",
+		Summary:          "Product-minded engineer",
+		CurrentEmployer:  "Acme",
+		CurrentTitle:     "SWE",
+		HighestEducation: "S.Kom",
+		Phone:            "+628123456789",
+		Education:        json.RawMessage("[]"),
+		WorkHistory:      json.RawMessage("[]"),
+		Skills:           json.RawMessage("[]"),
 	}); err != nil {
 		t.Fatalf("save profile: %v", err)
 	}
@@ -117,7 +126,14 @@ func TestAC_AUTH_5_ExportReturnsCompleteData(t *testing.T) {
 	if out.Account.ConsentAt == nil {
 		t.Error("export missing consent_at")
 	}
-	if out.Profile == nil || out.Profile.FullName != "Dina Sari" {
+	if out.Profile == nil || out.Profile.FullName != "Dina Sari" ||
+		out.Profile.LinkedInURL != "https://linkedin.com/in/dina" ||
+		out.Profile.GitHubURL != "https://github.com/dina" ||
+		out.Profile.PortfolioURL != "https://dina.example.com" ||
+		out.Profile.Address != "Jl. Merdeka 1" || out.Profile.City != "Jakarta" ||
+		out.Profile.Summary != "Product-minded engineer" ||
+		out.Profile.CurrentEmployer != "Acme" || out.Profile.CurrentTitle != "SWE" ||
+		out.Profile.HighestEducation != "S.Kom" {
 		t.Errorf("export profile = %+v, want full_name Dina Sari", out.Profile)
 	}
 	if len(out.CVFiles) != 1 || out.CVFiles[0].Filename != "resume.pdf" {

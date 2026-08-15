@@ -21,6 +21,15 @@ type Profile struct {
 	FullName           string
 	Email              string
 	Phone              string
+	LinkedInURL        string
+	GitHubURL          string
+	PortfolioURL       string
+	Address            string
+	City               string
+	Summary            string
+	CurrentEmployer    string
+	CurrentTitle       string
+	HighestEducation   string
 	Education          json.RawMessage
 	WorkHistory        json.RawMessage
 	Skills             json.RawMessage

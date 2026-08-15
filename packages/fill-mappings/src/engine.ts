@@ -143,8 +143,6 @@ export function buildFillPlan(
     else if (o.state === "uncertain") uncertain++;
     else empty++;
   }
-  const mappable = portal.fields.length || 1;
-
   return {
     portalId: portal.id,
     version: portal.version,
@@ -152,6 +150,5 @@ export function buildFillPlan(
     filled,
     uncertain,
     empty,
-    coverage: filled / mappable,
   };
 }

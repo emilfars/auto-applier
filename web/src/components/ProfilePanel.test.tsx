@@ -23,6 +23,15 @@ const profile: profileApi.Profile = {
   full_name: "Dina",
   email: "dina@example.com",
   phone: "+62812",
+  linkedin_url: "https://linkedin.com/in/dina",
+  github_url: "https://github.com/dina",
+  portfolio_url: "https://dina.example.com",
+  address: "Jl. Sudirman 1",
+  city: "Jakarta",
+  summary: "Engineer",
+  current_employer: "Acme",
+  current_title: "Engineer",
+  highest_education: "S.Kom",
   education: [{ institution: "UI", degree: "S.Kom", field: "CS", start_year: "2020", end_year: "2024" }],
   work_history: [{ company: "Acme", title: "Engineer", start_date: "2024", end_date: "" }],
   skills: ["Go"],
@@ -51,6 +60,12 @@ describe("ProfilePanel", () => {
     expect((workHistory as HTMLTextAreaElement).value).toContain('"company": "Acme"');
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("LinkedIn URL"), {
+      target: { value: "https://linkedin.com/in/new" },
+    });
+    fireEvent.change(screen.getByLabelText("Professional summary"), {
+      target: { value: "New summary" },
+    });
     fireEvent.change(education, {
       target: { value: '[{"institution":"ITB","degree":"S.T.","field":"","start_year":"","end_year":""}]' },
     });
@@ -63,6 +78,8 @@ describe("ProfilePanel", () => {
       expect(profileApi.patchProfile).toHaveBeenCalledWith(
         expect.objectContaining({
           email: "new@example.com",
+          linkedin_url: "https://linkedin.com/in/new",
+          summary: "New summary",
           education: [expect.objectContaining({ institution: "ITB" })],
           work_history: [expect.objectContaining({ company: "New Co" })],
         }),

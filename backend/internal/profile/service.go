@@ -2,15 +2,21 @@ package profile
 
 import (
 	"bytes"
+	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/mail"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/cv"
+	"github.com/google/uuid"
 )
 
 // allowedEmploymentTypes constrains the employment_type field (AC-CV-4).
@@ -29,6 +35,13 @@ const maxNoticePeriodDays = 365
 type Service struct {
 	repo Repo
 	now  func() time.Time
+	cvs  CVSource
+}
+
+// CVSource supplies an owned uploaded CV for a one-shot fill snapshot.
+type CVSource interface {
+	FilesByUser(context.Context, string) ([]cv.File, error)
+	Content(context.Context, string, string) (cv.File, []byte, error)
 }
 
 // NewService builds a profile service.
@@ -39,11 +52,18 @@ func NewService(repo Repo, now func() time.Time) *Service {
 	return &Service{repo: repo, now: now}
 }
 
+// WithCVSource enables the authenticated profile/CV fill snapshot endpoint.
+func (s *Service) WithCVSource(source CVSource) *Service {
+	s.cvs = source
+	return s
+}
+
 // Routes returns the profile HTTP handler. Callers must wrap it with auth
 // middleware (RequireVerified) so an authenticated user is in context.
 func (s *Service) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /profile", s.handleGet)
+	mux.HandleFunc("GET /profile/fill", s.handleFill)
 	mux.HandleFunc("PATCH /profile", s.handlePatch)
 	mux.HandleFunc("POST /profile/confirm", s.handleConfirm)
 	mux.HandleFunc("GET /profile/arm", s.handleArm)
@@ -77,6 +97,16 @@ type patchReq struct {
 	FullName           *string          `json:"full_name"`
 	Email              *string          `json:"email"`
 	Phone              *string          `json:"phone"`
+	LinkedInURL        *string          `json:"linkedin_url"`
+	GitHubURL          *string          `json:"github_url"`
+	PortfolioURL       *string          `json:"portfolio_url"`
+	Address            *string          `json:"address"`
+	City               *string          `json:"city"`
+	Summary            *string          `json:"summary"`
+	CurrentEmployer    *string          `json:"current_employer"`
+	CurrentCompany     *string          `json:"current_company"`
+	CurrentTitle       *string          `json:"current_title"`
+	HighestEducation   *string          `json:"highest_education"`
 	Education          *json.RawMessage `json:"education"`
 	WorkHistory        *json.RawMessage `json:"work_history"`
 	Skills             *json.RawMessage `json:"skills"`
@@ -137,6 +167,43 @@ func applyPatch(p *Profile, req patchReq) (string, bool) {
 	}
 	if req.Phone != nil {
 		p.Phone = *req.Phone
+	}
+	for _, f := range []struct {
+		src  *string
+		dst  *string
+		name string
+	}{
+		{req.LinkedInURL, &p.LinkedInURL, "linkedin_url"},
+		{req.GitHubURL, &p.GitHubURL, "github_url"},
+		{req.PortfolioURL, &p.PortfolioURL, "portfolio_url"},
+	} {
+		if f.src == nil {
+			continue
+		}
+		value := strings.TrimSpace(*f.src)
+		if value != "" && !validProfileURL(value) {
+			return f.name + " must be a valid URL", false
+		}
+		*f.dst = value
+	}
+	currentEmployer := req.CurrentEmployer
+	if currentEmployer == nil {
+		currentEmployer = req.CurrentCompany
+	}
+	for _, f := range []struct {
+		src *string
+		dst *string
+	}{
+		{req.Address, &p.Address},
+		{req.City, &p.City},
+		{req.Summary, &p.Summary},
+		{currentEmployer, &p.CurrentEmployer},
+		{req.CurrentTitle, &p.CurrentTitle},
+		{req.HighestEducation, &p.HighestEducation},
+	} {
+		if f.src != nil {
+			*f.dst = strings.TrimSpace(*f.src)
+		}
 	}
 	if req.WorkAuthorization != nil {
 		p.WorkAuthorization = *req.WorkAuthorization
@@ -208,6 +275,15 @@ func validArray[T any](raw json.RawMessage) bool {
 func validEmail(email string) bool {
 	addr, err := mail.ParseAddress(email)
 	return err == nil && addr.Address == email
+}
+
+func validProfileURL(value string) bool {
+	parsed, err := url.ParseRequestURI(value)
+	return err == nil &&
+		parsed.IsAbs() &&
+		(strings.EqualFold(parsed.Scheme, "http") || strings.EqualFold(parsed.Scheme, "https")) &&
+		parsed.Hostname() != "" &&
+		parsed.User == nil
 }
 
 func profileComplete(p Profile) bool {
@@ -296,6 +372,134 @@ func (s *Service) handleArm(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"can_arm": true})
 }
 
+type fillCVResp struct {
+	ID          string `json:"id"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	BytesBase64 string `json:"bytes_base64"`
+}
+
+// handleFill returns only the confirmed, caller-owned data needed for one
+// Open & Fill arm. The response is never persisted by the backend.
+func (s *Service) handleFill(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	u, ok := auth.UserFrom(r.Context())
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	cvID := r.URL.Query().Get("cv_id")
+	if cvID != "" {
+		if _, err := uuid.Parse(cvID); err != nil {
+			writeErr(w, http.StatusBadRequest, "invalid cv_id")
+			return
+		}
+	}
+	p, err := s.load(r, u.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "load error")
+		return
+	}
+	if !p.CanArm() {
+		writeErr(w, http.StatusForbidden, "profile not confirmed")
+		return
+	}
+
+	out := map[string]any{
+		"profile": canonicalFillProfile(p),
+		"cv":      nil,
+	}
+	if s.cvs == nil {
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+
+	if cvID == "" {
+		files, err := s.cvs.FilesByUser(r.Context(), u.ID)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "list cv files error")
+			return
+		}
+		if len(files) > 0 {
+			cvID = files[0].ID
+		}
+	}
+	if cvID != "" {
+		file, data, err := s.cvs.Content(r.Context(), u.ID, cvID)
+		if errors.Is(err, cv.ErrNotFound) {
+			writeErr(w, http.StatusNotFound, "cv not found")
+			return
+		}
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "read cv error")
+			return
+		}
+		out["cv"] = fillCVResp{
+			ID: file.ID, Filename: file.Filename, ContentType: file.ContentType,
+			BytesBase64: base64.StdEncoding.EncodeToString(data),
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func canonicalFillProfile(p Profile) map[string]any {
+	out := map[string]any{"confirmed": p.Confirmed}
+	if v := strings.TrimSpace(p.FullName); v != "" {
+		out["full_name"] = v
+		parts := strings.Fields(v)
+		out["first_name"] = parts[0]
+		if len(parts) > 1 {
+			out["last_name"] = parts[len(parts)-1]
+		}
+	}
+	if v := strings.TrimSpace(p.Email); v != "" {
+		out["email"] = v
+	}
+	if v := strings.TrimSpace(p.Phone); v != "" {
+		out["phone"] = v
+	}
+	for _, field := range []struct {
+		key   string
+		value string
+	}{
+		{"linkedin_url", p.LinkedInURL},
+		{"github_url", p.GitHubURL},
+		{"portfolio_url", p.PortfolioURL},
+		{"address", p.Address},
+		{"city", p.City},
+		{"summary", p.Summary},
+		{"current_company", p.CurrentEmployer},
+		{"current_title", p.CurrentTitle},
+		{"highest_education", p.HighestEducation},
+	} {
+		if value := strings.TrimSpace(field.value); value != "" {
+			out[field.key] = value
+		}
+	}
+	if p.ExpectedSalary != nil {
+		out["expected_salary"] = strconv.FormatInt(*p.ExpectedSalary, 10)
+	}
+	if p.NoticePeriodDays != nil {
+		out["notice_period"] = strconv.Itoa(*p.NoticePeriodDays)
+	}
+
+	var education []cv.EducationEntry
+	if json.Unmarshal(p.Education, &education) == nil && len(education) > 0 {
+		entry := education[len(education)-1]
+		if strings.TrimSpace(entry.Institution) != "" {
+			out["university"] = entry.Institution
+		}
+		if strings.TrimSpace(entry.Field) != "" {
+			out["major"] = entry.Field
+		}
+		if strings.TrimSpace(entry.EndYear) != "" {
+			out["graduation_year"] = entry.EndYear
+		}
+	}
+
+	return out
+}
+
 func isJSONArray(raw json.RawMessage) bool {
 	var arr []json.RawMessage
 	return json.Unmarshal(raw, &arr) == nil
@@ -305,6 +509,16 @@ type profileResp struct {
 	FullName           string          `json:"full_name"`
 	Email              string          `json:"email"`
 	Phone              string          `json:"phone"`
+	LinkedInURL        string          `json:"linkedin_url"`
+	GitHubURL          string          `json:"github_url"`
+	PortfolioURL       string          `json:"portfolio_url"`
+	Address            string          `json:"address"`
+	City               string          `json:"city"`
+	Summary            string          `json:"summary"`
+	CurrentEmployer    string          `json:"current_employer"`
+	CurrentCompany     string          `json:"current_company"`
+	CurrentTitle       string          `json:"current_title"`
+	HighestEducation   string          `json:"highest_education"`
 	Education          json.RawMessage `json:"education"`
 	WorkHistory        json.RawMessage `json:"work_history"`
 	Skills             json.RawMessage `json:"skills"`
@@ -334,6 +548,16 @@ func toResp(p Profile) profileResp {
 		FullName:           p.FullName,
 		Email:              p.Email,
 		Phone:              p.Phone,
+		LinkedInURL:        p.LinkedInURL,
+		GitHubURL:          p.GitHubURL,
+		PortfolioURL:       p.PortfolioURL,
+		Address:            p.Address,
+		City:               p.City,
+		Summary:            p.Summary,
+		CurrentEmployer:    p.CurrentEmployer,
+		CurrentCompany:     p.CurrentEmployer,
+		CurrentTitle:       p.CurrentTitle,
+		HighestEducation:   p.HighestEducation,
 		Education:          nonNil(p.Education),
 		WorkHistory:        nonNil(p.WorkHistory),
 		Skills:             nonNil(p.Skills),

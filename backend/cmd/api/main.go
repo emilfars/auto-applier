@@ -26,6 +26,7 @@ import (
 	"github.com/auto-applier/backend/internal/queue"
 	"github.com/auto-applier/backend/internal/seed"
 	"github.com/auto-applier/backend/internal/storage"
+	"github.com/auto-applier/backend/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -60,7 +61,6 @@ func main() {
 	// Profile edit + confirm-before-apply gate (AC-CV-3/4/5).
 	profileRepo := newProfileRepo(pool)
 	profileSvc := profile.NewService(profileRepo, time.Now)
-	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
 
 	cvStore, err := newCVStore(context.Background())
 	if err != nil {
@@ -68,12 +68,15 @@ func main() {
 	}
 	cvSvc := cv.NewService(newCVRepo(pool), cvStore, time.Now).
 		WithParsing(newCVParser(), profileSvc)
+	profileSvc.WithCVSource(cvSvc)
+	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
 	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
 
 	// Data-rights endpoints (AC-AUTH-5 / UU PDP): export all user data and
 	// delete the account with every piece of PII it owns.
 	accountSvc := account.NewService(authRepo, profileRepo, cvSvc)
 	gatedAccount := authSvc.RequireVerified(accountSvc.Routes())
+	telemetrySvc := telemetry.NewService()
 
 	// Public job feed (FEED-1..3): browsable before signup, stated-pay only.
 	// Postgres-backed when DATABASE_URL is set (jobs persist across restarts and
@@ -98,6 +101,7 @@ func main() {
 			api.Mount{Pattern: "/account", Handler: gatedAccount},
 			api.Mount{Pattern: "/account/", Handler: gatedAccount},
 			api.Mount{Pattern: "/feed", Handler: feedSvc.Routes()},
+			api.Mount{Pattern: "/telemetry/", Handler: telemetrySvc.Routes()},
 		), api.SecurityConfig{
 			EnforceHTTPS:        boolEnv("ENFORCE_HTTPS", false),
 			TrustForwardedProto: trustedProxyHops > 0,
@@ -149,6 +153,11 @@ func registrationGate(next http.Handler, jobs realActiveJobCounter) http.Handler
 			return
 		}
 		if jobs == nil {
+			if boolEnv("AUTH_DEV_ALLOW_IN_MEMORY_REGISTRATION", false) &&
+				boolEnv("AUTH_DEV_EXPOSE_TOKENS", false) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			http.Error(w,
 				fmt.Sprintf("registration unavailable until feed has at least %d real active job listings", seed.DefaultCount),
 				http.StatusServiceUnavailable,
@@ -239,6 +248,15 @@ func seedFeed(store *ingest.MemoryStore) {
 	if err != nil {
 		log.Printf("seed feed: %v", err)
 		return
+	}
+	if sourceURL := os.Getenv("E2E_SOURCE_URL"); sourceURL != "" {
+		for _, job := range store.All() {
+			job.SourceURL = sourceURL
+			if _, err := store.Upsert(context.Background(), job); err != nil {
+				log.Printf("seed fixture source URL: %v", err)
+				return
+			}
+		}
 	}
 	log.Printf("seeded %d demo listing(s) into feed", n)
 }

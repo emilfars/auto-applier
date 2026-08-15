@@ -10,7 +10,7 @@ import {
   type IsArmedMessage,
   type IsArmedResult,
 } from "./messaging.js";
-import { runContentFill } from "./content.js";
+import { renderReviewSummary, runContentFill } from "./content.js";
 
 const profile: ProfileData = {
   confirmed: true,
@@ -24,6 +24,7 @@ const leverForm = `
     <input name="name" type="text" />
     <input name="email" type="email" />
     <input name="phone" type="tel" />
+    <input name="resume" type="file" />
   </form>`;
 
 /**
@@ -76,6 +77,10 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
     if (result.ran) {
       expect(result.report.submitted).toBe(false);
       expect(result.report.applied).toBeGreaterThan(0);
+      renderReviewSummary(doc, result.report);
+      expect(doc.querySelector("[data-aa-review-summary]")?.textContent).toContain(
+        "filled",
+      );
     }
     expect((doc.querySelector('input[name="email"]') as HTMLInputElement).value).toBe(
       "sri.wahyuni@example.com",
@@ -142,5 +147,55 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
 
     expect(result).toEqual({ ran: false, reason: "profile-unconfirmed" });
     expect((doc.querySelector('input[name="email"]') as HTMLInputElement).value).toBe("");
+  });
+
+  it("transfers the confirmed profile and uploaded CV bytes through the one-shot arm", async () => {
+    const bg = makeBackground();
+    const url = "https://jobs.lever.co/acme/1/apply";
+    bg.fromWebApp({
+      type: "openAndFill",
+      url,
+      snapshot: {
+        profile,
+        cv: { name: "resume.pdf", type: "application/pdf", bytesBase64: "Y3YtYnl0ZXM=" },
+      },
+    });
+    const win = new Window({ url });
+    win.document.body.innerHTML = leverForm;
+    const doc = win.document as unknown as Document;
+    const result = await runContentFill(
+      bg.fromContent,
+      doc,
+      { hostname: "jobs.lever.co", href: url },
+      async () => {
+        throw new Error("snapshot should be used");
+      },
+    );
+    expect(result.ran).toBe(true);
+    const files = (doc.querySelector('input[name="resume"]') as HTMLInputElement).files;
+    expect(files?.[0]?.name).toBe("resume.pdf");
+    expect(await files?.[0]?.text()).toBe("cv-bytes");
+  });
+
+  it("wires privacy-safe correction telemetry through runContentFill", async () => {
+    const bg = makeBackground();
+    const url = "https://jobs.lever.co/acme/1/apply";
+    bg.fromWebApp({ type: "openAndFill", url });
+    const win = new Window({ url });
+    win.document.body.innerHTML = leverForm;
+    const doc = win.document as unknown as Document;
+    const events: unknown[] = [];
+    await runContentFill(
+      bg.fromContent,
+      doc,
+      { hostname: "jobs.lever.co", href: url },
+      async () => ({ profile }),
+      { onCorrection: (event) => events.push(event) },
+    );
+    const email = doc.querySelector('input[name="email"]') as HTMLInputElement;
+    email.value = "changed@example.com";
+    email.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(events).toHaveLength(1);
+    expect(events[0]).not.toHaveProperty("value");
   });
 });

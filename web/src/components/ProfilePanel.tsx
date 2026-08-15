@@ -15,6 +15,15 @@ interface FormState {
   full_name: string;
   email: string;
   phone: string;
+  linkedin_url: string;
+  github_url: string;
+  portfolio_url: string;
+  address: string;
+  city: string;
+  summary: string;
+  current_employer: string;
+  current_title: string;
+  highest_education: string;
   education: string;
   work_history: string;
   expected_salary: string;
@@ -31,6 +40,15 @@ function toForm(p: Profile): FormState {
     full_name: p.full_name,
     email: p.email,
     phone: p.phone,
+    linkedin_url: p.linkedin_url,
+    github_url: p.github_url,
+    portfolio_url: p.portfolio_url,
+    address: p.address,
+    city: p.city,
+    summary: p.summary,
+    current_employer: p.current_employer,
+    current_title: p.current_title,
+    highest_education: p.highest_education,
     education: JSON.stringify(p.education ?? [], null, 2),
     work_history: JSON.stringify(p.work_history ?? [], null, 2),
     expected_salary: p.expected_salary != null ? String(p.expected_salary) : "",
@@ -55,6 +73,15 @@ function toPatch(f: FormState): ProfilePatch {
     full_name: f.full_name,
     email: f.email,
     phone: f.phone,
+    linkedin_url: f.linkedin_url,
+    github_url: f.github_url,
+    portfolio_url: f.portfolio_url,
+    address: f.address,
+    city: f.city,
+    summary: f.summary,
+    current_employer: f.current_employer,
+    current_title: f.current_title,
+    highest_education: f.highest_education,
     education: JSON.parse(f.education) as Profile["education"],
     work_history: JSON.parse(f.work_history) as Profile["work_history"],
     work_authorization: f.work_authorization,
@@ -169,6 +196,42 @@ export function ProfilePanel({
         <label>
           {t(locale, "profile.phone")}
           <input required value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.linkedin")}
+          <input type="url" value={form.linkedin_url} onChange={(e) => set("linkedin_url", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.github")}
+          <input type="url" value={form.github_url} onChange={(e) => set("github_url", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.portfolio")}
+          <input type="url" value={form.portfolio_url} onChange={(e) => set("portfolio_url", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.city")}
+          <input value={form.city} onChange={(e) => set("city", e.target.value)} />
+        </label>
+        <label className="full">
+          {t(locale, "profile.address")}
+          <input value={form.address} onChange={(e) => set("address", e.target.value)} />
+        </label>
+        <label className="full">
+          {t(locale, "profile.summary")}
+          <textarea rows={4} value={form.summary} onChange={(e) => set("summary", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.currentEmployer")}
+          <input value={form.current_employer} onChange={(e) => set("current_employer", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.currentTitle")}
+          <input value={form.current_title} onChange={(e) => set("current_title", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.highestEducation")}
+          <input value={form.highest_education} onChange={(e) => set("highest_education", e.target.value)} />
         </label>
         <label>
           {t(locale, "profile.workAuth")}

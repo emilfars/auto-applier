@@ -3,7 +3,8 @@
   "name": "Auto Applier",
   "version": "0.1.0",
   "description": "Autofills job application forms from your confirmed profile. You always review and click apply yourself — Auto Applier never submits for you.",
-  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4NFZN/dUXrWFAgVesxZ+TigEtd5ZdyJ7LJyflVd+7EQFjpMfK3VPLKKW6J+89JUE8XK00+/O5KYo7fdEKyBtqmk3lzhrwyoWoxBlR6sfKNpINbwWJuD0teZ1u4Yat+1PA5IPXYlMNNcqrk2Rx6i9AJyk7J/j07uLQkMBhXTkqnkG5kzv4FEfgfgFb26/5nt0QJv9vUpDWSbfeGisyzMly5GkIBPMmFWUh6MEjQWXYmEj4bJriA+LZ+T3c63uPALC71UcOlctTsN7ogdimDTAb/9evl5K65KzDoRd9TtddPBfs5+TGv8URnDR51QG+DllgX9JoN3lpPlHm6BQ+E9iTQIDAQAB",
+  "permissions": ["activeTab", "alarms", "scripting", "storage", "tabs"],
   "host_permissions": [
     "https://*.greenhouse.io/*",
     "https://*.lever.co/*",
@@ -11,7 +12,8 @@
     "https://*.jobstreet.com/*",
     "https://*.jobstreet.co.id/*",
     "https://*.glints.com/*",
-    "https://*.kalibrr.com/*"
+    "https://*.kalibrr.com/*",
+    "https://*/*"
   ],
   "action": {
     "default_title": "Auto Applier — review & fill"
@@ -23,19 +25,19 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.greenhouse.io/*",
-        "https://*.lever.co/*",
-        "https://*.workable.com/*",
-        "https://*.jobstreet.com/*",
-        "https://*.jobstreet.co.id/*",
-        "https://*.glints.com/*",
-        "https://*.kalibrr.com/*"
+        "http://localhost/*",
+        "https://localhost/*",
+        "https://autoapplier.id/*"
       ],
       "js": ["dist/content-entry.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "externally_connectable": {
-    "matches": ["http://localhost/*", "https://*.autoapplier.id/*"]
+    "matches": [
+      "http://localhost/*",
+      "https://localhost/*",
+      "https://autoapplier.id/*"
+    ]
   }
 }

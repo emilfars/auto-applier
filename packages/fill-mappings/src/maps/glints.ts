@@ -7,7 +7,7 @@ import { digitsOnly } from "../transforms.js";
  */
 export const glints: PortalMap = {
   id: "glints",
-  version: "1.0.0",
+  version: "1.1.0",
   hosts: ["glints.com", "glints.co"],
   fields: [
     { key: "full_name", selectors: ['input[name="name"]', 'input[name="fullName"]', 'input[aria-label*="name" i]'], confidence: 0.8 },
@@ -20,6 +20,15 @@ export const glints: PortalMap = {
       confidence: 0.65,
       transform: digitsOnly,
     },
-    { key: "cv_file", selectors: ['input[type="file"][accept*="pdf"]', 'input[type="file"]'], confidence: 0.8, file: true },
+    {
+      key: "cv_file",
+      selectors: [
+        'input[type="file"][name*="resume" i]',
+        'input[type="file"][name*="cv" i]',
+        'input[type="file"][id*="resume" i]',
+      ],
+      confidence: 0.8,
+      file: true,
+    },
   ],
 };

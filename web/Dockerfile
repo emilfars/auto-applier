@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+ARG VITE_EXTENSION_ID
+ENV VITE_EXTENSION_ID=${VITE_EXTENSION_ID}
 RUN npm run build
 
 FROM nginx:1.27-alpine

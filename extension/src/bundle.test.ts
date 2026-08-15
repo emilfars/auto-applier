@@ -20,8 +20,8 @@ async function buildOutputs(): Promise<Record<string, string>> {
   return files;
 }
 
-// Every submission path we forbid anywhere in shipped extension code. Kept in
-// sync with the source scan in safety.test.ts.
+// The guard bundle is the explicit defense layer and necessarily contains these
+// API names. Scan the production fill/content/background bundles instead.
 const FORBIDDEN_SUBMIT = [
   ".submit(",
   "requestSubmit",
@@ -34,11 +34,12 @@ const FORBIDDEN_SUBMIT = [
 ];
 
 describe("extension bundle output", () => {
-  it("emits the two MV3 entry bundles", async () => {
+  it("emits the MV3 entry bundles", async () => {
     const files = await buildOutputs();
     expect(Object.keys(files).sort()).toEqual([
       "background.js",
       "content-entry.js",
+      "guard-entry.js",
     ]);
   });
 
@@ -64,7 +65,9 @@ describe("extension bundle output", () => {
 
   it("ships no form-submission path (Prime Directive after bundling)", async () => {
     const files = await buildOutputs();
-    for (const [name, text] of Object.entries(files)) {
+    for (const name of ["background.js", "content-entry.js"]) {
+      const text = files[name];
+      if (text === undefined) throw new Error(`missing ${name} bundle`);
       for (const token of FORBIDDEN_SUBMIT) {
         expect(text, `${name} bundle contains forbidden token ${token}`).not.toContain(
           token,
@@ -81,5 +84,12 @@ describe("extension bundle output", () => {
         );
       }
     }
+  });
+
+  it("keeps submission API names isolated to the behavior-tested guard bundle", async () => {
+    const files = await buildOutputs();
+    expect(files["guard-entry.js"]).toContain("requestSubmit");
+    expect(files["guard-entry.js"]).toContain("submit");
+    expect(files["guard-entry.js"]).toContain("click");
   });
 });

@@ -2,15 +2,15 @@ package cv
 
 import (
 	"context"
-	"strconv"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // MemoryRepo is an in-memory Repo for local development and tests.
 type MemoryRepo struct {
 	mu    sync.Mutex
-	seq   int
 	files map[string]File // id -> file
 }
 
@@ -22,8 +22,7 @@ func NewMemoryRepo() *MemoryRepo {
 func (m *MemoryRepo) CreateFile(_ context.Context, f File) (File, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.seq++
-	f.ID = "cv" + strconv.Itoa(m.seq)
+	f.ID = uuid.NewString()
 	if f.CreatedAt.IsZero() {
 		f.CreatedAt = time.Now()
 	}

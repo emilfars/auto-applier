@@ -24,7 +24,9 @@ type PgxRepo struct {
 // NewPgxRepo wraps a pgx pool/connection as a Repo.
 func NewPgxRepo(db PgxDB) *PgxRepo { return &PgxRepo{db: db} }
 
-const profileColumns = `full_name, email, phone, education, work_history, skills,
+const profileColumns = `full_name, email, phone, linkedin_url, github_url, portfolio_url,
+	address, city, summary, current_employer, current_title, highest_education,
+	education, work_history, skills,
 	expected_salary, notice_period_days, work_authorization, open_to_relocation,
 	preferred_locations, employment_type, confirmed, confirmed_at`
 
@@ -33,7 +35,9 @@ func (r *PgxRepo) Get(ctx context.Context, userID string) (Profile, error) {
 	err := r.db.QueryRow(ctx,
 		`SELECT `+profileColumns+` FROM profiles WHERE user_id = $1`, userID,
 	).Scan(
-		&p.FullName, &p.Email, &p.Phone, &p.Education, &p.WorkHistory, &p.Skills,
+		&p.FullName, &p.Email, &p.Phone, &p.LinkedInURL, &p.GitHubURL, &p.PortfolioURL,
+		&p.Address, &p.City, &p.Summary, &p.CurrentEmployer, &p.CurrentTitle, &p.HighestEducation,
+		&p.Education, &p.WorkHistory, &p.Skills,
 		&p.ExpectedSalary, &p.NoticePeriodDays, &p.WorkAuthorization, &p.OpenToRelocation,
 		&p.PreferredLocations, &p.EmploymentType, &p.Confirmed, &p.ConfirmedAt,
 	)
@@ -50,17 +54,30 @@ func (r *PgxRepo) Save(ctx context.Context, p Profile) (Profile, error) {
 	out := Profile{UserID: p.UserID}
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO profiles (
-			user_id, full_name, email, phone, education, work_history, skills,
+			user_id, full_name, email, phone, linkedin_url, github_url, portfolio_url,
+			address, city, summary, current_employer, current_title, highest_education,
+			education, work_history, skills,
 			expected_salary, notice_period_days, work_authorization, open_to_relocation,
 			preferred_locations, employment_type, confirmed, confirmed_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb,
-			$8, $9, $10, $11, $12::jsonb, $13, $14, $15, now()
+			$1, $2, $3, $4, $5, $6, $7,
+			$8, $9, $10, $11, $12, $13,
+			$14::jsonb, $15::jsonb, $16::jsonb,
+			$17, $18, $19, $20, $21::jsonb, $22, $23, $24, now()
 		)
 		ON CONFLICT (user_id) DO UPDATE SET
 			full_name = EXCLUDED.full_name,
 			email = EXCLUDED.email,
 			phone = EXCLUDED.phone,
+			linkedin_url = EXCLUDED.linkedin_url,
+			github_url = EXCLUDED.github_url,
+			portfolio_url = EXCLUDED.portfolio_url,
+			address = EXCLUDED.address,
+			city = EXCLUDED.city,
+			summary = EXCLUDED.summary,
+			current_employer = EXCLUDED.current_employer,
+			current_title = EXCLUDED.current_title,
+			highest_education = EXCLUDED.highest_education,
 			education = EXCLUDED.education,
 			work_history = EXCLUDED.work_history,
 			skills = EXCLUDED.skills,
@@ -74,11 +91,15 @@ func (r *PgxRepo) Save(ctx context.Context, p Profile) (Profile, error) {
 			confirmed_at = EXCLUDED.confirmed_at,
 			updated_at = now()
 		RETURNING `+profileColumns,
-		p.UserID, p.FullName, p.Email, p.Phone, jsonbArray(p.Education), jsonbArray(p.WorkHistory), jsonbArray(p.Skills),
+		p.UserID, p.FullName, p.Email, p.Phone, p.LinkedInURL, p.GitHubURL, p.PortfolioURL,
+		p.Address, p.City, p.Summary, p.CurrentEmployer, p.CurrentTitle, p.HighestEducation,
+		jsonbArray(p.Education), jsonbArray(p.WorkHistory), jsonbArray(p.Skills),
 		p.ExpectedSalary, p.NoticePeriodDays, p.WorkAuthorization, p.OpenToRelocation,
 		jsonbArray(p.PreferredLocations), p.EmploymentType, p.Confirmed, p.ConfirmedAt,
 	).Scan(
-		&out.FullName, &out.Email, &out.Phone, &out.Education, &out.WorkHistory, &out.Skills,
+		&out.FullName, &out.Email, &out.Phone, &out.LinkedInURL, &out.GitHubURL, &out.PortfolioURL,
+		&out.Address, &out.City, &out.Summary, &out.CurrentEmployer, &out.CurrentTitle, &out.HighestEducation,
+		&out.Education, &out.WorkHistory, &out.Skills,
 		&out.ExpectedSalary, &out.NoticePeriodDays, &out.WorkAuthorization, &out.OpenToRelocation,
 		&out.PreferredLocations, &out.EmploymentType, &out.Confirmed, &out.ConfirmedAt,
 	)

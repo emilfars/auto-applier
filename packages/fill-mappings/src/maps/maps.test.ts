@@ -10,7 +10,9 @@ import {
   kalibrr,
   generic,
 } from "./index.js";
-import type { ProfileKey } from "../types.js";
+import { buildFillPlan, UNCERTAIN_BELOW } from "../engine.js";
+import type { FillElement } from "../dom.js";
+import type { ProfileData, ProfileKey } from "../types.js";
 
 const allMaps = [...portalMaps, genericMap];
 
@@ -70,6 +72,95 @@ describe("AC-MAP-1: each supported portal map is versioned and well-formed", () 
   it("portal-specific maps declare hosts; generic does not", () => {
     for (const m of portalMaps) expect(m.hosts.length).toBeGreaterThan(0);
     expect(generic.hosts.length).toBe(0);
+  });
+
+  it("file selectors never fall back to arbitrary uploads", () => {
+    for (const map of allMaps) {
+      for (const field of map.fields.filter((candidate) => candidate.file)) {
+        expect(field.selectors.every((selector) => selector.includes("resume") || selector.includes("cv"))).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  it("resolves profile-backed controls in each supported fixture", () => {
+    const profile: ProfileData = {
+      confirmed: true,
+      full_name: "Sri Wahyuni",
+      first_name: "Sri",
+      last_name: "Wahyuni",
+      email: "sri@example.com",
+      phone: "+628123456789",
+      linkedin_url: "https://linkedin.com/in/sri",
+      github_url: "https://github.com/sri",
+      portfolio_url: "https://sri.example.com",
+      address: "Jl. Sudirman 1",
+      city: "Jakarta",
+      summary: "Software engineer",
+      expected_salary: "12000000",
+      current_company: "Acme",
+      current_title: "Engineer",
+      highest_education: "S.Kom",
+      cv_file: "resume.pdf",
+    };
+    const fixtureElement: FillElement = {
+      tagName: "INPUT",
+      disabled: false,
+      value: "",
+      getAttribute: () => null,
+    };
+    for (const map of allMaps) {
+      const selectors = new Set(
+        map.fields
+          .filter((field) => profile[field.key] !== undefined)
+          .flatMap((field) => field.selectors),
+      );
+      const plan = buildFillPlan(map, profile, {
+        querySelector: (selector) => (selectors.has(selector) ? fixtureElement : null),
+      });
+      const expectedKeys = map.fields
+        .filter((field) => profile[field.key] !== undefined)
+        .map((field) => field.key);
+      const resolvedKeys = plan.outcomes
+        .filter((outcome) => outcome.selector !== undefined)
+        .map((outcome) => outcome.key);
+      expect(resolvedKeys, map.id).toEqual(expectedKeys);
+    }
+  });
+
+  it("keeps every unknown-site match uncertain", () => {
+    const profile: ProfileData = {
+      confirmed: true,
+      full_name: "Sri Wahyuni",
+      email: "sri@example.com",
+      phone: "+628123456789",
+      city: "Jakarta",
+      linkedin_url: "https://linkedin.com/in/sri",
+      expected_salary: "12000000",
+      cv_file: "resume.pdf",
+    };
+    const fixtureElement: FillElement = {
+      tagName: "INPUT",
+      disabled: false,
+      value: "",
+      getAttribute: () => null,
+    };
+    const plan = buildFillPlan(generic, profile, {
+      querySelector: (selector) =>
+        generic.fields.some((field) => field.selectors.includes(selector))
+          ? fixtureElement
+          : null,
+    });
+
+    for (const outcome of plan.outcomes) {
+      if (outcome.selector === undefined) continue;
+      expect(outcome.state).toBe("uncertain");
+      expect(outcome.confidence).toBeLessThan(UNCERTAIN_BELOW);
+    }
+    expect(plan.outcomes.find((outcome) => outcome.key === "cv_file")?.state).toBe(
+      "uncertain",
+    );
   });
 });
 

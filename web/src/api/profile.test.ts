@@ -17,6 +17,15 @@ const sampleProfile = {
   full_name: "Sri",
   email: "sri@example.com",
   phone: "0812",
+  linkedin_url: "https://linkedin.com/in/sri",
+  github_url: "https://github.com/sri",
+  portfolio_url: "https://sri.example.com",
+  address: "Jl. Sudirman 1",
+  city: "Jakarta",
+  summary: "Engineer",
+  current_employer: "Acme",
+  current_title: "SWE",
+  highest_education: "S.Kom",
   education: [],
   work_history: [],
   skills: ["go", "react"],
@@ -45,6 +54,15 @@ describe("profile client", () => {
     await patchProfile({
       full_name: "Sri",
       email: "sri@example.com",
+      linkedin_url: "https://linkedin.com/in/sri",
+      github_url: "https://github.com/sri",
+      portfolio_url: "https://sri.example.com",
+      address: "Jl. Sudirman 1",
+      city: "Jakarta",
+      summary: "Engineer",
+      current_employer: "Acme",
+      current_title: "SWE",
+      highest_education: "S.Kom",
       education: [{ institution: "UI", degree: "S.Kom", field: "", start_year: "2020", end_year: "2024" }],
       work_history: [{ company: "Acme", title: "Engineer", start_date: "2024", end_date: "" }],
       skills: ["go"],
@@ -53,6 +71,8 @@ describe("profile client", () => {
     expect(path).toBe("/profile");
     expect(init.method).toBe("PATCH");
     expect(JSON.parse(init.body).skills).toEqual(["go"]);
+    expect(JSON.parse(init.body).linkedin_url).toBe("https://linkedin.com/in/sri");
+    expect(JSON.parse(init.body).summary).toBe("Engineer");
     expect(JSON.parse(init.body).education[0].institution).toBe("UI");
     expect(JSON.parse(init.body).work_history[0].company).toBe("Acme");
   });

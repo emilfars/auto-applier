@@ -7,7 +7,7 @@ import { digitsOnly } from "../transforms.js";
  */
 export const greenhouse: PortalMap = {
   id: "greenhouse",
-  version: "1.0.0",
+  version: "1.1.0",
   hosts: ["greenhouse.io", "boards.greenhouse.io"],
   fields: [
     { key: "first_name", selectors: ["#first_name", 'input[name="first_name"]'], confidence: 0.95 },
@@ -27,7 +27,11 @@ export const greenhouse: PortalMap = {
     },
     {
       key: "cv_file",
-      selectors: ['input[type="file"][name*="resume" i]', 'input[type="file"]'],
+      selectors: [
+        'input[type="file"][name*="resume" i]',
+        'input[type="file"][name*="cv" i]',
+        'input[type="file"][id*="resume" i]',
+      ],
       confidence: 0.85,
       file: true,
     },

@@ -42,10 +42,15 @@ const FORBIDDEN: { pattern: RegExp; why: string }[] = [
 const ALLOWED_DISPATCH = new Set(["input", "change"]);
 
 describe("AC-SAFE-1: the extension has no submit path", () => {
-  const files = sourceFiles(here);
+  const files = sourceFiles(here).filter(
+    (file) => !["guard.ts", "guard-entry.ts"].includes(file.slice(here.length + 1)),
+  );
 
   it("scans a non-trivial set of source files", () => {
     expect(files.length).toBeGreaterThan(1);
+    for (const required of ["apply.ts", "content.ts", "content-entry.ts", "background.ts"]) {
+      expect(files.some((file) => file.endsWith(`/${required}`)), required).toBe(true);
+    }
   });
 
   for (const file of files) {

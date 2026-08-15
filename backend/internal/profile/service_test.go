@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/auto-applier/backend/internal/auth"
+	"github.com/auto-applier/backend/internal/cv"
 )
 
 type harness struct {
@@ -57,12 +59,21 @@ func decodeProfile(t *testing.T, rec *httptest.ResponseRecorder) profileResp {
 func TestAC_CV_3_EditPersists(t *testing.T) {
 	h := newHarness()
 	patch := map[string]any{
-		"full_name":    "Dina Putri",
-		"email":        "dina@example.com",
-		"phone":        "+628123456789",
-		"education":    []map[string]any{{"institution": "UI", "degree": "S.Kom"}},
-		"work_history": []map[string]any{{"company": "Tokopedia", "title": "SWE"}},
-		"skills":       []string{"Go", "React"},
+		"full_name":         "Dina Putri",
+		"email":             "dina@example.com",
+		"phone":             "+628123456789",
+		"linkedin_url":      "https://linkedin.com/in/dina",
+		"github_url":        "https://github.com/dina",
+		"portfolio_url":     "https://dina.example.com",
+		"address":           "Jl. Merdeka 1",
+		"city":              "Jakarta",
+		"summary":           "Product-minded engineer",
+		"current_employer":  "Acme",
+		"current_title":     "SWE",
+		"highest_education": "S.Kom",
+		"education":         []map[string]any{{"institution": "UI", "degree": "S.Kom"}},
+		"work_history":      []map[string]any{{"company": "Tokopedia", "title": "SWE"}},
+		"skills":            []string{"Go", "React"},
 	}
 	if rec := h.do(t, http.MethodPatch, "/profile", patch); rec.Code != http.StatusOK {
 		t.Fatalf("patch: got %d, want 200 (%s)", rec.Code, rec.Body.String())
@@ -72,7 +83,12 @@ func TestAC_CV_3_EditPersists(t *testing.T) {
 		t.Fatalf("get: got %d, want 200", rec.Code)
 	}
 	p := decodeProfile(t, rec)
-	if p.FullName != "Dina Putri" || p.Email != "dina@example.com" || p.Phone != "+628123456789" {
+	if p.FullName != "Dina Putri" || p.Email != "dina@example.com" || p.Phone != "+628123456789" ||
+		p.LinkedInURL != "https://linkedin.com/in/dina" || p.GitHubURL != "https://github.com/dina" ||
+		p.PortfolioURL != "https://dina.example.com" || p.Address != "Jl. Merdeka 1" ||
+		p.City != "Jakarta" || p.Summary != "Product-minded engineer" ||
+		p.CurrentEmployer != "Acme" || p.CurrentTitle != "SWE" ||
+		p.HighestEducation != "S.Kom" {
 		t.Fatalf("fields not persisted: %+v", p)
 	}
 	if string(p.Education) != `[{"degree":"S.Kom","institution":"UI"}]` ||
@@ -204,5 +220,142 @@ func TestDefaultProfileArrays(t *testing.T) {
 		if string(f) != "[]" {
 			t.Fatalf("default array field = %s, want []", f)
 		}
+	}
+}
+
+func TestCanonicalFillProfileUsesStoredFieldsOnly(t *testing.T) {
+	salary := int64(12000000)
+	p := Profile{
+		FullName:           "Sri Wahyuni",
+		Email:              "sri@example.com",
+		Phone:              "+628123456789",
+		LinkedInURL:        "https://www.linkedin.com/in/sri",
+		GitHubURL:          "https://github.com/sri",
+		PortfolioURL:       "https://sri.example.com",
+		Address:            "Jl. Sudirman 1",
+		City:               "Jakarta Selatan",
+		Summary:            "Software engineer",
+		CurrentEmployer:    "Acme",
+		CurrentTitle:       "Engineer",
+		HighestEducation:   "S.Kom",
+		Education:          json.RawMessage(`[{"institution":"UI","degree":"S.Kom","field":"Informatics","end_year":"2024"}]`),
+		WorkHistory:        json.RawMessage(`[{"company":"Acme","title":"Engineer","end_date":""}]`),
+		PreferredLocations: json.RawMessage(`["Bandung"]`),
+		ExpectedSalary:     &salary,
+		Confirmed:          true,
+	}
+	out := canonicalFillProfile(p)
+	if out["first_name"] != "Sri" || out["last_name"] != "Wahyuni" ||
+		out["linkedin_url"] != "https://www.linkedin.com/in/sri" ||
+		out["github_url"] != "https://github.com/sri" ||
+		out["portfolio_url"] != "https://sri.example.com" ||
+		out["address"] != "Jl. Sudirman 1" || out["city"] != "Jakarta Selatan" ||
+		out["summary"] != "Software engineer" || out["current_company"] != "Acme" ||
+		out["current_title"] != "Engineer" || out["highest_education"] != "S.Kom" ||
+		out["university"] != "UI" ||
+		out["major"] != "Informatics" ||
+		out["graduation_year"] != "2024" || out["expected_salary"] != "12000000" {
+		t.Fatalf("unexpected canonical mapping: %#v", out)
+	}
+}
+
+func TestProfileURLValidation(t *testing.T) {
+	h := newHarness()
+	for _, field := range []string{"linkedin_url", "github_url", "portfolio_url"} {
+		t.Run(field, func(t *testing.T) {
+			if rec := h.do(t, http.MethodPatch, "/profile", map[string]any{field: "not a URL"}); rec.Code != http.StatusBadRequest {
+				t.Fatalf("invalid %s: got %d, want 400", field, rec.Code)
+			}
+			if rec := h.do(t, http.MethodPatch, "/profile", map[string]any{field: "https://example.com/me"}); rec.Code != http.StatusOK {
+				t.Fatalf("valid %s: got %d, want 200", field, rec.Code)
+			}
+		})
+	}
+}
+
+type fillCVSource struct {
+	file  cv.File
+	data  []byte
+	calls *int
+}
+
+func (f fillCVSource) FilesByUser(_ context.Context, userID string) ([]cv.File, error) {
+	if userID != f.file.UserID {
+		return nil, cv.ErrNotFound
+	}
+	return []cv.File{f.file}, nil
+}
+
+func (f fillCVSource) Content(_ context.Context, userID, id string) (cv.File, []byte, error) {
+	if f.calls != nil {
+		*f.calls = *f.calls + 1
+	}
+	if userID != f.file.UserID || id != f.file.ID {
+		return cv.File{}, nil, cv.ErrNotFound
+	}
+	return f.file, f.data, nil
+}
+
+func TestFillSnapshotIsOwnedAndOneShotData(t *testing.T) {
+	repo := NewMemoryRepo()
+	now := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
+	salary := int64(12000000)
+	_, err := repo.Save(context.Background(), Profile{
+		UserID: "user-1", FullName: "Sri Wahyuni", Email: "sri@example.com",
+		Phone: "+628123456789", Education: json.RawMessage(`[{"institution":"UI"}]`),
+		LinkedInURL: "https://linkedin.com/in/sri", GitHubURL: "https://github.com/sri",
+		PortfolioURL: "https://sri.example.com", Address: "Jl. Sudirman 1",
+		City: "Jakarta", Summary: "Software engineer", CurrentEmployer: "Acme",
+		CurrentTitle: "Engineer", HighestEducation: "S.Kom",
+		WorkHistory: json.RawMessage(`[]`), Skills: json.RawMessage(`["Go"]`),
+		PreferredLocations: json.RawMessage(`["Jakarta"]`), WorkAuthorization: "WNI",
+		EmploymentType: "full_time", ExpectedSalary: &salary, Confirmed: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const cvID = "11111111-1111-4111-8111-111111111111"
+	file := fillCVSource{
+		file: cv.File{ID: cvID, UserID: "user-1", Filename: "resume.pdf", ContentType: "application/pdf"},
+		data: []byte("%PDF-real"),
+	}
+	svc := NewService(repo, func() time.Time { return now }).WithCVSource(file)
+	handler := withUser(svc.Routes(), auth.User{ID: "user-1", Verified: true})
+	req := httptest.NewRequest(http.MethodGet, "/profile/fill?cv_id="+cvID, nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "no-store" ||
+		!bytes.Contains(rec.Body.Bytes(), []byte("JVBERi1yZWFs")) ||
+		!bytes.Contains(rec.Body.Bytes(), []byte(`"linkedin_url":"https://linkedin.com/in/sri"`)) ||
+		!bytes.Contains(rec.Body.Bytes(), []byte(`"current_company":"Acme"`)) {
+		t.Fatalf("snapshot status/body = %d/%s", rec.Code, rec.Body.String())
+	}
+
+	for _, id := range []string{
+		"22222222-2222-4222-8222-222222222222",
+		"33333333-3333-4333-8333-333333333333",
+	} {
+		req = httptest.NewRequest(http.MethodGet, "/profile/fill?cv_id="+id, nil)
+		rec = httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("unowned or missing cv status = %d, want 404", rec.Code)
+		}
+	}
+}
+
+func TestFillSnapshotRejectsMalformedCVIDBeforeLookup(t *testing.T) {
+	repo := NewMemoryRepo()
+	svc := NewService(repo, time.Now).WithCVSource(fillCVSource{
+		file: cv.File{ID: "11111111-1111-4111-8111-111111111111", UserID: "user-1"},
+	})
+	handler := withUser(svc.Routes(), auth.User{ID: "user-1", Verified: true})
+	req := httptest.NewRequest(http.MethodGet, "/profile/fill?cv_id=not-a-uuid", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("malformed cv id status = %d, want 400", rec.Code)
 	}
 }

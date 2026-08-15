@@ -87,6 +87,26 @@ func (s *Service) FilesByUser(ctx context.Context, userID string) ([]File, error
 	return s.repo.FilesByUser(ctx, userID)
 }
 
+// Content returns an owned CV's metadata and decrypted bytes for the one-shot
+// fill snapshot. Ownership failures are intentionally indistinguishable.
+func (s *Service) Content(ctx context.Context, userID, id string) (File, []byte, error) {
+	rec, err := s.repo.FileByID(ctx, id)
+	if errors.Is(err, ErrNotFound) {
+		return File{}, nil, ErrNotFound
+	}
+	if err != nil {
+		return File{}, nil, fmt.Errorf("read cv metadata: %w", err)
+	}
+	if rec.UserID != userID {
+		return File{}, nil, ErrNotFound
+	}
+	data, err := s.store.Get(ctx, rec.ObjectKey)
+	if err != nil {
+		return File{}, nil, fmt.Errorf("read cv object: %w", err)
+	}
+	return rec, data, nil
+}
+
 // DeleteUserFiles erases all of a user's CV data: the encrypted objects in
 // storage and their metadata rows (right to erasure, AC-AUTH-5). Objects are
 // removed before metadata so a mid-way failure never orphans a stored blob.

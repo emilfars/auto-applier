@@ -32,6 +32,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install pinned Chrome for Testing
+        env:
+          CHROME_VERSION: 131.0.6778.85
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.cft"
+          curl --fail --silent --show-error --location --retry 3 \
+            -o "$GITHUB_WORKSPACE/.cft/chrome.zip" \
+            "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
+          unzip -q "$GITHUB_WORKSPACE/.cft/chrome.zip" -d "$GITHUB_WORKSPACE/.cft"
+          chmod +x "$GITHUB_WORKSPACE/.cft/chrome-linux64/chrome"
+          echo "CHROME_BIN=$GITHUB_WORKSPACE/.cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
       - name: Install frontend dependencies
         run: |
           (cd packages/fill-mappings && npm ci)

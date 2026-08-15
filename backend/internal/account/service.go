@@ -72,6 +72,15 @@ type profileExport struct {
 	FullName           string          `json:"full_name"`
 	Email              string          `json:"email"`
 	Phone              string          `json:"phone"`
+	LinkedInURL        string          `json:"linkedin_url"`
+	GitHubURL          string          `json:"github_url"`
+	PortfolioURL       string          `json:"portfolio_url"`
+	Address            string          `json:"address"`
+	City               string          `json:"city"`
+	Summary            string          `json:"summary"`
+	CurrentEmployer    string          `json:"current_employer"`
+	CurrentTitle       string          `json:"current_title"`
+	HighestEducation   string          `json:"highest_education"`
 	Education          json.RawMessage `json:"education"`
 	WorkHistory        json.RawMessage `json:"work_history"`
 	Skills             json.RawMessage `json:"skills"`
@@ -193,6 +202,15 @@ func toProfileExport(p profile.Profile) profileExport {
 		FullName:           p.FullName,
 		Email:              p.Email,
 		Phone:              p.Phone,
+		LinkedInURL:        p.LinkedInURL,
+		GitHubURL:          p.GitHubURL,
+		PortfolioURL:       p.PortfolioURL,
+		Address:            p.Address,
+		City:               p.City,
+		Summary:            p.Summary,
+		CurrentEmployer:    p.CurrentEmployer,
+		CurrentTitle:       p.CurrentTitle,
+		HighestEducation:   p.HighestEducation,
 		Education:          p.Education,
 		WorkHistory:        p.WorkHistory,
 		Skills:             p.Skills,

@@ -91,7 +91,7 @@ export interface FieldOutcome {
   note?: string;
 }
 
-/** The full plan for a page: per-field outcomes plus coverage metrics. */
+/** The full plan for a page: per-field outcomes and planning counts. */
 export interface FillPlan {
   portalId: string;
   version: string;
@@ -102,6 +102,4 @@ export interface FillPlan {
   uncertain: number;
   /** Count with no data or no matching element. */
   empty: number;
-  /** filled / (mappable fields). */
-  coverage: number;
 }

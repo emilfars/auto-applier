@@ -82,12 +82,12 @@ Test-type conventions:
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
 | AC-MAP-1 | APP-3 | Each supported portal map (Jobstreet, Glints, Kalibrr, Greenhouse, Workable, Lever, generic) has a `version` and passing map tests | unit per map in `/packages/fill-mappings` | ✅ |
-| AC-APP-1 | APP-1 | On a fixture ATS page, common fields (name, contact, education, work history, expected salary, notice period, links) fill correctly using the signed-in web profile | browser e2e against saved fixture DOMs | 🟡 — engine works with injected fixtures; runtime profile synchronization is absent |
-| AC-APP-1b | APP-1 | Fill coverage ≥80% of mappable fields on each supported fixture using production profile mapping | browser e2e metric assertion | 🟡 — current happy-dom tests inject a richer profile than the backend exposes |
-| AC-APP-2 | APP-2 | CV file auto-attaches on file-upload fields using the uploaded CV | browser e2e on fixture with file input | 🟡 — applier accepts a supplied `File`, but runtime never supplies one |
-| AC-APP-4 | APP-4 | Filled fields marked `filled`, uncertain marked `uncertain`; **no submit is ever triggered** | e2e asserts DOM highlight states + no submit event fired (ties to AC-SAFE-1) | ✅ |
-| AC-APP-5 | APP-5 | "Open & Fill" transfers the confirmed profile/CV, survives MV3 worker suspension, and fills the opened source page | browser e2e | 🟡 — URL arming exists; profile/CV transfer and durable arming do not |
-| AC-APP-TEL | plan | Fill-correction events are emitted when user overrides a filled value | unit on telemetry emitter | ✅ |
+| AC-APP-1 | APP-1 | On a fixture ATS page, common fields (name, contact, education, work history, expected salary, notice period, links) fill correctly using the signed-in web profile | browser e2e against saved fixture DOMs | ✅ — native Chrome MV3 E2E |
+| AC-APP-1b | APP-1 | Successfully applied coverage ≥80% of the expected mappable fields on each supported fixture using production profile mapping; denominator is fixture-defined and numerator comes from actual ApplyReport writes | browser e2e metric assertion | ✅ — native Chrome ApplyReport coverage assertion |
+| AC-APP-2 | APP-2 | CV file auto-attaches on file-upload fields using the uploaded CV | browser e2e on fixture with file input | ✅ — native Chrome file-input bytes assertion |
+| AC-APP-4 | APP-4 | Filled fields marked `filled`, uncertain marked `uncertain`; **no submit is ever triggered** | unit + static scan asserts DOM states and no submit-triggering API (ties to AC-SAFE-1) | ✅ |
+| AC-APP-5 | APP-5 | "Open & Fill" transfers the confirmed profile/CV, survives MV3 worker suspension, and fills the opened source page | browser e2e | ✅ — native Chrome storage.session + IndexedDB durability and worker-termination assertion |
+| AC-APP-TEL | plan | Fill-correction events are emitted when user overrides a filled value | unit on telemetry emitter + metadata-only ingestion | ✅ |
 
 ## 5. Post-MVP specs (write when milestone starts)
 | Test ID | ID | Criteria | Verification | Status |

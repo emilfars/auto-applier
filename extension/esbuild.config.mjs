@@ -31,6 +31,7 @@ const resolve = (p) => path.resolve(here, p);
 export const entryPoints = [
   resolve("src/background.ts"),
   resolve("src/content-entry.ts"),
+  resolve("src/guard-entry.ts"),
 ];
 
 /** Base esbuild options shared by the build script and the bundle test. */
@@ -59,4 +60,3 @@ export const baseOptions = {
 export async function runBuild(overrides = {}) {
   return esbuild.build({ ...baseOptions, ...overrides });
 }
-

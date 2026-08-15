@@ -24,7 +24,7 @@ export interface AppliedField {
   note?: string;
 }
 
-/** Summary of a fill application. `submitted` is always false by construction. */
+/** Summary of a fill application. `coverage` counts only successful DOM writes. */
 export interface ApplyReport {
   portalId: string;
   version: string;
@@ -32,6 +32,8 @@ export interface ApplyReport {
   uncertain: number;
   skipped: number;
   fields: AppliedField[];
+  /** Successfully written fields divided by mapped controls present in the plan. */
+  coverage: number;
   /** Invariant: the extension never submits. Always false. */
   submitted: false;
 }
@@ -86,10 +88,11 @@ function hasTypedValue(el: Element): boolean {
   return false;
 }
 
-/** Mark a field for the review UI (filled=green, uncertain=amber). */
-function highlight(el: Element, state: "filled" | "uncertain"): void {
+/** Mark a field for the review UI (filled=green, uncertain=amber, empty=gray). */
+function highlight(el: Element, state: "filled" | "uncertain" | "empty"): void {
   el.setAttribute(FILL_ATTR, state);
-  const color = state === "filled" ? "#16a34a" : "#d97706";
+  const color =
+    state === "filled" ? "#16a34a" : state === "uncertain" ? "#d97706" : "#6b7280";
   if (el instanceof HTMLElement) {
     el.style.outline = `2px solid ${color}`;
     el.style.outlineOffset = "1px";
@@ -98,8 +101,9 @@ function highlight(el: Element, state: "filled" | "uncertain"): void {
 
 /**
  * Apply a fill plan to the DOM. Returns a report of what was touched. Fields the
- * engine marked `empty` are skipped; `uncertain` fields are filled but flagged
- * for review (never silently trusted). Nothing here can submit the form.
+ * engine marked `empty` are skipped; uncertain text fields may be written but
+ * remain flagged for review, while unsafe targets are skipped. Nothing here can
+ * submit the form.
  */
 export function applyPlan(
   plan: FillPlan,
@@ -120,7 +124,7 @@ export function applyPlan(
       ...(o.note ? { note: o.note } : {}),
     };
 
-    if (o.state === "empty" || !o.selector || o.value === undefined) {
+    if (!o.selector) {
       skipped++;
       fields.push(rec);
       continue;
@@ -135,10 +139,30 @@ export function applyPlan(
       continue;
     }
 
+    if (o.state === "empty") {
+      highlight(el, "empty");
+      skipped++;
+      fields.push(rec);
+      continue;
+    }
+    if (o.value === undefined) {
+      skipped++;
+      fields.push(rec);
+      continue;
+    }
+    const value = o.value;
+
     let didApply = false;
     if (o.file) {
-      if (opts.file && el instanceof HTMLInputElement) {
+      if (o.state === "filled" && opts.file && el instanceof HTMLInputElement) {
         didApply = attachFile(el, opts.file);
+      } else {
+        highlight(el, "uncertain");
+        rec.state = "uncertain";
+        rec.note = "file target requires review before attachment";
+        uncertain++;
+        fields.push(rec);
+        continue;
       }
     } else if (hasTypedValue(el)) {
       // Never overwrite a value the user already typed: highlight for review
@@ -151,7 +175,7 @@ export function applyPlan(
       fields.push(rec);
       continue;
     } else {
-      setControlValue(el, o.value);
+      setControlValue(el, value);
       didApply = true;
     }
 
@@ -170,7 +194,7 @@ export function applyPlan(
       ) {
         watchForCorrection(
           el,
-          o.value,
+          value,
           {
             portalId: plan.portalId,
             version: plan.version,
@@ -187,6 +211,9 @@ export function applyPlan(
     fields.push(rec);
   }
 
+  const mappable = fields.filter((field) => field.selector !== undefined).length;
+  const appliedFields = fields.filter((field) => field.applied).length;
+
   return {
     portalId: plan.portalId,
     version: plan.version,
@@ -194,6 +221,7 @@ export function applyPlan(
     uncertain,
     skipped,
     fields,
+    coverage: mappable === 0 ? 0 : appliedFields / mappable,
     submitted: false,
   };
 }

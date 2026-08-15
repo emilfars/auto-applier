@@ -18,6 +18,16 @@ export interface Profile {
   full_name: string;
   email: string;
   phone: string;
+  linkedin_url: string;
+  github_url: string;
+  portfolio_url: string;
+  address: string;
+  city: string;
+  summary: string;
+  current_employer: string;
+  current_company?: string;
+  current_title: string;
+  highest_education: string;
   education: EducationEntry[];
   work_history: WorkEntry[];
   skills: string[];
@@ -51,6 +61,16 @@ export interface ProfilePatch {
   full_name?: string;
   email?: string;
   phone?: string;
+  linkedin_url?: string;
+  github_url?: string;
+  portfolio_url?: string;
+  address?: string;
+  city?: string;
+  summary?: string;
+  current_employer?: string;
+  current_company?: string;
+  current_title?: string;
+  highest_education?: string;
   education?: EducationEntry[];
   work_history?: WorkEntry[];
   expected_salary?: number | null;
@@ -83,4 +103,20 @@ export interface ArmStatus {
 /** Check whether the fill flow may be armed (profile confirmed). */
 export function checkArm(signal?: AbortSignal): Promise<ArmStatus> {
   return apiFetch<ArmStatus>("/profile/arm", { signal });
+}
+
+export interface FillSnapshot {
+  profile: Record<string, unknown> & { confirmed: boolean };
+  cv: {
+    id: string;
+    filename: string;
+    content_type: string;
+    bytes_base64: string;
+  } | null;
+}
+
+/** Fetch the confirmed profile and latest owned CV for one Open & Fill arm. */
+export function getFillSnapshot(cvID?: string): Promise<FillSnapshot> {
+  const query = cvID ? `?cv_id=${encodeURIComponent(cvID)}` : "";
+  return apiFetch<FillSnapshot>(`/profile/fill${query}`);
 }

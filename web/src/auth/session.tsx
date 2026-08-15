@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { logout, me, type User } from "../api/auth";
+import { clearExtensionState } from "../api/openfill";
 
 interface SessionValue {
   user: User | null;
@@ -23,6 +24,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await logout();
+    await clearExtensionState();
     setUser(null);
   }, []);
 

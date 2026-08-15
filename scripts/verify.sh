@@ -11,6 +11,7 @@
 # Usage:
 #   ./scripts/verify.sh          # run all detected component checks
 #   VERBOSE=1 ./scripts/verify.sh
+#   CHROME_BIN=/path/to/chrome ./scripts/verify.sh
 #
 set -euo pipefail
 
@@ -40,6 +41,31 @@ skip()    { SKIPPED=$((SKIPPED+1)); RESULTS+=("${C_YELLOW}SKIP${C_RESET}  $1"); 
 fail()    { RAN=$((RAN+1)); FAILED=1; RESULTS+=("${C_RED}FAIL${C_RESET}  $1"); printf "  %sFAIL%s %s\n" "${C_RED}" "${C_RESET}" "$1"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
+
+browser_bin() {
+  if [ -n "${CHROME_BIN:-}" ]; then
+    [ -x "${CHROME_BIN}" ]
+    return
+  fi
+  local candidate
+  for candidate in \
+    "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+    "${ROOT_DIR}/.cft/chrome-linux64/chrome" \
+    "${ROOT_DIR}/.cft/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+    "${ROOT_DIR}/.cft/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+    "/usr/bin/google-chrome" \
+    "/usr/bin/google-chrome-stable" \
+    "/usr/bin/chromium" \
+    "/usr/bin/chromium-browser"; do
+    [ -x "${candidate}" ] && return 0
+  done
+  for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+    have "${candidate}" && return 0
+  done
+  return 1
+}
 
 # run <label> <cmd...>: run a command, record pass/fail (never aborts the script).
 run() {
@@ -154,6 +180,22 @@ fi
 check_node_component "packages/fill-mappings" "Fill mappings"
 check_node_component "web"                     "Web app"
 check_node_component "extension"               "Chrome extension"
+
+# ---------------------------------------------------------------------------
+# Browser E2E (required when the harness exists)
+# ---------------------------------------------------------------------------
+section "Browser E2E (Chrome MV3)"
+if [ -f scripts/browser-e2e.mjs ]; then
+  if ! have node; then
+    fail "browser E2E — node is required"
+  elif ! browser_bin; then
+    fail "browser E2E — Chrome/Chromium not found; install Chrome for Testing or set CHROME_BIN"
+  else
+    run "browser E2E: real Chrome MV3 Open & Fill" node scripts/browser-e2e.mjs
+  fi
+else
+  skip "browser E2E — scripts/browser-e2e.mjs not present"
+fi
 
 # ---------------------------------------------------------------------------
 # Android (fast-follow) — only if a Gradle project exists

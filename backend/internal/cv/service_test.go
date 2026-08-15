@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -13,12 +14,37 @@ import (
 
 	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/storage"
+	"github.com/google/uuid"
 )
 
 type harness struct {
 	repo    *MemoryRepo
 	mem     *storage.MemoryStore
 	handler http.Handler
+}
+
+type contentRepo struct {
+	file File
+	err  error
+}
+
+func (r contentRepo) CreateFile(context.Context, File) (File, error) {
+	return File{}, r.err
+}
+
+func (r contentRepo) FileByID(context.Context, string) (File, error) {
+	if r.err != nil {
+		return File{}, r.err
+	}
+	return r.file, nil
+}
+
+func (r contentRepo) FilesByUser(context.Context, string) ([]File, error) {
+	return nil, r.err
+}
+
+func (r contentRepo) DeleteByUser(context.Context, string) error {
+	return r.err
 }
 
 // newHarness wires the CV service over an encrypted store (so at-rest bytes are
@@ -158,6 +184,7 @@ func TestListReturnsUserFiles(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list: got %d, want 200", rec.Code)
 	}
+
 	var body struct {
 		Files []fileResp `json:"files"`
 	}
@@ -166,5 +193,40 @@ func TestListReturnsUserFiles(t *testing.T) {
 	}
 	if len(body.Files) != 2 {
 		t.Fatalf("got %d files, want 2", len(body.Files))
+	}
+}
+
+func TestContentPreservesUnexpectedRepoError(t *testing.T) {
+	repoErr := errors.New("database unavailable")
+	svc := NewService(contentRepo{err: repoErr}, storage.NewMemoryStore(), nil)
+
+	_, _, err := svc.Content(context.Background(), "user-1", "cv-1")
+	if !errors.Is(err, repoErr) {
+		t.Fatalf("got %v, want wrapped repo error", err)
+	}
+	if errors.Is(err, ErrNotFound) {
+		t.Fatalf("unexpected repo error was masked as not found: %v", err)
+	}
+}
+
+func TestContentMasksCrossUserAccess(t *testing.T) {
+	repo := contentRepo{file: File{
+		ID: "cv-1", UserID: "user-1", ObjectKey: "cv/user-1/resume.pdf",
+	}}
+	svc := NewService(repo, storage.NewMemoryStore(), nil)
+
+	_, _, err := svc.Content(context.Background(), "user-2", "cv-1")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("got %v, want ErrNotFound", err)
+	}
+}
+
+func TestMemoryRepoCreatesUUIDFileIDs(t *testing.T) {
+	file, err := NewMemoryRepo().CreateFile(context.Background(), File{UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+	if _, err := uuid.Parse(file.ID); err != nil {
+		t.Fatalf("memory file id = %q, want UUID: %v", file.ID, err)
 	}
 }
