@@ -1,0 +1,23 @@
+.github/copilot-instructions.md
+  s_6286150af2742f::t_d980fb2d362613 1-41,43,45-47,49,51,53-54,56-63,65-68,70-72
+plan.md
+  s_6286150af2742f::t_b6e6249057a470 51-63
+PROGRESS.md
+  s_6286150af2742f::t_b6e6249057a470 81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "a5c1d8bf9f16eea63018b78f7733bd51c24ed17b",
+  "prompts": {},
+  "sessions": {
+    "s_6286150af2742f": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "711e7a5e-1d2c-4eda-a0c6-dbdf03241ec9",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
