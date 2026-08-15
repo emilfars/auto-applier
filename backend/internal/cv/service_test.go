@@ -1,6 +1,7 @@
 package cv
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -73,10 +74,15 @@ func pdfBytes(size int) []byte {
 	return b
 }
 
-func docxBytes(size int) []byte {
-	b := make([]byte, size)
-	copy(b, []byte{0x50, 0x4B, 0x03, 0x04})
-	return b
+func docxBytes() []byte {
+	var b bytes.Buffer
+	w := zip.NewWriter(&b)
+	for _, name := range []string{"[Content_Types].xml", "word/document.xml"} {
+		f, _ := w.Create(name)
+		_, _ = f.Write([]byte("<xml/>"))
+	}
+	_ = w.Close()
+	return b.Bytes()
 }
 
 // AC-CV-1: accept PDF/DOCX ≤5MB; reject other types (415) and >5MB (413).
@@ -88,7 +94,8 @@ func TestAC_CV_1_UploadMatrix(t *testing.T) {
 		want     int
 	}{
 		{"pdf ok", "resume.pdf", pdfBytes(1024), http.StatusCreated},
-		{"docx ok", "resume.docx", docxBytes(2048), http.StatusCreated},
+		{"docx ok", "resume.docx", docxBytes(), http.StatusCreated},
+		{"zip renamed docx rejected", "fake.docx", []byte{0x50, 0x4B, 0x03, 0x04}, http.StatusUnsupportedMediaType},
 		{"png rejected", "photo.png", []byte{0x89, 0x50, 0x4E, 0x47}, http.StatusUnsupportedMediaType},
 		{"spoofed pdf ext", "fake.pdf", []byte("not really a pdf"), http.StatusUnsupportedMediaType},
 		{"too large", "big.pdf", pdfBytes(int(MaxUploadBytes) + 1), http.StatusRequestEntityTooLarge},
@@ -143,7 +150,7 @@ func TestUploadRequiresAuth(t *testing.T) {
 func TestListReturnsUserFiles(t *testing.T) {
 	h := newHarness(t)
 	h.upload(t, "a.pdf", pdfBytes(512))
-	h.upload(t, "b.docx", docxBytes(512))
+	h.upload(t, "b.docx", docxBytes())
 
 	req := httptest.NewRequest(http.MethodGet, "/cv", nil)
 	rec := httptest.NewRecorder()

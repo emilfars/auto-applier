@@ -15,6 +15,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const sampleProfile = {
   full_name: "Sri",
+  email: "sri@example.com",
   phone: "0812",
   education: [],
   work_history: [],
@@ -38,14 +39,22 @@ describe("profile client", () => {
     expect(f.mock.calls[0][0]).toBe("/profile");
   });
 
-  it("PATCHes with a JSON array for skills", async () => {
+  it("PATCHes all parsed fields", async () => {
     const f = mockFetch(200, sampleProfile);
     vi.stubGlobal("fetch", f);
-    await patchProfile({ full_name: "Sri", skills: ["go"] });
+    await patchProfile({
+      full_name: "Sri",
+      email: "sri@example.com",
+      education: [{ institution: "UI", degree: "S.Kom", field: "", start_year: "2020", end_year: "2024" }],
+      work_history: [{ company: "Acme", title: "Engineer", start_date: "2024", end_date: "" }],
+      skills: ["go"],
+    });
     const [path, init] = f.mock.calls[0] as [string, { method: string; body: string }];
     expect(path).toBe("/profile");
     expect(init.method).toBe("PATCH");
     expect(JSON.parse(init.body).skills).toEqual(["go"]);
+    expect(JSON.parse(init.body).education[0].institution).toBe("UI");
+    expect(JSON.parse(init.body).work_history[0].company).toBe("Acme");
   });
 
   it("confirms the profile", async () => {

@@ -13,7 +13,10 @@ import { ApiError } from "../api/http";
 
 interface FormState {
   full_name: string;
+  email: string;
   phone: string;
+  education: string;
+  work_history: string;
   expected_salary: string;
   notice_period_days: string;
   work_authorization: string;
@@ -26,7 +29,10 @@ interface FormState {
 function toForm(p: Profile): FormState {
   return {
     full_name: p.full_name,
+    email: p.email,
     phone: p.phone,
+    education: JSON.stringify(p.education ?? [], null, 2),
+    work_history: JSON.stringify(p.work_history ?? [], null, 2),
     expected_salary: p.expected_salary != null ? String(p.expected_salary) : "",
     notice_period_days: p.notice_period_days != null ? String(p.notice_period_days) : "",
     work_authorization: p.work_authorization,
@@ -47,15 +53,18 @@ function splitList(s: string): string[] {
 function toPatch(f: FormState): ProfilePatch {
   const patch: ProfilePatch = {
     full_name: f.full_name,
+    email: f.email,
     phone: f.phone,
+    education: JSON.parse(f.education) as Profile["education"],
+    work_history: JSON.parse(f.work_history) as Profile["work_history"],
     work_authorization: f.work_authorization,
     employment_type: f.employment_type,
     open_to_relocation: f.open_to_relocation,
     skills: splitList(f.skills),
     preferred_locations: splitList(f.preferred_locations),
+    expected_salary: f.expected_salary.trim() ? Number(f.expected_salary) : null,
+    notice_period_days: f.notice_period_days.trim() ? Number(f.notice_period_days) : null,
   };
-  if (f.expected_salary.trim()) patch.expected_salary = Number(f.expected_salary);
-  if (f.notice_period_days.trim()) patch.notice_period_days = Number(f.notice_period_days);
   return patch;
 }
 
@@ -136,27 +145,35 @@ export function ProfilePanel({
     });
   };
 
-  const onConfirm = () =>
+  const onConfirm = () => {
+    if (!form) return;
     void run(async () => {
+      await patchProfile(toPatch(form));
       const saved = await confirmProfile();
       applyProfile(saved);
       setNotice(t(locale, "profile.confirmed"));
     });
+  };
 
   return (
     <div className="profile">
       <form className="profile__form" onSubmit={onSave}>
         <label className="full">
           {t(locale, "profile.fullName")}
-          <input value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
+          <input required value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
+        </label>
+        <label>
+          {t(locale, "profile.email")}
+          <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
         </label>
         <label>
           {t(locale, "profile.phone")}
-          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+          <input required value={form.phone} onChange={(e) => set("phone", e.target.value)} />
         </label>
         <label>
           {t(locale, "profile.workAuth")}
           <input
+            required
             value={form.work_authorization}
             onChange={(e) => set("work_authorization", e.target.value)}
           />
@@ -183,6 +200,7 @@ export function ProfilePanel({
         <label>
           {t(locale, "profile.employmentType")}
           <select
+            required
             value={form.employment_type}
             onChange={(e) => set("employment_type", e.target.value)}
           >
@@ -203,12 +221,30 @@ export function ProfilePanel({
           {t(locale, "profile.relocation")}
         </label>
         <label className="full">
+          {t(locale, "profile.education")}
+          <textarea
+            required
+            rows={8}
+            value={form.education}
+            onChange={(e) => set("education", e.target.value)}
+          />
+        </label>
+        <label className="full">
+          {t(locale, "profile.workHistory")}
+          <textarea
+            rows={8}
+            value={form.work_history}
+            onChange={(e) => set("work_history", e.target.value)}
+          />
+        </label>
+        <label className="full">
           {t(locale, "profile.skills")}
-          <input value={form.skills} onChange={(e) => set("skills", e.target.value)} />
+          <input required value={form.skills} onChange={(e) => set("skills", e.target.value)} />
         </label>
         <label className="full">
           {t(locale, "profile.preferredLocations")}
           <input
+            required
             value={form.preferred_locations}
             onChange={(e) => set("preferred_locations", e.target.value)}
           />

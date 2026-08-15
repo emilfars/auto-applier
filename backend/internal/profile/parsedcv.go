@@ -23,6 +23,9 @@ func (s *Service) ApplyParsedCV(ctx context.Context, userID string, parsed cv.Pa
 	if parsed.FullName != "" {
 		p.FullName = parsed.FullName
 	}
+	if parsed.Email != "" {
+		p.Email = parsed.Email
+	}
 	if parsed.Phone != "" {
 		p.Phone = parsed.Phone
 	}

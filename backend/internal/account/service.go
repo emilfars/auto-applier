@@ -70,6 +70,7 @@ type accountExport struct {
 
 type profileExport struct {
 	FullName           string          `json:"full_name"`
+	Email              string          `json:"email"`
 	Phone              string          `json:"phone"`
 	Education          json.RawMessage `json:"education"`
 	WorkHistory        json.RawMessage `json:"work_history"`
@@ -190,6 +191,7 @@ func toAccountExport(u auth.User) accountExport {
 func toProfileExport(p profile.Profile) profileExport {
 	return profileExport{
 		FullName:           p.FullName,
+		Email:              p.Email,
 		Phone:              p.Phone,
 		Education:          p.Education,
 		WorkHistory:        p.WorkHistory,

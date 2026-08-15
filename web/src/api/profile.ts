@@ -16,9 +16,10 @@ export const EMPLOYMENT_TYPES = [
 
 export interface Profile {
   full_name: string;
+  email: string;
   phone: string;
-  education: unknown[];
-  work_history: unknown[];
+  education: EducationEntry[];
+  work_history: WorkEntry[];
   skills: string[];
   expected_salary: number | null;
   notice_period_days: number | null;
@@ -30,12 +31,30 @@ export interface Profile {
   confirmed_at: string | null;
 }
 
+export interface EducationEntry {
+  institution: string;
+  degree: string;
+  field: string;
+  start_year: string;
+  end_year: string;
+}
+
+export interface WorkEntry {
+  company: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+}
+
 /** Fields the UI can patch. Arrays are sent as JSON arrays; omit to leave unchanged. */
 export interface ProfilePatch {
   full_name?: string;
+  email?: string;
   phone?: string;
-  expected_salary?: number;
-  notice_period_days?: number;
+  education?: EducationEntry[];
+  work_history?: WorkEntry[];
+  expected_salary?: number | null;
+  notice_period_days?: number | null;
   work_authorization?: string;
   open_to_relocation?: boolean;
   employment_type?: string;

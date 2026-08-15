@@ -58,9 +58,10 @@ func TestAC_CV_3_EditPersists(t *testing.T) {
 	h := newHarness()
 	patch := map[string]any{
 		"full_name":    "Dina Putri",
+		"email":        "dina@example.com",
 		"phone":        "+628123456789",
-		"education":    []map[string]any{{"school": "UI", "degree": "S.Kom"}},
-		"work_history": []map[string]any{{"company": "Tokopedia", "role": "SWE"}},
+		"education":    []map[string]any{{"institution": "UI", "degree": "S.Kom"}},
+		"work_history": []map[string]any{{"company": "Tokopedia", "title": "SWE"}},
 		"skills":       []string{"Go", "React"},
 	}
 	if rec := h.do(t, http.MethodPatch, "/profile", patch); rec.Code != http.StatusOK {
@@ -71,8 +72,12 @@ func TestAC_CV_3_EditPersists(t *testing.T) {
 		t.Fatalf("get: got %d, want 200", rec.Code)
 	}
 	p := decodeProfile(t, rec)
-	if p.FullName != "Dina Putri" || p.Phone != "+628123456789" {
+	if p.FullName != "Dina Putri" || p.Email != "dina@example.com" || p.Phone != "+628123456789" {
 		t.Fatalf("fields not persisted: %+v", p)
+	}
+	if string(p.Education) != `[{"degree":"S.Kom","institution":"UI"}]` ||
+		string(p.WorkHistory) != `[{"company":"Tokopedia","title":"SWE"}]` {
+		t.Fatalf("structured fields not persisted: education=%s work_history=%s", p.Education, p.WorkHistory)
 	}
 	if string(p.Skills) != `["Go","React"]` {
 		t.Fatalf("skills not persisted: %s", p.Skills)
@@ -112,11 +117,23 @@ func TestAC_CV_4_AddedInfoValidation(t *testing.T) {
 		{"notice_period_days": 400},
 		{"employment_type": "wizard"},
 		{"skills": "not-an-array"},
+		{"skills": []int{1}},
+		{"education": []map[string]any{{"school": "unknown field"}}},
+		{"email": "not-an-email"},
 	}
 	for _, b := range bad {
 		if rec := h.do(t, http.MethodPatch, "/profile", b); rec.Code != http.StatusBadRequest {
 			t.Fatalf("bad patch %v: got %d, want 400", b, rec.Code)
 		}
+	}
+
+	rec = h.do(t, http.MethodPatch, "/profile", map[string]any{
+		"expected_salary":    nil,
+		"notice_period_days": nil,
+	})
+	p = decodeProfile(t, rec)
+	if p.ExpectedSalary != nil || p.NoticePeriodDays != nil {
+		t.Fatalf("nullable fields were not cleared: %+v", p)
 	}
 }
 
@@ -125,13 +142,25 @@ func TestAC_CV_4_AddedInfoValidation(t *testing.T) {
 func TestAC_CV_5_ConfirmBeforeApplyGate(t *testing.T) {
 	h := newHarness()
 
-	// Fresh profile: unconfirmed, arm refused.
+	// Fresh profile: unconfirmed, arm and confirmation refused.
 	if rec := h.do(t, http.MethodGet, "/profile/arm", nil); rec.Code != http.StatusForbidden {
 		t.Fatalf("arm before confirm: got %d, want 403", rec.Code)
 	}
+	if rec := h.do(t, http.MethodPost, "/profile/confirm", nil); rec.Code != http.StatusBadRequest {
+		t.Fatalf("confirm incomplete: got %d, want 400", rec.Code)
+	}
 
-	// Add data, then confirm.
-	h.do(t, http.MethodPatch, "/profile", map[string]any{"full_name": "Dina"})
+	// Add the minimum complete profile, then confirm.
+	h.do(t, http.MethodPatch, "/profile", map[string]any{
+		"full_name":           "Dina",
+		"email":               "dina@example.com",
+		"phone":               "+628100000000",
+		"education":           []map[string]any{{"institution": "UI"}},
+		"skills":              []string{"Go"},
+		"work_authorization":  "WNI",
+		"preferred_locations": []string{"Jakarta"},
+		"employment_type":     "full_time",
+	})
 	rec := h.do(t, http.MethodPost, "/profile/confirm", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("confirm: got %d, want 200", rec.Code)

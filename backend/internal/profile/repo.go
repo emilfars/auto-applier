@@ -19,6 +19,7 @@ var ErrNotFound = errors.New("profile: not found")
 type Profile struct {
 	UserID             string
 	FullName           string
+	Email              string
 	Phone              string
 	Education          json.RawMessage
 	WorkHistory        json.RawMessage

@@ -28,6 +28,7 @@ func TestApplyParsedCV(t *testing.T) {
 
 	parsed := cv.ParsedCV{
 		FullName: "Budi Santoso",
+		Email:    "budi@example.com",
 		Phone:    "+6281234567890",
 		Education: []cv.EducationEntry{
 			{Institution: "Universitas Indonesia", Degree: "Sarjana Teknik"},
@@ -43,7 +44,7 @@ func TestApplyParsedCV(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.FullName != "Budi Santoso" || got.Phone != "+6281234567890" {
+	if got.FullName != "Budi Santoso" || got.Email != "budi@example.com" || got.Phone != "+6281234567890" {
 		t.Errorf("contact not applied: %+v", got)
 	}
 	if got.Confirmed || got.ConfirmedAt != nil {

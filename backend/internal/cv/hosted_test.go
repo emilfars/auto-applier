@@ -63,6 +63,34 @@ func TestHostedParserNoEndpoint(t *testing.T) {
 	}
 }
 
+func TestHostedParserRejectsInsecureEndpoint(t *testing.T) {
+	p := NewHostedParser("http://parser.example.com", "", nil)
+	if _, err := p.Parse(context.Background(), []byte("PII"), "cv.pdf", contentTypePDF); err == nil {
+		t.Fatal("expected insecure parser endpoint to be rejected")
+	}
+}
+
+func TestHostedParserRejectsInsecureRedirect(t *testing.T) {
+	called := false
+	insecure := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	}))
+	defer insecure.Close()
+
+	secure := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, insecure.URL, http.StatusTemporaryRedirect)
+	}))
+	defer secure.Close()
+
+	p := NewHostedParser(secure.URL, "", secure.Client())
+	if _, err := p.Parse(context.Background(), []byte("PII"), "cv.pdf", contentTypePDF); err == nil {
+		t.Fatal("expected insecure redirect to be rejected")
+	}
+	if called {
+		t.Fatal("CV contents were sent over an insecure redirect")
+	}
+}
+
 func TestDisabledParser(t *testing.T) {
 	if _, err := NewDisabledParser().Parse(context.Background(), nil, "", ""); err != ErrParserUnavailable {
 		t.Fatalf("err = %v, want ErrParserUnavailable", err)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -44,7 +45,21 @@ func NewHostedParser(endpoint, apiKey string, client *http.Client) *HostedParser
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
-	return &HostedParser{endpoint: endpoint, apiKey: apiKey, client: client}
+	cloned := *client
+	existingRedirect := cloned.CheckRedirect
+	cloned.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if req.URL.Scheme != "https" {
+			return errors.New("cv: parser redirect must use https")
+		}
+		if existingRedirect != nil {
+			return existingRedirect(req, via)
+		}
+		if len(via) >= 10 {
+			return errors.New("cv: stopped after 10 parser redirects")
+		}
+		return nil
+	}
+	return &HostedParser{endpoint: endpoint, apiKey: apiKey, client: &cloned}
 }
 
 type hostedRequest struct {
@@ -114,6 +129,13 @@ func (h *HostedParser) Parse(ctx context.Context, data []byte, filename, content
 	if h.endpoint == "" {
 		return ParsedCV{}, ErrParserUnavailable
 	}
+	endpoint, err := url.Parse(h.endpoint)
+	if err != nil || endpoint.Scheme == "" || endpoint.Host == "" {
+		return ParsedCV{}, fmt.Errorf("cv: invalid parser endpoint")
+	}
+	if !secureParserURL(endpoint) {
+		return ParsedCV{}, fmt.Errorf("cv: parser endpoint must use https")
+	}
 	body, err := json.Marshal(hostedRequest{
 		Filename:    filename,
 		ContentType: contentType,
@@ -147,4 +169,11 @@ func (h *HostedParser) Parse(ctx context.Context, data []byte, filename, content
 		return ParsedCV{}, fmt.Errorf("cv: decode parse response: %w", err)
 	}
 	return parsed.toParsedCV(), nil
+}
+
+func secureParserURL(endpoint *url.URL) bool {
+	return endpoint.Scheme == "https" ||
+		endpoint.Hostname() == "localhost" ||
+		endpoint.Hostname() == "127.0.0.1" ||
+		endpoint.Hostname() == "::1"
 }

@@ -56,6 +56,7 @@ func TestPgxRepo_SaveAndUpdate(t *testing.T) {
 	notice := 30
 	p := emptyProfile(userID)
 	p.FullName = "Dina Putri"
+	p.Email = "dina@example.com"
 	p.Skills = json.RawMessage(`["Go","React"]`)
 	p.ExpectedSalary = &salary
 	p.NoticePeriodDays = &notice
@@ -65,7 +66,7 @@ func TestPgxRepo_SaveAndUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if saved.FullName != "Dina Putri" {
+	if saved.FullName != "Dina Putri" || saved.Email != "dina@example.com" {
 		t.Fatalf("unexpected saved profile: %+v", saved)
 	}
 	var skills []string

@@ -1,6 +1,7 @@
 package cv
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -243,11 +244,27 @@ func detectType(filename string, data []byte) (string, bool) {
 	switch {
 	case ext == ".pdf" && bytes.HasPrefix(data, magicPDF):
 		return contentTypePDF, true
-	case ext == ".docx" && bytes.HasPrefix(data, magicZIP):
+	case ext == ".docx" && isDOCX(data):
 		return contentTypeDOCX, true
 	default:
 		return "", false
 	}
+}
+
+func isDOCX(data []byte) bool {
+	if !bytes.HasPrefix(data, magicZIP) {
+		return false
+	}
+	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return false
+	}
+	var contentTypes, document bool
+	for _, f := range r.File {
+		contentTypes = contentTypes || f.Name == "[Content_Types].xml"
+		document = document || f.Name == "word/document.xml"
+	}
+	return contentTypes && document
 }
 
 func objectKey(userID, filename string) (string, error) {
