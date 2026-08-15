@@ -1,0 +1,79 @@
+backend/internal/db/apply.go
+  s_5fdf189841418f::t_8bd688910bab0e 30-34,36-38,53,59,64,68-70
+  s_5fdf189841418f::t_da6a974178d39a 35
+  s_5fdf189841418f::t_ad6e1b58a16484 11,17-21,25,50,58,61
+backend/go.mod
+  s_5fdf189841418f::t_19c848231e6993 14,16-17,21-26,31,37-38,40,43,45
+  s_5fdf189841418f::t_2f99aec4f9286a 7-9
+backend/cmd/api/main_test.go
+  s_5fdf189841418f::t_fe9761811674ad 18,23,27
+  s_5fdf189841418f::t_ad6e1b58a16484 1-16,28
+  s_5fdf189841418f::t_d7f521885059b0 17,19-22,24-26
+docker-compose.production.yml
+  s_5fdf189841418f::t_a18304e4a504d9 1-13
+backend/internal/api/security.go
+  s_5fdf189841418f::t_97023aec5e2ca2 15-17,42,53,57-58
+  s_5fdf189841418f::t_2d06b866b39ebd 59
+backend/internal/api/security_test.go
+  s_5fdf189841418f::t_97023aec5e2ca2 28,63,65-66,72,74-75
+  s_5fdf189841418f::t_2f99aec4f9286a 73
+backend/internal/db/apply_test.go
+  s_5fdf189841418f::t_dc8f3697f1619f 1-79
+docker-compose.yml
+  s_5fdf189841418f::t_a39a89e69792a1 20,22-27,35-40,46,59
+  s_5fdf189841418f::t_a18304e4a504d9 11,53
+  s_5fdf189841418f::t_8bd688910bab0e 32,47
+  s_5fdf189841418f::t_97023aec5e2ca2 41
+  s_5fdf189841418f::t_10dc662e450b98 28-29
+  s_5fdf189841418f::t_da6a974178d39a 51
+  s_5fdf189841418f::t_796b37cf20439d 21
+web/nginx.conf
+  s_5fdf189841418f::t_ad6e1b58a16484 12-14,16-18
+  s_5fdf189841418f::t_a18304e4a504d9 1-5,15
+PROGRESS.md
+  s_5fdf189841418f::t_e26117ef86c193 8-9,20,28,30,39-40,81
+scripts/verify.sh
+  s_5fdf189841418f::t_dc8f3697f1619f 91
+  s_5fdf189841418f::t_a18304e4a504d9 122-135
+ACCEPTANCE.md
+  s_5fdf189841418f::t_e26117ef86c193 30-34,105,114
+backend/internal/storage/s3.go
+  s_5fdf189841418f::t_8bd688910bab0e 59-62
+  s_5fdf189841418f::t_ad5f24845a1687 56-58
+  s_5fdf189841418f::t_1114467555048b 63-65
+  s_5fdf189841418f::t_3640ecdb8b13f9 1-55,66-103
+README.md
+  s_5fdf189841418f::t_97023aec5e2ca2 23,72
+  s_5fdf189841418f::t_a18304e4a504d9 50-59
+  s_5fdf189841418f::t_a39a89e69792a1 67-71
+backend/cmd/api/main.go
+  s_5fdf189841418f::t_97023aec5e2ca2 44,47,60-64,94,96-97
+  s_5fdf189841418f::t_2f99aec4f9286a 95
+  s_5fdf189841418f::t_fe9761811674ad 248-255,257,259,265-269,320,324,326-329,334,336
+  s_5fdf189841418f::t_286d2c86eea768 9
+  s_5fdf189841418f::t_ed86b92e4d9cc9 260-264
+  s_5fdf189841418f::t_7cf6ec12d91c16 245-247
+  s_5fdf189841418f::t_f7938d8a64adfc 243-244
+backend/internal/storage/storage_test.go
+  s_5fdf189841418f::t_10dc662e450b98 10,12,102-114,116-151
+  s_5fdf189841418f::t_8bd688910bab0e 99-101,152-154
+  s_5fdf189841418f::t_6230b2b5ef929b 8,115
+backend/go.sum
+  s_5fdf189841418f::t_ba1eeeda947eef 1-2,6-11,20-38,51-56,58-60,63-65,79-84,87-88,95-96,100-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "913f97eb4ae8e9e0378892e3e883a1d505710b79",
+  "prompts": {},
+  "sessions": {
+    "s_5fdf189841418f": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "c3f5fb1c-bc53-4de1-986a-f71fac9bc40d",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
