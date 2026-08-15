@@ -1,76 +1,72 @@
-# Copilot Instructions — Auto Applier (The System Protocol)
+# Copilot Instructions — Auto Applier
 
-Repo-level operating rules for any AI agent working in this repository. Read this **before** writing code. See `PRD.md` for requirements and `plan.md` for the build sequence.
+Repository rules for AI agents. Read `PRD.md`, `plan.md`, `PROGRESS.md`, and
+`ACCEPTANCE.md` before changing code.
 
----
+## Product boundaries
 
-## 0. Prime Directive — Human-in-the-Loop (NON-NEGOTIABLE)
-**The system NEVER submits a job application. The final Apply/Submit click is always the human user's.**
+- **Never submit a job application.** The extension and future mobile WebView
+  may fill fields only; the user always reviews and clicks Apply/Submit.
+- Never trigger form submission, click a submit control, dispatch a synthetic
+  submit event, or submit in the background. Stop and flag conflicting work.
+- Mark low-confidence fields `uncertain`; never present them as `filled`.
+- Use Tier 1 APIs/partner feeds and Tier 2 public boards only. Do not scrape
+  login-walled sources.
+- MVP salary is employer-stated only. Any future estimate must be clearly
+  labeled and visually distinct.
+- Keep MVP Jabodetabek-first, seeker-only, and free. Parsed CV data must be
+  reviewed and confirmed before first use.
 
-- The browser extension (and later mobile WebView) **autofills fields only**.
-- No headless submission, no background submission, no "click submit" automation, no simulated submit events — in any phase, ever.
-- Any code path that would programmatically trigger a form's submit on an external application page is forbidden. If a task appears to require this, **stop and flag it** — do not implement it.
-- Filled fields must be visually reviewable by the user before they submit; uncertain/low-confidence fields must be flagged, never silently filled.
+## Architecture
 
-This is a permanent product and legal/trust boundary, not a temporary MVP limitation.
+- Backend: Go, `net/http`, `pgx`, River, PostgreSQL.
+- CV objects: encrypted S3-compatible storage; store metadata only in Postgres.
+- Web: React + strict TypeScript/Vite; `id-ID` and `en`; IDR by default.
+- Extension: Chrome MV3 + strict TypeScript.
+- `packages/fill-mappings` is the dependency-light, versioned source of truth
+  shared by the extension and future Android WebView. Do not fork its maps.
+- Do not change a component's language or framework without a recorded decision.
 
-## 1. Locked Product Decisions
-Do not re-litigate or silently deviate from these:
-- **Sources:** Tier 1 (APIs/partner feeds) + Tier 2 (public boards, no login walls) **only**. Tier 3 login-walled sources (e.g. LinkedIn, login-gated Jobstreet views) are **excluded** — do not add scrapers for them.
-- **Salary:** MVP shows **employer-stated salary only**. No estimation model at MVP. When estimation ships later, estimated pay must be **visually distinct** from stated pay and labeled (e.g. "~Rp 8–11 jt (estimated)"). Never present an estimate as fact.
-- **Geo:** Jabodetabek-first.
-- **Monetization:** none at MVP. **Employer side:** out of scope (seeker-side only).
-- **CV data quality:** the user always reviews and confirms parsed CV data before their first apply.
+## Engineering rules
 
-## 2. Tech Stack
-- **Backend:** Go (`net/http` or chi/gin), `pgx` for Postgres, `asynq`/`River` for the job queue, `colly`/`chromedp` for scrapers.
-- **Data:** PostgreSQL + Postgres full-text search; S3-compatible object storage for CV files (**encrypted at rest**).
-- **Frontend:** React + TypeScript (Vite, TanStack Query, Tailwind). i18n: **id-ID + en**, **IDR** default currency.
-- **Extension:** Chrome **MV3** + TypeScript.
-- **Shared fill logic:** `packages/fill-mappings` — versioned per-portal field maps with tests; reused by the extension now and the Android WebView later. Keep it framework-agnostic and dependency-light.
-
-Do not introduce a different language/framework for a component without an explicit decision recorded here.
-
-## 3. Repository Layout
-```
-/backend              Go API + scrapers + ingestion workers
-/web                  React + TS web app
-/extension            Chrome MV3 extension (TS)
-/packages/fill-mappings  Shared, versioned per-portal fill maps + tests
-/android              Android app (fast-follow, WebView fill)
-/scripts              Tooling incl. verify.sh
-/.github              CI, this protocol
-```
-Keep components decoupled. The fill-mapping package is the single source of truth for field mappings — the extension and Android must not fork their own copies.
-
-## 4. Coding Conventions
-- **Go:** standard `gofmt`; `go vet` clean; table-driven tests; return wrapped errors (`fmt.Errorf("...: %w", err)`); no panics in request paths; context-aware DB calls.
-- **TypeScript:** `strict` mode on; ESLint + Prettier; no `any` unless justified with a comment; prefer discriminated unions for fill-field states (`filled | uncertain | empty`).
-- **Fill mappings:** every portal map ships with tests and a `version`. A DOM/selector change bumps the map version. Low-confidence matches must surface as `uncertain`, never auto-committed as `filled`.
-- **Security/privacy:** never log CV contents or PII; encrypt CV files at rest; HTTPS only; rate-limit auth. Honor UU PDP No. 27/2022 (consent, deletion, export).
-- **Commits:** small and scoped. Include the trailer:
+- Go: `gofmt`, `go vet`, table-driven tests, wrapped errors, context-aware DB
+  calls, and no panics in request paths.
+- TypeScript: strict mode, ESLint/Prettier, no unjustified `any`, and
+  discriminated fill states (`filled | uncertain | empty`).
+- Bump a portal map version whenever its selectors or fields change; ship tests
+  with every map change.
+- Never log CV contents or PII. Encrypt CV files at rest, require HTTPS,
+  rate-limit auth, and preserve consent, deletion, and export rights.
+- Reference PRD/acceptance IDs where useful. Keep commits small and add:
   `Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>`
 
-## 5. Requirement Traceability
-Reference PRD requirement IDs (e.g. `AUTH-1`, `CV-2`, `SCR-3`, `FEED-2`, `APP-4`, `MOB-4`) in PR descriptions and, where useful, in code comments/tests. Build order follows the milestones in `plan.md` (M0 → M4 = working MVP).
+## Verification
 
-## 6. The Verification Gate (MANDATORY)
-Before considering any task done, run:
+Run `./scripts/verify.sh` before completion or commit. A red gate or skipped
+required check is not completion. Add new component checks to the gate; fix code
+instead of weakening checks.
 
-```bash
-./scripts/verify.sh
-```
+## Autonomous agentic loop
 
-`scripts/verify.sh` is the **deterministic feedback gate**. It detects which components exist and runs their build/lint/typecheck/test checks. A task is **not complete** until `verify.sh` exits `0`.
-- Do not mark work done, and do not open/merge a PR, on a red gate.
-- If you add a new component, wire its checks into `verify.sh`.
-- Prefer fixing the code over weakening a check. Never disable a check to make the gate pass.
+These model preferences apply only to this repository's autonomous loop:
 
-## 7. Workflow Expectations
-1. Read `PRD.md` + `plan.md`; identify the milestone and requirement IDs in scope.
-2. Make the smallest change that fully satisfies the requirement.
-3. Add/adjust tests (fill mappings, API handlers, parsers especially).
-4. Run `./scripts/verify.sh` until green.
-5. Commit with a scoped message + the co-author trailer.
+- Orchestration and review: `gpt-5.6-sol`, effort `medium`.
+- Bounded implementation: `gpt-5.6-luna`, effort `xhigh`.
 
-When a request conflicts with the Prime Directive (§0) or a Locked Decision (§1), **stop and ask** rather than proceeding.
+1. Sol selects one ready, unmet criterion from the four project documents.
+2. Luna makes the smallest complete change and its relevant tests without
+   expanding scope.
+3. Sol reviews the complete diff and callers before commit: scope, locked
+   decisions, failure paths, security/privacy, and whether tests exercise
+   production behavior rather than only mocks.
+4. Fix findings, run the verification gate, update `PROGRESS.md` and
+   `ACCEPTANCE.md`, commit, and repeat.
+
+Do not run a full repository review every loop. Before marking a milestone done,
+Sol performs one end-to-end review across browser/runtime, API, database,
+deployment, data lifecycle, security/privacy, recovery, and acceptance
+thresholds. Fix findings before dependent work begins.
+
+After that review passes and the milestone is committed, end the autonomous
+session. Start the next milestone in a fresh session and rebuild context from
+the four project documents. Keep one session for all loops within a milestone.

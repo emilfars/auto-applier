@@ -48,6 +48,19 @@ M0→M4 component code exists and the full local build/lint/typecheck/unit-test 
 
 Before declaring MVP complete, add one browser-level Open & Fill test using the real web profile/CV path, one Docker/API smoke test, and Postgres-backed verification that does not silently skip.
 
+## Agentic loop protocol
+
+This project loop uses `gpt-5.6-sol` at `medium` effort for orchestration and
+code review, and `gpt-5.6-luna` at `xhigh` effort for bounded implementation.
+The preference is project-local and does not apply to other repositories or
+ordinary interactive sessions.
+
+Each implementation loop gets a quick Sol review of the complete diff,
+callers, scope, failure paths, security/privacy boundaries, and test relevance.
+A full end-to-end Sol review runs only at milestone completion, using real
+browser, API, database, deployment, and data-lifecycle boundaries. Findings
+must be fixed before the milestone is marked done or dependent work begins.
+
 ## Tech stack
 - **Backend:** Go (net/http or chi/gin), `pgx` for Postgres, job queue: **River** (Postgres-backed) for scrape + parse, `colly`/`chromedp` for scrapers.
 - **DB / storage:** Postgres (users, profiles, jobs, applications) + Postgres full-text search (defer OpenSearch until latency demands) + S3-compatible object storage for CV files (encrypted at rest).
