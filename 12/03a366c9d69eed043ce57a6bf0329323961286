@@ -1,0 +1,86 @@
+web/src/components/ProfilePanel.tsx
+  s_b4522cb39c0314::t_d8f435c6f8c30d 16,18-19,32,34-35,56,58-59,164,166,223-225,227-239
+  s_b4522cb39c0314::t_039b92854b083a 163,167,171,176,203,226,242,247
+  s_b4522cb39c0314::t_d4a8438d40e278 65-66
+  s_b4522cb39c0314::t_223a953774bc28 148-149,151,156
+  s_b4522cb39c0314::t_bf2519311bb4bc 165
+backend/internal/profile/pgxrepo.go
+  s_b4522cb39c0314::t_d8f435c6f8c30d 27,36,53,57-58,62,77,81
+backend/internal/profile/parsedcv.go
+  s_b4522cb39c0314::t_d8f435c6f8c30d 26-28
+backend/internal/db/migrations/0006_profile_email.down.sql
+  s_b4522cb39c0314::t_d8f435c6f8c30d 1
+backend/internal/profile/service.go
+  s_b4522cb39c0314::t_d4a8438d40e278 4,6,13,83-84,135,148-151,153-156,161-162,166-174,177-186,198-205
+  s_b4522cb39c0314::t_09f8edb24a766e 9
+  s_b4522cb39c0314::t_e7104e24843006 8
+  s_b4522cb39c0314::t_d8f435c6f8c30d 78,132,136-137,306,335
+  s_b4522cb39c0314::t_039b92854b083a 133-134,206-213,215,218,248-249,261-262
+  s_b4522cb39c0314::t_042de220a7a99e 214,216-217,219-247,264
+  s_b4522cb39c0314::t_8147d24cd25c78 263
+web/src/i18n/locales/en.json
+  s_b4522cb39c0314::t_d8f435c6f8c30d 59,61-62
+PROGRESS.md
+  s_b4522cb39c0314::t_b8fb0d79dcf8e7 30,40,82
+backend/internal/profile/pgxrepo_test.go
+  s_b4522cb39c0314::t_d8f435c6f8c30d 59,69
+web/src/components/ProfilePanel.test.tsx
+  s_b4522cb39c0314::t_c05ed9ad4f1a6b 50-51
+  s_b4522cb39c0314::t_3a10b6dae2f456 9
+  s_b4522cb39c0314::t_223a953774bc28 4,40-41,70-84
+  s_b4522cb39c0314::t_d8f435c6f8c30d 1-3,5-8,10-39,42-49,52-69,85-87
+backend/internal/profile/parsedcv_test.go
+  s_b4522cb39c0314::t_d8f435c6f8c30d 31,47
+backend/internal/profile/repo.go
+  s_b4522cb39c0314::t_d8f435c6f8c30d 22
+backend/internal/account/service.go
+  s_b4522cb39c0314::t_d8f435c6f8c30d 73,194
+backend/internal/profile/service_test.go
+  s_b4522cb39c0314::t_039b92854b083a 130-137,145,149-151,153-163
+  s_b4522cb39c0314::t_d8f435c6f8c30d 61,75,80
+  s_b4522cb39c0314::t_d4a8438d40e278 63-64,78-79,120-122,129
+  s_b4522cb39c0314::t_6e46fd4b8ad66c 81
+backend/internal/db/migrations/0006_profile_email.up.sql
+  s_b4522cb39c0314::t_d8f435c6f8c30d 1
+web/src/api/profile.ts
+  s_b4522cb39c0314::t_d4a8438d40e278 56-57
+  s_b4522cb39c0314::t_d8f435c6f8c30d 19,21-22,34-48,52,54-55
+web/src/api/profile.test.ts
+  s_b4522cb39c0314::t_d8f435c6f8c30d 18,42,45-51,56-57
+backend/internal/cv/service.go
+  s_b4522cb39c0314::t_8e0861e1d0b0da 4,247,254-267
+  s_b4522cb39c0314::t_8e0fb5bc4d8a3b 268-269
+backend/internal/cv/hosted_test.go
+  s_b4522cb39c0314::t_8e0861e1d0b0da 66-72
+  s_b4522cb39c0314::t_042de220a7a99e 73-79,82-93
+  s_b4522cb39c0314::t_c3b1b3e2f81a89 80-81
+backend/internal/cv/hosted.go
+  s_b4522cb39c0314::t_0e84f7f09cfeba 51
+  s_b4522cb39c0314::t_042de220a7a99e 48-50,52-62,136,173-178
+  s_b4522cb39c0314::t_8e0861e1d0b0da 12,132-135,137-138
+  s_b4522cb39c0314::t_997d97c6845fb4 179
+backend/internal/cv/service_test.go
+  s_b4522cb39c0314::t_8e0861e1d0b0da 4,78-85,98
+  s_b4522cb39c0314::t_223a953774bc28 77,97
+  s_b4522cb39c0314::t_8e607b683b4aa2 153
+web/src/i18n/locales/id.json
+  s_b4522cb39c0314::t_d8f435c6f8c30d 59,61-62
+ACCEPTANCE.md
+  s_b4522cb39c0314::t_b09513d1c09caa 61,63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "1203a366c9d69eed043ce57a6bf0329323961286",
+  "prompts": {},
+  "sessions": {
+    "s_b4522cb39c0314": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "f056d535-2e77-4caa-945f-8d0417e04aef",
+        "model": "unknown"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
