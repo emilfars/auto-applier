@@ -5,8 +5,11 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
+	"os"
 	"testing"
+	"time"
 )
 
 func newTestStore(t *testing.T) (*EncryptedStore, *MemoryStore) {
@@ -90,6 +93,62 @@ func TestTamperDetection(t *testing.T) {
 func TestNewEncryptedStoreRejectsBadKey(t *testing.T) {
 	if _, err := NewEncryptedStore(NewMemoryStore(), []byte("short")); err == nil {
 		t.Fatal("expected error for non-32-byte key")
+	}
+}
+
+func TestNewS3StoreRejectsIncompleteConfig(t *testing.T) {
+	if _, err := NewS3Store(context.Background(), S3Config{}); err == nil {
+		t.Fatal("expected incomplete S3 configuration to fail")
+	}
+}
+
+func TestS3StorePersistsEncryptedBytes_AC_NFR_SEC(t *testing.T) {
+	endpoint := os.Getenv("TEST_S3_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("TEST_S3_ENDPOINT not set")
+	}
+	ctx := context.Background()
+	cfg := S3Config{
+		Endpoint:  endpoint,
+		AccessKey: os.Getenv("TEST_S3_ACCESS_KEY"),
+		SecretKey: os.Getenv("TEST_S3_SECRET_KEY"),
+		Bucket:    fmt.Sprintf("cv-test-%d", time.Now().UnixNano()),
+	}
+	raw, err := NewS3Store(ctx, cfg)
+	if err != nil {
+		t.Fatalf("create first S3 store: %v", err)
+	}
+	key := bytes.Repeat([]byte{0x2a}, 32)
+	encrypted, err := NewEncryptedStore(raw, key)
+	if err != nil {
+		t.Fatalf("wrap first S3 store: %v", err)
+	}
+	plaintext := []byte("persistent CV bytes")
+	if err := encrypted.Put(ctx, "cv/1", plaintext); err != nil {
+		t.Fatalf("put encrypted object: %v", err)
+	}
+
+	reopened, err := NewS3Store(ctx, cfg)
+	if err != nil {
+		t.Fatalf("reopen S3 store: %v", err)
+	}
+	stored, err := reopened.Get(ctx, "cv/1")
+	if err != nil {
+		t.Fatalf("get stored ciphertext: %v", err)
+	}
+	if bytes.Equal(stored, plaintext) {
+		t.Fatal("S3 persisted plaintext instead of ciphertext")
+	}
+	decrypted, err := NewEncryptedStore(reopened, key)
+	if err != nil {
+		t.Fatalf("wrap reopened S3 store: %v", err)
+	}
+	got, err := decrypted.Get(ctx, "cv/1")
+	if err != nil {
+		t.Fatalf("get decrypted object: %v", err)
+	}
+	if !bytes.Equal(got, plaintext) {
+		t.Fatalf("reopened S3 round-trip mismatch: got %q want %q", got, plaintext)
 	}
 }
 

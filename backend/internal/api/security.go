@@ -12,6 +12,9 @@ type SecurityConfig struct {
 	// Off by default so local/dev runs over http keep working; production sets
 	// ENFORCE_HTTPS=true (AC-NFR-SEC).
 	EnforceHTTPS bool
+	// TrustForwardedProto allows a trusted reverse proxy to report the original
+	// client scheme. Leave false when the API is directly reachable.
+	TrustForwardedProto bool
 	// HSTSMaxAge is the Strict-Transport-Security max-age in seconds. When <= 0
 	// a two-year default is used.
 	HSTSMaxAge int
@@ -36,7 +39,7 @@ func RequireHTTPS(next http.Handler, cfg SecurityConfig) http.Handler {
 	}
 	hsts := fmt.Sprintf("max-age=%d; includeSubDomains", maxAge)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !requestIsSecure(r) {
+		if !requestIsSecure(r, cfg.TrustForwardedProto) {
 			http.Error(w, "HTTPS is required", http.StatusForbidden)
 			return
 		}
@@ -47,9 +50,12 @@ func RequireHTTPS(next http.Handler, cfg SecurityConfig) http.Handler {
 
 // requestIsSecure reports whether the request reached the edge over HTTPS,
 // either via a direct TLS connection or the proxy-supplied X-Forwarded-Proto.
-func requestIsSecure(r *http.Request) bool {
+func requestIsSecure(r *http.Request, trustForwardedProto bool) bool {
 	if r.TLS != nil {
 		return true
+	}
+	if !trustForwardedProto {
+		return false
 	}
 	proto := r.Header.Get("X-Forwarded-Proto")
 	// XFP can be a comma-separated list ("https, http"); the client-facing

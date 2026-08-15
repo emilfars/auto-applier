@@ -25,6 +25,7 @@ func TestRequireHTTPS_RejectsPlainHTTP_AC_NFR_SEC(t *testing.T) {
 		{name: "no forwarded proto", headers: nil},
 		{name: "forwarded http", headers: map[string]string{"X-Forwarded-Proto": "http"}},
 		{name: "forwarded list http first", headers: map[string]string{"X-Forwarded-Proto": "http, https"}},
+		{name: "untrusted forwarded https", headers: map[string]string{"X-Forwarded-Proto": "https"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -59,15 +60,19 @@ func TestRequireHTTPS_AllowsSecure_AC_NFR_SEC(t *testing.T) {
 		name    string
 		withTLS bool
 		proto   string
+		trust   bool
 	}{
-		{name: "forwarded https", proto: "https"},
-		{name: "forwarded list https first", proto: "https, http"},
+		{name: "forwarded https", proto: "https", trust: true},
+		{name: "forwarded list https first", proto: "https, http", trust: true},
 		{name: "direct tls", withTLS: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reached := false
-			h := RequireHTTPS(okHandler(&reached), SecurityConfig{EnforceHTTPS: true})
+			h := RequireHTTPS(okHandler(&reached), SecurityConfig{
+				EnforceHTTPS:        true,
+				TrustForwardedProto: tc.trust,
+			})
 
 			req := httptest.NewRequest(http.MethodGet, "http://api.example/profile", nil)
 			if tc.withTLS {

@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: autoapplier
       POSTGRES_DB: autoapplier
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,23 +17,43 @@ services:
       timeout: 3s
       retries: 10
 
+  object-storage:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: autoapplier
+      MINIO_ROOT_PASSWORD: autoapplier-dev-secret
+    volumes:
+      - cv-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
   api:
     build: ./backend
+    restart: on-failure
     environment:
       API_ADDR: ":8080"
+      CV_ENCRYPTION_KEY: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+      S3_ENDPOINT: object-storage:9000
+      S3_ACCESS_KEY: autoapplier
+      S3_SECRET_KEY: autoapplier-dev-secret
+      S3_BUCKET: cv-files
+      S3_USE_TLS: "false"
+      TRUSTED_PROXY_HOPS: "1"
       DATABASE_URL: postgres://autoapplier:autoapplier@db:5432/autoapplier?sslmode=disable
-    ports:
-      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+      object-storage:
+        condition: service_started
 
   web:
     build: ./web
+    restart: on-failure
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
     depends_on:
       - api
 
 volumes:
   db-data:
+  cv-data:

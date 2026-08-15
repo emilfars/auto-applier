@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -40,13 +41,14 @@ func main() {
 	pool, closeDB := openDB()
 	defer closeDB()
 
+	trustedProxyHops := intEnv("TRUSTED_PROXY_HOPS", 0)
 	authRepo := newAuthRepo(pool)
 	mailer, err := newMailer()
 	if err != nil {
 		log.Fatalf("configure mailer: %v", err)
 	}
 	authSvc := auth.NewService(authRepo, auth.Config{
-		TrustedProxyHops: intEnv("TRUSTED_PROXY_HOPS", 0),
+		TrustedProxyHops: trustedProxyHops,
 		DevExposeTokens:  boolEnv("AUTH_DEV_EXPOSE_TOKENS", false),
 		Mailer:           mailer,
 	})
@@ -60,7 +62,11 @@ func main() {
 	profileSvc := profile.NewService(profileRepo, time.Now)
 	gatedProfile := authSvc.RequireVerified(profileSvc.Routes())
 
-	cvSvc := cv.NewService(newCVRepo(pool), newCVStore(), time.Now).
+	cvStore, err := newCVStore(context.Background())
+	if err != nil {
+		log.Fatalf("cv store: %v", err)
+	}
+	cvSvc := cv.NewService(newCVRepo(pool), cvStore, time.Now).
 		WithParsing(newCVParser(), profileSvc)
 	gatedCV := authSvc.RequireVerified(cvSvc.Routes())
 
@@ -90,7 +96,10 @@ func main() {
 			api.Mount{Pattern: "/account", Handler: gatedAccount},
 			api.Mount{Pattern: "/account/", Handler: gatedAccount},
 			api.Mount{Pattern: "/feed", Handler: feedSvc.Routes()},
-		), api.SecurityConfig{EnforceHTTPS: boolEnv("ENFORCE_HTTPS", false)}),
+		), api.SecurityConfig{
+			EnforceHTTPS:        boolEnv("ENFORCE_HTTPS", false),
+			TrustForwardedProto: trustedProxyHops > 0,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -244,13 +253,33 @@ func newCVRepo(pool *pgxpool.Pool) cv.Repo {
 // (AC-CV-1b): CV_ENCRYPTION_KEY (64 hex chars = 32 bytes) is used when set,
 // otherwise an ephemeral key is generated for local dev (data does not survive
 // a restart, which is acceptable for the in-memory backend).
-func newCVStore() storage.ObjectStore {
-	key := decodeCVKey()
-	enc, err := storage.NewEncryptedStore(storage.NewMemoryStore(), key)
-	if err != nil {
-		log.Fatalf("cv store: %v", err)
+func newCVStore(ctx context.Context) (storage.ObjectStore, error) {
+	endpoint := os.Getenv("S3_ENDPOINT")
+	if endpoint == "" {
+		if os.Getenv("DATABASE_URL") != "" {
+			return nil, errors.New("S3_ENDPOINT is required when DATABASE_URL is set")
+		}
+		key, err := decodeCVKey(false)
+		if err != nil {
+			return nil, err
+		}
+		return storage.NewEncryptedStore(storage.NewMemoryStore(), key)
 	}
-	return enc
+	key, err := decodeCVKey(true)
+	if err != nil {
+		return nil, err
+	}
+	backend, err := storage.NewS3Store(ctx, storage.S3Config{
+		Endpoint:  endpoint,
+		AccessKey: os.Getenv("S3_ACCESS_KEY"),
+		SecretKey: os.Getenv("S3_SECRET_KEY"),
+		Bucket:    os.Getenv("S3_BUCKET"),
+		UseTLS:    boolEnv("S3_USE_TLS", true),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return storage.NewEncryptedStore(backend, key)
 }
 
 // intEnv reads an integer environment variable, falling back to def when unset
@@ -301,18 +330,21 @@ func newCVParser() cv.Parser {
 	return cv.NewHostedParser(url, os.Getenv("CV_PARSER_API_KEY"), nil)
 }
 
-func decodeCVKey() []byte {
+func decodeCVKey(required bool) ([]byte, error) {
 	if hexKey := os.Getenv("CV_ENCRYPTION_KEY"); hexKey != "" {
 		key, err := hex.DecodeString(hexKey)
 		if err != nil || len(key) != 32 {
-			log.Fatalf("CV_ENCRYPTION_KEY must be 64 hex chars (32 bytes)")
+			return nil, errors.New("CV_ENCRYPTION_KEY must be 64 hex chars (32 bytes)")
 		}
-		return key
+		return key, nil
+	}
+	if required {
+		return nil, errors.New("CV_ENCRYPTION_KEY is required with persistent object storage")
 	}
 	log.Println("CV_ENCRYPTION_KEY not set; generating an ephemeral dev key")
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
-		log.Fatalf("generate cv key: %v", err)
+		return nil, fmt.Errorf("generate cv key: %w", err)
 	}
-	return key
+	return key, nil
 }

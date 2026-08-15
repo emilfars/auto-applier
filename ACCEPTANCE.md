@@ -27,11 +27,11 @@ Test-type conventions:
 | AC-GATE-1 | Backend compiles | `go build ./...` in `/backend` | ✅ |
 | AC-GATE-2 | Backend vet + format clean | `go vet ./...`, `gofmt -l` empty | ✅ |
 | AC-GATE-3 | All Go tests pass | `go test ./...` | ✅ |
-| AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | 🟡 — skipped when `node_modules` is absent |
-| AC-GATE-5 | TS components lint clean | `npm run lint` per package | 🟡 — skipped when `node_modules` is absent |
-| AC-GATE-6 | TS unit tests pass | `npm run test` per package | 🟡 — skipped when `node_modules` is absent |
-| AC-GATE-7 | All buildable components build | `npm run build` per package | 🟡 — skipped when `node_modules` is absent |
-| AC-GATE-8 | `verify.sh` exits 0 only after all present components are checked | `./scripts/verify.sh; echo $?` == 0 | 🟡 — currently exits 0 when TS dependencies/checks are skipped |
+| AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | ✅ |
+| AC-GATE-5 | TS components lint clean | `npm run lint` per package | ✅ |
+| AC-GATE-6 | TS unit tests pass | `npm run test` per package | ✅ |
+| AC-GATE-7 | All buildable components build | `npm run build` per package | ✅ |
+| AC-GATE-8 | `verify.sh` exits 0 only after all present components are checked | `./scripts/verify.sh; echo $?` == 0 | ✅ |
 
 ## 0.1 Prime-directive guard (NON-NEGOTIABLE)
 | Test ID | Criteria | Verification | Status |
@@ -102,7 +102,7 @@ Test-type conventions:
 ## 6. Non-functional acceptance
 | Test ID | Criteria | Verification | Status |
 |---|---|---|---|
-| AC-NFR-SEC | CV/PII encrypted in persistent object storage; HTTPS enforced in deployment | integration (AC-CV-1b) + deployment config test | 🟡 — encryption wrapper exists, but CV storage is memory-only and deployment does not enable HTTPS enforcement |
+| AC-NFR-SEC | CV/PII encrypted in persistent object storage; HTTPS enforced in deployment | S3 integration (AC-CV-1b) + deployment config test | ✅ |
 | AC-NFR-PRIV | Consent captured at signup; deletion + export available | integration (AC-AUTH-5) + signup consent test | ✅ |
 | AC-NFR-I18N | UI strings resolve for `id-ID` and `en`; currency defaults to IDR | unit: no missing-key in either locale bundle | ✅ |
 | AC-NFR-SCALE | System handles seed of 50k listings without feed regression | perf stage | ⬜ |
@@ -111,6 +111,6 @@ Test-type conventions:
 
 ## Traceability & enforcement
 - Every `AC-*` test name embeds its Test ID so CI output maps 1:1 to this file.
-- `scripts/verify.sh` is the local gate. No CI workflow, browser E2E stage, or Postgres-backed perf stage exists yet.
+- `scripts/verify.sh` is the local gate; `.github/workflows/verify.yml` runs it with Postgres plus Docker/S3 smoke checks. Browser E2E and Postgres-backed perf stages remain.
 - When you implement a requirement: (1) write its `AC-*` test, (2) make it pass, (3) flip Status here to ✅, (4) update `PROGRESS.md`.
 - Adding a new requirement means adding a row here **first** (spec before code).

@@ -88,7 +88,7 @@ check_node_component() {
   if [ ! -f "${dir}/package.json" ]; then skip "${title} — no package.json"; return; fi
   if ! have node; then fail "${title} — node not installed but ${dir}/package.json exists"; return; fi
   if [ ! -d "${dir}/node_modules" ]; then
-    skip "${title} — dependencies not installed (run install in ${dir})"
+    fail "${title} — dependencies not installed (run npm ci in ${dir})"
     return
   fi
   node_script "${dir}" lint       "${title}: lint"
@@ -117,6 +117,20 @@ if [ -d backend ] && [ -f backend/go.mod ]; then
   fi
 else
   skip "backend — not present (no backend/go.mod)"
+fi
+
+# ---------------------------------------------------------------------------
+# Deployment
+# ---------------------------------------------------------------------------
+section "Deployment"
+if have docker; then
+  run "deployment: local compose config" docker compose config --quiet
+  run "deployment: production compose config" env \
+    CV_ENCRYPTION_KEY=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+    S3_ACCESS_KEY=verify S3_SECRET_KEY=verify-secret \
+    docker compose -f docker-compose.yml -f docker-compose.production.yml config --quiet
+else
+  fail "deployment: Docker CLI not installed"
 fi
 
 # ---------------------------------------------------------------------------
