@@ -27,11 +27,11 @@ Test-type conventions:
 | AC-GATE-1 | Backend compiles | `go build ./...` in `/backend` | ✅ |
 | AC-GATE-2 | Backend vet + format clean | `go vet ./...`, `gofmt -l` empty | ✅ |
 | AC-GATE-3 | All Go tests pass | `go test ./...` | ✅ |
-| AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | ✅ |
-| AC-GATE-5 | TS components lint clean | `npm run lint` per package | ✅ |
-| AC-GATE-6 | TS unit tests pass | `npm run test` per package | ✅ |
-| AC-GATE-7 | All buildable components build | `npm run build` per package | ✅ |
-| AC-GATE-8 | `verify.sh` exits 0 | `./scripts/verify.sh; echo $?` == 0 | ✅ (16 checks) |
+| AC-GATE-4 | TS components typecheck | `npm run typecheck` per package | 🟡 — skipped when `node_modules` is absent |
+| AC-GATE-5 | TS components lint clean | `npm run lint` per package | 🟡 — skipped when `node_modules` is absent |
+| AC-GATE-6 | TS unit tests pass | `npm run test` per package | 🟡 — skipped when `node_modules` is absent |
+| AC-GATE-7 | All buildable components build | `npm run build` per package | 🟡 — skipped when `node_modules` is absent |
+| AC-GATE-8 | `verify.sh` exits 0 only after all present components are checked | `./scripts/verify.sh; echo $?` == 0 | 🟡 — currently exits 0 when TS dependencies/checks are skipped |
 
 ## 0.1 Prime-directive guard (NON-NEGOTIABLE)
 | Test ID | Criteria | Verification | Status |
@@ -58,7 +58,7 @@ Test-type conventions:
 | AC-CV-1 | CV-1 | Accept PDF/DOCX ≤5MB; reject other types and >5MB | integration: matrix of uploads → 201 / 415 / 413 | ✅ |
 | AC-CV-1b | CV-1 | Stored CV object is encrypted at rest (ciphertext != plaintext bytes) | integration: read raw object store, assert not equal to source | ✅ |
 | AC-CV-2 | CV-2 | Parse populates contact/education/work/skills for a fixture CV with ≥90% field accuracy | unit/integration against labeled fixtures (id + en) | ✅ |
-| AC-CV-3 | CV-3 | All parsed fields are editable and persist | integration: PATCH profile → GET reflects change | ✅ |
+| AC-CV-3 | CV-3 | All parsed fields are editable and persist | integration: PATCH profile → GET reflects change + web UI coverage | 🟡 — web omits education/work-history editing; parsed email is not persisted |
 | AC-CV-4 | CV-4 | Added-info fields (expected salary, notice period, work auth, relocation, preferred locations, employment type) persist and validate | integration | ✅ |
 | AC-CV-5 | CV — | **Confirm-before-apply gate:** profile has `confirmed=false` until user confirms; fill flow refuses to arm while unconfirmed | integration + extension unit: arming blocked when `confirmed=false` | ✅ |
 
@@ -70,10 +70,10 @@ Test-type conventions:
 | AC-SCR-2 | SCR-2 | Normalized job has title, company, location, stated_salary, requirements, seniority, employment_type, posted_at, source_url | unit on normalizer + schema assertion | ✅ |
 | AC-SCR-2b | SCR-2 | Only Tier 1+2 sources present; no login-walled source configured | unit: source registry excludes Tier 3 | ✅ |
 | AC-SCR-3 | SCR-3 | Duplicate listings across sources collapse to one canonical job | unit on dedup key + integration | ✅ |
-| AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit on staleness rule with clock injection | ✅ |
+| AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit + runtime queue configuration | 🟡 — unit constant is 48h, runtime defaults to 14 days |
 | AC-FEED-1 | FEED-1 | Feed returns paginated cards; pay shows **stated only**, labeled; no estimated values at MVP | integration + unit: response contains no `estimated` pay field | ✅ |
 | AC-FEED-2 | FEED-2 | Filters (pay, location incl. remote, skills, YoE, employment type, posted date, source) return correct subset | integration: seeded dataset → filtered counts match expected | ✅ |
-| AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | perf test (k6/Go bench) asserting p95 threshold | ✅ |
+| AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | HTTP/Postgres perf test asserting p95 threshold | 🟡 — current test excludes Postgres transfer and concurrency |
 | AC-FEED-3 | FEED-3 | Free-text search matches on title + company | integration | ✅ |
 | AC-FEED-1p | NFR | Feed p95 < 2s on simulated 4G profile | perf test (may run in CI perf stage, not per-commit) | ⬜ |
 | AC-SEED-1 | plan | Seed job present that loads ≥5,000 listings before signup opens | integration: seeded count ≥ 5000 | ✅ |
@@ -82,11 +82,11 @@ Test-type conventions:
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
 | AC-MAP-1 | APP-3 | Each supported portal map (Jobstreet, Glints, Kalibrr, Greenhouse, Workable, Lever, generic) has a `version` and passing map tests | unit per map in `/packages/fill-mappings` | ✅ |
-| AC-APP-1 | APP-1 | On a fixture ATS page, common fields (name, contact, education, work history, expected salary, notice period, links) fill correctly | e2e against saved fixture DOMs | ✅ |
-| AC-APP-1b | APP-1 | Fill coverage ≥80% of mappable fields on each supported fixture | e2e metric assertion | ✅ |
-| AC-APP-2 | APP-2 | CV file auto-attaches on file-upload fields | e2e on fixture with file input | ✅ |
+| AC-APP-1 | APP-1 | On a fixture ATS page, common fields (name, contact, education, work history, expected salary, notice period, links) fill correctly using the signed-in web profile | browser e2e against saved fixture DOMs | 🟡 — engine works with injected fixtures; runtime profile synchronization is absent |
+| AC-APP-1b | APP-1 | Fill coverage ≥80% of mappable fields on each supported fixture using production profile mapping | browser e2e metric assertion | 🟡 — current happy-dom tests inject a richer profile than the backend exposes |
+| AC-APP-2 | APP-2 | CV file auto-attaches on file-upload fields using the uploaded CV | browser e2e on fixture with file input | 🟡 — applier accepts a supplied `File`, but runtime never supplies one |
 | AC-APP-4 | APP-4 | Filled fields marked `filled`, uncertain marked `uncertain`; **no submit is ever triggered** | e2e asserts DOM highlight states + no submit event fired (ties to AC-SAFE-1) | ✅ |
-| AC-APP-5 | APP-5 | "Open & Fill" from feed arms the extension on the source page | e2e | ✅ |
+| AC-APP-5 | APP-5 | "Open & Fill" transfers the confirmed profile/CV, survives MV3 worker suspension, and fills the opened source page | browser e2e | 🟡 — URL arming exists; profile/CV transfer and durable arming do not |
 | AC-APP-TEL | plan | Fill-correction events are emitted when user overrides a filled value | unit on telemetry emitter | ✅ |
 
 ## 5. Post-MVP specs (write when milestone starts)
@@ -102,7 +102,7 @@ Test-type conventions:
 ## 6. Non-functional acceptance
 | Test ID | Criteria | Verification | Status |
 |---|---|---|---|
-| AC-NFR-SEC | CV/PII encrypted at rest; HTTPS enforced | integration (AC-CV-1b) + config test rejecting plain HTTP | ✅ |
+| AC-NFR-SEC | CV/PII encrypted in persistent object storage; HTTPS enforced in deployment | integration (AC-CV-1b) + deployment config test | 🟡 — encryption wrapper exists, but CV storage is memory-only and deployment does not enable HTTPS enforcement |
 | AC-NFR-PRIV | Consent captured at signup; deletion + export available | integration (AC-AUTH-5) + signup consent test | ✅ |
 | AC-NFR-I18N | UI strings resolve for `id-ID` and `en`; currency defaults to IDR | unit: no missing-key in either locale bundle | ✅ |
 | AC-NFR-SCALE | System handles seed of 50k listings without feed regression | perf stage | ⬜ |
@@ -111,6 +111,6 @@ Test-type conventions:
 
 ## Traceability & enforcement
 - Every `AC-*` test name embeds its Test ID so CI output maps 1:1 to this file.
-- `scripts/verify.sh` is the local gate; CI runs the same plus perf/e2e stages that are too slow per-commit.
+- `scripts/verify.sh` is the local gate. No CI workflow, browser E2E stage, or Postgres-backed perf stage exists yet.
 - When you implement a requirement: (1) write its `AC-*` test, (2) make it pass, (3) flip Status here to ✅, (4) update `PROGRESS.md`.
 - Adding a new requirement means adding a row here **first** (spec before code).

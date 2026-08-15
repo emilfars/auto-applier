@@ -35,6 +35,19 @@ Recorded so the loop does not re-litigate them. These solidify the MVP before an
 | Held until MVP is solid | Extension runtime bundler (already shipped — no further work), backend telemetry ingestion endpoint for `fill_correction`, and perf-stage NFRs (AC-FEED-1p 4G, AC-NFR-SCALE). |
 | Web UI (in MVP) | Ship the seeker web UI: **profile + CV-upload screens, feed pagination, and an "Open & Fill" button on feed cards.** |
 
+## Current implementation checkpoint (2026-08-15)
+
+M0→M4 component code exists and the full local build/lint/typecheck/unit-test gate passes after dependencies are installed. The MVP is still in hardening; do not start M5 until these launch blockers are closed:
+
+| Blocker | Current state |
+|---|---|
+| Web → extension data path | Open & Fill transfers only a URL. No runtime path writes the confirmed profile or CV file into extension storage. |
+| Docker full stack | Production nginx serves the SPA but does not proxy `/auth`, `/profile`, `/cv`, `/feed`, `/account`, or `/healthz` to the API. |
+| CV object persistence | CV metadata persists in Postgres, but encrypted CV bytes use an in-memory object store and disappear on API restart. |
+| SCR-4 staleness | The shared rule is 48 hours, but River runtime configuration defaults to 14 days. |
+
+Before declaring MVP complete, add one browser-level Open & Fill test using the real web profile/CV path, one Docker/API smoke test, and Postgres-backed verification that does not silently skip.
+
 ## Tech stack
 - **Backend:** Go (net/http or chi/gin), `pgx` for Postgres, job queue: **River** (Postgres-backed) for scrape + parse, `colly`/`chromedp` for scrapers.
 - **DB / storage:** Postgres (users, profiles, jobs, applications) + Postgres full-text search (defer OpenSearch until latency demands) + S3-compatible object storage for CV files (encrypted at rest).

@@ -4,9 +4,9 @@
 > Update this at the end of every working session and whenever a milestone/task changes state.
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
-**Last updated:** 2026-07-25
-**Current phase:** **MVP solidification** on top of M0→M4. Real Indonesian listings now flow through a live source registry (Tier 2 **Kalibrr** JSON API + Tier 1 **Jooble** partner API, env-gated) into a **Postgres-backed job store** (pgx), scheduled by a **River** job queue (periodic ingest + staleness sweep). The **web app** is now a full seeker UI: register/verify/login/reset, CV upload + parse, profile edit + confirm-before-apply gate, paginated feed, and an **Open & Fill** button that arms the extension (never submits). CV metadata is persisted in Postgres.
-**Verify gate:** `./scripts/verify.sh` → green (16 ran, 1 skipped android, 0 failed).
+**Last updated:** 2026-08-15
+**Current phase:** **MVP hardening.** Component-level implementation exists for M0→M4, but the end-to-end product is not launch-ready. The web profile/CV data is not synchronized into the extension, Docker nginx does not proxy API routes, CV bytes remain in memory, and runtime staleness is 14 days instead of the required 48 hours.
+**Verify gate:** `./scripts/verify.sh` → green after installing locked Node dependencies (16 ran, 1 skipped Android, 0 failed). On a fresh checkout, missing Node dependencies are skipped rather than failed. Postgres integration tests also skip unless `TEST_DATABASE_URL` is set.
 
 ---
 
@@ -15,9 +15,9 @@
 |---|---|
 | Repo | `auto-applier` (branch `emilfars-autonomous-build-loop`, remote `origin` → github.com/emilfars/auto-applier) |
 | Product | Auto Applier — human-in-the-loop job-application autofill |
-| Stage | **MVP solidified** — real sources + Postgres + River + full web UI |
-| Active milestone | MVP hardening complete; next is **M5 (post-MVP)** |
-| Blocking gate | none |
+| Stage | **MVP hardening** — components built; end-to-end wiring incomplete |
+| Active milestone | Close M0→M4 launch blockers before M5 |
+| Blocking gate | Open & Fill data sync, Docker API routing, persistent CV storage, 48h staleness |
 | Prime directive | System never submits; user always clicks Apply |
 
 ## 2. Milestone status
@@ -25,25 +25,25 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 
 | Milestone | Scope | Status | Notes |
 |---|---|---|---|
-| M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | ✅ | Health API, web+i18n shell, embedded DB migrations, AES-256-GCM object storage, docker-compose (API+DB+web). |
+| M0 Foundations | repo scaffold, CI, DB schema+migrations, object storage, health API, React shell | 🟡 | Buildable skeleton exists. Docker nginx does not proxy API routes, CV object storage is memory-only, and no GitHub Actions workflow exists. |
 | M1 Accounts | AUTH-1..4 | 🟡 | AUTH-1/1b/2/3/4/4b ✅ (email/password + Google OAuth via mocked OIDC, sessions, reset, hardened rate limiting). Backed by in-memory and **pgx** repos; migrations apply at startup. **Web auth UI** shipped (register/verify/login/reset; `AUTH_DEV_EXPOSE_TOKENS` returns verify/reset tokens for local demos). **Held by decision:** real Google OIDC client credentials. |
-| M2 CV & profile | CV-1..4 + confirm-before-apply gate | ✅ | CV upload (AC-CV-1/1b) ✅, hosted-API parsing (AC-CV-2, ≥90% field accuracy on id+en fixtures — 100%) ✅, profile edit (AC-CV-3/4) ✅, confirm-before-apply gate (AC-CV-5) ✅ — all on in-memory **and** pgx repos (validated vs real Postgres). |
-| M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ✅ | Scrapers (SCR-1..4), feed API (FEED-1/2/3), seed + perf gate done. **MVP-solidified:** feed now served from a **pgx-backed job store** (Postgres); a live **source registry** (`BuildRegistry`) pulls **real** Indonesian listings — Tier 2 **Kalibrr** JSON API + Tier 1 **Jooble** (env `JOOBLE_API_KEY`, degrades when unset); `cmd/seed -real` ingests ~25/source into Postgres; a **River** queue schedules periodic ingest + staleness sweep. **Held by decision:** perf-stage NFRs (AC-FEED-1p 4G, AC-NFR-SCALE). Other requested Tier 2 boards (Glints/Jobstreet/Indeed) are WAF/anti-bot/ToS-blocked for static ingestion — not shipped (see plan.md). |
-| M4 Extension autofill | fill-mappings, APP-1,2,4,5 | 🟢 | **End of MVP — done.** Shared `packages/fill-mappings`: zero-dep TS package, versioned maps for all 7 targets + `getMapForHost` (AC-MAP-1 ✅), engine emitting per-field `filled\|uncertain\|empty` with confidence decay + no-overwrite + confirm-gate (AC-SAFE-2 ✅). Chrome MV3 extension: `apply.ts` DOM applier (native value setter, dispatches only `input`/`change`, green/amber highlight, DataTransfer CV attach, never overwrites user input) + `fill.ts` orchestrator; happy-dom e2e proves fields fill (AC-APP-1 ✅), ≥80% coverage (AC-APP-1b ✅), CV attach (AC-APP-2 ✅), highlight + **no submit ever fires** (AC-APP-4 ✅); extension-side static scan completes AC-SAFE-1 ✅. Fill-correction telemetry emitter (AC-APP-TEL ✅, privacy-safe, injected sink). **Open & Fill from feed** (AC-APP-5 ✅): `arming.ts` store + `messaging.ts` handlers + `content.ts` orchestrator + `background.ts`/`content-entry.ts` chrome glue; feed arms a URL, background opens it, content script consumes the arm single-use and fills only when the profile is confirmed. 41 extension tests. Follow-ups: runtime bundler, telemetry ingestion endpoint, eslint configs. |
+| M2 CV & profile | CV-1..4 + confirm-before-apply gate | 🟡 | Upload, parser adapter, profile persistence, and confirmation gate exist. CV bytes are not persistent, parsed email is discarded, and the web cannot edit education/work history, so CV-3 is incomplete. |
+| M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | 🟡 | Real Kalibrr/Jooble ingestion, pgx storage, River scheduling, feed filters, and seed tooling exist. Runtime staleness defaults to 14 days rather than 48 hours; feed requests load and filter all rows in Go; DB/4G/scale gates remain unproven. |
+| M4 Extension autofill | fill-mappings, APP-1,2,4,5 | 🟡 | Fill engine, versioned maps, visual states, no-submit guards, and bundles are implemented. Runtime Open & Fill is incomplete: no code synchronizes the server profile or CV bytes into `chrome.storage`, and the in-memory MV3 arm can be lost on worker suspension. Current tests inject profile/file fixtures rather than exercising real web→extension transfer. |
 | M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ⬜ | Post-MVP |
 | M6 Android fast-follow | MOB-1..4 | ⬜ | After desktop mappings proven |
 
 ## 3. Component readiness
 | Component | Path | Exists | verify.sh checks | State |
 |---|---|---|---|---|
-| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | health API + auth + profile + CV + feed; **pgx job store** + live source registry (Kalibrr/Jooble) + **River** queue; startup migrations; all green |
-| Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Vite+React+TS full seeker UI: auth, CV upload/parse, profile edit + confirm gate, paginated feed, Open & Fill; i18n (id-ID/en, IDR); all green |
+| Backend (Go) | `/backend` | yes | build, vet, gofmt, test | Component tests green; Postgres tests require `TEST_DATABASE_URL`. CV storage, mail delivery, staleness default, and SQL-side feed filtering remain incomplete. |
+| Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Dev-server flow builds and tests. Production nginx lacks API proxying; profile editing and extension data transfer are incomplete. |
 | Fill mappings | `/packages/fill-mappings` | yes | lint, typecheck, test, build | zero-dep shared engine + 7 versioned maps; lint/typecheck/test/build all green |
-| Extension (MV3) | `/extension` | yes | lint, typecheck, test, build | MV3 manifest + fill engine (`apply.ts`/`fill.ts`), telemetry, and Open&Fill (`arming`/`messaging`/`content`/`background`/`content-entry`); 41 tests; lint/typecheck/test/build all green (runtime bundler pending) |
+| Extension (MV3) | `/extension` | yes | lint, typecheck, test, build | Engine/bundle tests green. No runtime profile/CV synchronization; browser-level E2E coverage is absent. |
 | Android | `/android` | no | gradle assembleDebug | not scaffolded |
 
 ## 4. Repo artifacts present
-- `plan.md` — MVP-first build plan (awaiting approval)
+- `plan.md` — approved MVP-first build plan with current hardening checkpoint
 - `PRD.md` — compact detailed PRD with requirement IDs
 - `README.md` — stub
 - `.github/copilot-instructions.md` — System Protocol
@@ -58,10 +58,10 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** **MVP solidified.** Real Indonesian listings flow Kalibrr (Tier 2 JSON) + Jooble (Tier 1, env-gated) → `BuildRegistry` → pgx job store, scheduled by a **River** queue (periodic ingest + staleness sweep; runs only when `DATABASE_URL` is set and ≥1 source is live). `cmd/seed -real` ingests ~25/source into Postgres (synthetic generator retained for the perf gate). The **web app** is a complete seeker flow: register/verify/login/reset (`AUTH_DEV_EXPOSE_TOKENS` for local demos), CV upload + parse, profile edit + **confirm-before-apply** gate, **paginated** feed, and **Open & Fill** (arms the extension via externally_connectable; opens the posting for manual apply when no extension; **never submits**). CV metadata persisted in Postgres. Local DB: `./scripts/dev-db.sh --export`. verify.sh green (16 ran, 1 skipped, 0 failed).
-- **Next:** obtain a free `JOOBLE_API_KEY` to light up the Tier 1 feed (degrades gracefully without it). Post-MVP milestones M5+ per plan.md.
-- **Held (by decision, not blocking MVP):** extension runtime bundler, backend telemetry ingestion endpoint for `fill_correction`, perf-stage NFRs (AC-FEED-1p 4G, AC-NFR-SCALE), Google OAuth (real OIDC credentials). Sources Glints/Jobstreet/Indeed excluded from static ingestion (WAF/anti-bot/ToS).
-- **Blocked:** none.
+- **Now:** M0→M4 component code builds, but the product is in MVP hardening rather than post-MVP work.
+- **Next:** wire one authenticated profile/CV transfer path into the extension; persist encrypted CV objects; proxy API routes in nginx; use the 48-hour staleness constant; then run real Postgres and browser E2E gates.
+- **Held (by decision, not blocking MVP):** backend telemetry ingestion, AC-FEED-1p 4G, AC-NFR-SCALE, and real Google OAuth credentials. Sources Glints/Jobstreet/Indeed remain excluded from static ingestion (WAF/anti-bot/ToS).
+- **Blocked:** launch readiness is blocked by the four items listed in Snapshot. M5 should not start before they are closed.
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -78,6 +78,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-08-15** — [REVIEW] Detailed worktree review corrected the prior “MVP solidified” status. Confirmed launch blockers: no web→extension profile/CV synchronization; Docker nginx has no API proxy; CV bytes use an encrypted in-memory store even with Postgres metadata; runtime staleness defaults to 14 days instead of 48 hours. Additional gaps: no production mail delivery, incomplete education/work-history editing, all-row feed filtering in Go, memory-only MV3 arming, no CI workflow, browser E2E absent, and Postgres tests skipped without `TEST_DATABASE_URL`. Full local gate is green after installing locked Node dependencies (16 checks; Android skipped).
 - **2026-07-25** — [DONE] MVP-solidification web slices (4 commits). **web-auth** (`613436e`): seeker auth UI — `api/http.ts` credentialed helper + `ApiError`, `api/auth.ts`, `auth/session.tsx` (SessionProvider/useSession), `components/AuthPanel.tsx` (register w/ consent, verify, login, reset); `AUTH_DEV_EXPOSE_TOKENS` (default off) returns verify/reset tokens for local demos; `t()` gained `{placeholder}` interpolation; both i18n bundles filled for all web slices. **web-profile-cv** (`f232ee2`): `api/profile.ts` (get/patch/confirm/arm; skills & preferred_locations as JSON arrays; employment_type constrained), `api/cv.ts` (list/upload multipart/parse), `ProfilePanel` (edit + confirm; editing resets confirmation; confirmed badge), `CvPanel` (upload/list/parse; 503→"parsing unavailable"); CV+Profile sections shown only when signed in. **web-pagination** (`51cbbdc`): JobFeed offset/limit pager (Prev/Next + localized "Page N of M"); filters reset to page 1; pager hidden for single-page results. **web-openfill** (`b6189e6`): `api/openfill.ts` chrome-free `requestOpenAndFill` + externally_connectable bridge messaging the extension's `{type:'openAndFill',url}`; JobCard "Open & Fill" button + notices (needLogin/needProfile/armed/noExtension), falls back to opening the posting for manual apply when no extension — **never submits** (Prime Directive); gate threaded App→JobFeed→JobCard (canFill = signed in + confirmed). +18 web tests (37 total). verify.sh green (16 ran, 1 skipped, 0 failed).
 - **2026-07-25** — [DONE] MVP-solidification backend slices (4 commits). **pgx-jobs+cv** (`27c21ce`): Postgres-backed `ingest.PgxStore` (job store/feed provider) + `cv.PgxRepo` (CV **metadata** in Postgres; bytes stay in the encrypted in-memory object store); integration tests gate on `TEST_DATABASE_URL`, verified against local Postgres. **src-kalibrr** (`4524c00`): Tier 2 `KalibrrSource` over Kalibrr's public JSON search API — real Indonesian listings; carries salary only when `salary_shown && currency==IDR` (stated-only), else dropped; fixture-server test. **src-tier1** (`81c8f04`): Tier 1 `JoobleSource` (POST `{base}/{apiKey}`, `location:Indonesia`; env `JOOBLE_API_KEY`, fails loud when keyless) + `ingest.BuildRegistry(SourceConfig)` assembling the live source set, degrading gracefully when a source is unconfigured; fixture tests. **real-seed** (`2e00e6f`): `cmd/seed -real` ingests ~25/source via BuildRegistry+Runner into Postgres (synthetic generator retained for the perf gate); verified live — 25 real Kalibrr listings persisted. **river-queue** (`2f89576`): `internal/queue` — River (v0.41.0) ingest worker + staleness-sweep worker, periodic schedules, programmatic River schema migration; wired into `main.go` only when Postgres + ≥1 live source, graceful Stop before pool close; verified live. verify.sh green throughout.
 - **2026-07-25** — [DONE] Reviewed 3 auth security concerns (unbounded rate-limiter map, unauthenticated PBKDF2 CPU exhaustion, email-only limiter keying) and the "recompiled regex" concern — all **already addressed** in the codebase (janitor/eviction test, IP throttling on register/reset, composite IP+email login key, package-level `jtRe`). No code change needed. Also: `plan.md` approved + MVP-solidification decisions recorded (`0979943`); `scripts/dev-db.sh` local-Postgres tooling added.
