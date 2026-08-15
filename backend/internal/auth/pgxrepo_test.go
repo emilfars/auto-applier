@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,9 @@ func TestPgxRepo_UserLifecycle(t *testing.T) {
 	if _, err := repo.CreateUser(ctx, email, "x"); !errors.Is(err, ErrEmailTaken) {
 		t.Fatalf("duplicate: got %v, want ErrEmailTaken", err)
 	}
+	if _, err := repo.CreateUser(ctx, " "+strings.ToUpper(email)+" ", "x"); !errors.Is(err, ErrEmailTaken) {
+		t.Fatalf("normalized duplicate: got %v, want ErrEmailTaken", err)
+	}
 
 	// lookups (email match is case-insensitive)
 	got, err := repo.UserByEmail(ctx, email)
@@ -87,31 +91,49 @@ func TestPgxRepo_UserLifecycle(t *testing.T) {
 }
 
 func TestPgxRepo_VerificationTokens(t *testing.T) {
-	repo, _ := newPgxTestRepo(t)
+	repo, pool := newPgxTestRepo(t)
 	ctx := context.Background()
 	u, _ := repo.CreateUser(ctx, uniqueEmail("verif"), "h")
+	now := time.Now().UTC()
 
-	if err := repo.CreateVerification(ctx, u.ID, "vtok"); err != nil {
+	if err := repo.CreateVerification(ctx, u.ID, "vtok", now.Add(time.Hour)); err != nil {
 		t.Fatalf("create verification: %v", err)
 	}
-	uid, err := repo.ConsumeVerification(ctx, "vtok")
-	if err != nil || uid != u.ID {
-		t.Fatalf("consume: uid=%q err=%v", uid, err)
+	var stored string
+	if err := pool.QueryRow(ctx, `SELECT token FROM email_verifications WHERE user_id = $1`, u.ID).Scan(&stored); err != nil {
+		t.Fatalf("read stored verification: %v", err)
+	}
+	if stored == "vtok" || stored != tokenDigest("vtok") {
+		t.Fatalf("verification token stored insecurely: %q", stored)
+	}
+	if err := repo.VerifyUser(ctx, "vtok", now); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	got, _ := repo.UserByID(ctx, u.ID)
+	if !got.Verified {
+		t.Fatal("user not verified")
 	}
 	// single-use: second consume fails
-	if _, err := repo.ConsumeVerification(ctx, "vtok"); !errors.Is(err, ErrInvalidToken) {
+	if err := repo.VerifyUser(ctx, "vtok", now); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("reuse: got %v, want ErrInvalidToken", err)
 	}
 }
 
 func TestPgxRepo_Sessions(t *testing.T) {
-	repo, _ := newPgxTestRepo(t)
+	repo, pool := newPgxTestRepo(t)
 	ctx := context.Background()
 	u, _ := repo.CreateUser(ctx, uniqueEmail("sess"), "h")
 
 	exp := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
 	if err := repo.CreateSession(ctx, Session{Token: "stok", UserID: u.ID, ExpiresAt: exp}); err != nil {
 		t.Fatalf("create session: %v", err)
+	}
+	var stored string
+	if err := pool.QueryRow(ctx, `SELECT token FROM sessions WHERE user_id = $1`, u.ID).Scan(&stored); err != nil {
+		t.Fatalf("read stored session: %v", err)
+	}
+	if stored == "stok" || stored != tokenDigest("stok") {
+		t.Fatalf("session token stored insecurely: %q", stored)
 	}
 	s, err := repo.SessionByToken(ctx, "stok")
 	if err != nil || s.UserID != u.ID || !s.ExpiresAt.Equal(exp) {
@@ -126,28 +148,47 @@ func TestPgxRepo_Sessions(t *testing.T) {
 }
 
 func TestPgxRepo_ResetTokens(t *testing.T) {
-	repo, _ := newPgxTestRepo(t)
+	repo, pool := newPgxTestRepo(t)
 	ctx := context.Background()
 	u, _ := repo.CreateUser(ctx, uniqueEmail("reset"), "h")
 	now := time.Now().UTC()
+	expiredToken := fmt.Sprintf("expired-%d", now.UnixNano())
+	validToken := fmt.Sprintf("valid-%d", now.UnixNano())
+	sessionToken := fmt.Sprintf("session-%d", now.UnixNano())
 
 	// expired token is rejected and consumed
-	if err := repo.CreateReset(ctx, u.ID, "expired", now.Add(-time.Minute)); err != nil {
+	if err := repo.CreateReset(ctx, u.ID, expiredToken, now.Add(-time.Minute)); err != nil {
 		t.Fatalf("create expired reset: %v", err)
 	}
-	if _, err := repo.ConsumeReset(ctx, "expired", now); !errors.Is(err, ErrInvalidToken) {
+	if err := repo.ResetPassword(ctx, expiredToken, "new", now); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("expired: got %v, want ErrInvalidToken", err)
 	}
 
 	// valid token consumes once
-	if err := repo.CreateReset(ctx, u.ID, "valid", now.Add(time.Hour)); err != nil {
+	if err := repo.CreateReset(ctx, u.ID, validToken, now.Add(time.Hour)); err != nil {
 		t.Fatalf("create reset: %v", err)
 	}
-	uid, err := repo.ConsumeReset(ctx, "valid", now)
-	if err != nil || uid != u.ID {
-		t.Fatalf("consume reset: uid=%q err=%v", uid, err)
+	if err := repo.CreateSession(ctx, Session{Token: sessionToken, UserID: u.ID, ExpiresAt: now.Add(time.Hour)}); err != nil {
+		t.Fatalf("create session: %v", err)
 	}
-	if _, err := repo.ConsumeReset(ctx, "valid", now); !errors.Is(err, ErrInvalidToken) {
+	var stored string
+	if err := pool.QueryRow(ctx, `SELECT token FROM password_resets WHERE token = $1`, tokenDigest(validToken)).Scan(&stored); err != nil {
+		t.Fatalf("read stored reset: %v", err)
+	}
+	if stored == validToken || stored != tokenDigest(validToken) {
+		t.Fatalf("reset token stored insecurely: %q", stored)
+	}
+	if err := repo.ResetPassword(ctx, validToken, "new", now); err != nil {
+		t.Fatalf("reset password: %v", err)
+	}
+	got, _ := repo.UserByID(ctx, u.ID)
+	if got.PasswordHash != "new" {
+		t.Fatalf("password hash = %q, want new", got.PasswordHash)
+	}
+	if _, err := repo.SessionByToken(ctx, sessionToken); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("old session survived reset: %v", err)
+	}
+	if err := repo.ResetPassword(ctx, validToken, "newer", now); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("reuse reset: got %v, want ErrInvalidToken", err)
 	}
 }

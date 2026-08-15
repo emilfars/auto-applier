@@ -41,9 +41,14 @@ func main() {
 	defer closeDB()
 
 	authRepo := newAuthRepo(pool)
+	mailer, err := newMailer()
+	if err != nil {
+		log.Fatalf("configure mailer: %v", err)
+	}
 	authSvc := auth.NewService(authRepo, auth.Config{
 		TrustedProxyHops: intEnv("TRUSTED_PROXY_HOPS", 0),
 		DevExposeTokens:  boolEnv("AUTH_DEV_EXPOSE_TOKENS", false),
+		Mailer:           mailer,
 	})
 
 	// CV uploads are stored encrypted at rest (AC-CV-1b) and gated behind a
@@ -206,6 +211,14 @@ func newAuthRepo(pool *pgxpool.Pool) auth.Repo {
 		return auth.NewMemoryRepo()
 	}
 	return auth.NewPgxRepo(pool)
+}
+
+func newMailer() (auth.Mailer, error) {
+	addr := os.Getenv("SMTP_ADDR")
+	if addr == "" {
+		return nil, nil
+	}
+	return auth.NewSMTPMailer(addr, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), os.Getenv("SMTP_FROM"))
 }
 
 // newProfileRepo returns a pgx-backed profile repo when a pool is available,

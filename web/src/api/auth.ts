@@ -21,9 +21,9 @@ export interface RegisterResult {
 }
 
 /** Register a new account. Consent is required (UU PDP) and enforced server-side. */
-export function register(email: string, password: string): Promise<RegisterResult> {
+export function register(email: string, password: string, consent: boolean): Promise<RegisterResult> {
   return apiFetch<RegisterResult>("/auth/register", {
-    body: { email, password, consent: true },
+    body: { email, password, consent },
   });
 }
 
@@ -33,8 +33,8 @@ export function verify(token: string): Promise<{ status: string }> {
 }
 
 /** Log in; on success the backend sets the session cookie. */
-export function login(email: string, password: string): Promise<{ token: string }> {
-  return apiFetch<{ token: string }>("/auth/login", { body: { email, password } });
+export function login(email: string, password: string): Promise<{ status: string }> {
+  return apiFetch<{ status: string }>("/auth/login", { body: { email, password } });
 }
 
 /** Log out; clears the session cookie server-side. */

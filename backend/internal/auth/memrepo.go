@@ -14,7 +14,7 @@ type MemoryRepo struct {
 	seq      int
 	users    map[string]User        // id -> user
 	byEmail  map[string]string      // lower(email) -> id
-	verifs   map[string]string      // token -> userID
+	verifs   map[string]resetRecord // token -> record
 	sessions map[string]Session     // token -> session
 	resets   map[string]resetRecord // token -> record
 }
@@ -29,7 +29,7 @@ func NewMemoryRepo() *MemoryRepo {
 	return &MemoryRepo{
 		users:    make(map[string]User),
 		byEmail:  make(map[string]string),
-		verifs:   make(map[string]string),
+		verifs:   make(map[string]resetRecord),
 		sessions: make(map[string]Session),
 		resets:   make(map[string]resetRecord),
 	}
@@ -38,7 +38,8 @@ func NewMemoryRepo() *MemoryRepo {
 func (m *MemoryRepo) CreateUser(_ context.Context, email, passwordHash string) (User, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := strings.ToLower(email)
+	email = normalizeEmail(email)
+	key := email
 	if _, ok := m.byEmail[key]; ok {
 		return User{}, ErrEmailTaken
 	}
@@ -58,7 +59,7 @@ func (m *MemoryRepo) CreateUser(_ context.Context, email, passwordHash string) (
 func (m *MemoryRepo) UserByEmail(_ context.Context, email string) (User, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	id, ok := m.byEmail[strings.ToLower(email)]
+	id, ok := m.byEmail[normalizeEmail(email)]
 	if !ok {
 		return User{}, ErrNotFound
 	}
@@ -110,8 +111,8 @@ func (m *MemoryRepo) DeleteUser(_ context.Context, userID string) error {
 	}
 	delete(m.users, userID)
 	delete(m.byEmail, strings.ToLower(u.Email))
-	for tok, uid := range m.verifs {
-		if uid == userID {
+	for tok, rec := range m.verifs {
+		if rec.userID == userID {
 			delete(m.verifs, tok)
 		}
 	}
@@ -140,22 +141,29 @@ func (m *MemoryRepo) UpdatePassword(_ context.Context, userID, passwordHash stri
 	return nil
 }
 
-func (m *MemoryRepo) CreateVerification(_ context.Context, userID, token string) error {
+func (m *MemoryRepo) CreateVerification(_ context.Context, userID, token string, expiresAt time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.verifs[token] = userID
+	m.verifs[token] = resetRecord{userID: userID, expiresAt: expiresAt}
 	return nil
 }
 
-func (m *MemoryRepo) ConsumeVerification(_ context.Context, token string) (string, error) {
+func (m *MemoryRepo) VerifyUser(_ context.Context, token string, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	userID, ok := m.verifs[token]
-	if !ok {
-		return "", ErrInvalidToken
+	rec, ok := m.verifs[token]
+	if !ok || now.After(rec.expiresAt) {
+		delete(m.verifs, token)
+		return ErrInvalidToken
 	}
+	u, ok := m.users[rec.userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.Verified = true
+	m.users[rec.userID] = u
 	delete(m.verifs, token)
-	return userID, nil
+	return nil
 }
 
 func (m *MemoryRepo) CreateSession(_ context.Context, s Session) error {
@@ -189,19 +197,30 @@ func (m *MemoryRepo) CreateReset(_ context.Context, userID, token string, expire
 	return nil
 }
 
-func (m *MemoryRepo) ConsumeReset(_ context.Context, token string, now time.Time) (string, error) {
+func (m *MemoryRepo) ResetPassword(_ context.Context, token, passwordHash string, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	rec, ok := m.resets[token]
 	if !ok {
-		return "", ErrInvalidToken
+		return ErrInvalidToken
 	}
 	if now.After(rec.expiresAt) {
 		delete(m.resets, token)
-		return "", ErrInvalidToken
+		return ErrInvalidToken
+	}
+	u, ok := m.users[rec.userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.PasswordHash = passwordHash
+	m.users[rec.userID] = u
+	for tok, s := range m.sessions {
+		if s.UserID == rec.userID {
+			delete(m.sessions, tok)
+		}
 	}
 	delete(m.resets, token)
-	return rec.userID, nil
+	return nil
 }
 
 // VerificationToken returns the outstanding verification token for a user
@@ -209,8 +228,8 @@ func (m *MemoryRepo) ConsumeReset(_ context.Context, token string, now time.Time
 func (m *MemoryRepo) VerificationToken(userID string) (string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for tok, uid := range m.verifs {
-		if uid == userID {
+	for tok, rec := range m.verifs {
+		if rec.userID == userID {
 			return tok, true
 		}
 	}

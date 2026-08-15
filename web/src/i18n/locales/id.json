@@ -37,7 +37,7 @@
   "auth.signin": "Masuk",
   "auth.signup": "Buat akun",
   "auth.signout": "Keluar",
-  "auth.consent": "Dengan membuat akun, Anda menyetujui pemrosesan data Anda (UU PDP No. 27/2022).",
+  "auth.consent": "Saya menyetujui pemrosesan data saya berdasarkan UU PDP No. 27/2022.",
   "auth.signedInAs": "Masuk sebagai",
   "auth.needVerify": "Periksa email Anda untuk memverifikasi akun, lalu masuk.",
   "auth.verify.heading": "Verifikasi akun Anda",

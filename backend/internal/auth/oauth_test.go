@@ -41,14 +41,17 @@ func newOAuthHarness(provider OIDCProvider) *harness {
 func TestAC_AUTH_2_OAuthCreatesAccount(t *testing.T) {
 	h := newOAuthHarness(fakeOIDC{claims: OIDCClaims{Subject: "g-1", Email: "oauth@example.com", EmailVerified: true}})
 
-	rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "good-code"})
+	rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "good-code", Consent: true})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("callback: got %d, want 200", rec.Code)
 	}
 	body := decodeBody(t, rec)
-	token, _ := body["token"].(string)
+	token := cookieValue(rec, sessionCookie)
 	if token == "" {
 		t.Fatal("no session token issued")
+	}
+	if _, ok := body["token"]; ok {
+		t.Fatal("session token exposed in response body")
 	}
 	// account exists and is verified
 	u, err := h.repo.UserByEmail(context.Background(), "oauth@example.com")
@@ -70,7 +73,7 @@ func TestAC_AUTH_2_OAuthLinksExistingAccount(t *testing.T) {
 		t.Fatalf("seed user: %v", err)
 	}
 
-	rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "good-code"})
+	rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "good-code", Consent: true})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("callback: got %d, want 200", rec.Code)
 	}
@@ -93,6 +96,28 @@ func TestAC_AUTH_2_OAuthExchangeFailure(t *testing.T) {
 	}
 	if rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: ""}); rec.Code != http.StatusBadRequest {
 		t.Fatalf("empty code: got %d, want 400", rec.Code)
+	}
+}
+
+func TestAC_AUTH_2_OAuthNewAccountRequiresConsent(t *testing.T) {
+	h := newOAuthHarness(fakeOIDC{claims: OIDCClaims{Subject: "g-4", Email: "oauth-consent@example.com", EmailVerified: true}})
+	rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "good-code"})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("oauth without consent: got %d, want 400", rec.Code)
+	}
+	if _, err := h.repo.UserByEmail(context.Background(), "oauth-consent@example.com"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("account created without consent: %v", err)
+	}
+}
+
+func TestAC_AUTH_4b_OAuthRateLimited(t *testing.T) {
+	h := newOAuthHarness(fakeOIDC{err: errors.New("exchange failed")})
+	h.svc.ipLimiter = newRateLimiter(1, time.Minute)
+	if rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "bad"}); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("first oauth attempt: got %d, want 401", rec.Code)
+	}
+	if rec := h.do(t, http.MethodPost, "/auth/oauth/google/callback", "", oauthCallbackReq{Code: "bad"}); rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("second oauth attempt: got %d, want 429", rec.Code)
 	}
 }
 

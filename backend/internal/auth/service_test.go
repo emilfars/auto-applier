@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +16,25 @@ import (
 type harness struct {
 	svc     *Service
 	repo    *MemoryRepo
+	mailer  *recordingMailer
 	handler http.Handler
 	now     *time.Time
+}
+
+type recordingMailer struct {
+	messages []string
+	err      error
+}
+
+type deleteFailRepo struct{ Repo }
+
+func (deleteFailRepo) DeleteSession(context.Context, string) error {
+	return errors.New("delete failed")
+}
+
+func (m *recordingMailer) Send(_ context.Context, to, subject, body string) error {
+	m.messages = append(m.messages, to+"\n"+subject+"\n"+body)
+	return m.err
 }
 
 func newHarness() *harness {
@@ -27,14 +45,16 @@ func newHarness() *harness {
 // service is constructed (used to exercise low rate-limit thresholds cheaply).
 func newHarnessWith(mut func(*Config)) *harness {
 	repo := NewMemoryRepo()
+	mailer := &recordingMailer{}
 	now := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
-	h := &harness{repo: repo, now: &now}
+	h := &harness{repo: repo, mailer: mailer, now: &now}
 	cfg := Config{
 		SessionTTL:       time.Hour,
 		ResetTTL:         time.Hour,
 		LoginMaxAttempts: 5,
 		LoginWindow:      15 * time.Minute,
 		Now:              func() time.Time { return *h.now },
+		Mailer:           mailer,
 	}
 	if mut != nil {
 		mut(&cfg)
@@ -101,15 +121,22 @@ func (h *harness) registerVerifiedUser(t *testing.T, email, password string) str
 func (h *harness) login(t *testing.T, email, password string) (int, string) {
 	t.Helper()
 	rec := h.do(t, http.MethodPost, "/auth/login", "", registerReq{Email: email, Password: password})
-	tok, _ := decodeBody(t, rec)["token"].(string)
-	return rec.Code, tok
+	return rec.Code, cookieValue(rec, sessionCookie)
 }
 
 func (h *harness) loginFrom(t *testing.T, ip, email, password string) (int, string) {
 	t.Helper()
 	rec := h.doFrom(t, http.MethodPost, "/auth/login", ip, "", registerReq{Email: email, Password: password})
-	tok, _ := decodeBody(t, rec)["token"].(string)
-	return rec.Code, tok
+	return rec.Code, cookieValue(rec, sessionCookie)
+}
+
+func cookieValue(rec *httptest.ResponseRecorder, name string) string {
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == name {
+			return cookie.Value
+		}
+	}
+	return ""
 }
 
 // AC-AUTH-1: register creates an unverified user and issues a verification token.
@@ -148,6 +175,9 @@ func TestAC_AUTH_1_RegisterValidationAndDuplicate(t *testing.T) {
 	h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dup@b.co", Password: "password123", Consent: true})
 	if rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: "dup@b.co", Password: "password123", Consent: true}); rec.Code != http.StatusConflict {
 		t.Errorf("duplicate: got %d, want 409", rec.Code)
+	}
+	if rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{Email: " DUP@B.CO ", Password: "password123", Consent: true}); rec.Code != http.StatusConflict {
+		t.Errorf("case-variant duplicate: got %d, want 409", rec.Code)
 	}
 }
 
@@ -243,6 +273,23 @@ func TestAC_AUTH_4_LoginLogoutAndExpiry(t *testing.T) {
 	}
 }
 
+func TestLogoutDoesNotClaimSuccessWhenRevocationFails(t *testing.T) {
+	h := newHarness()
+	h.registerVerifiedUser(t, "logout-fail@example.com", "password123")
+	_, token := h.login(t, "logout-fail@example.com", "password123")
+	handler := NewService(deleteFailRepo{h.repo}, Config{Mailer: h.mailer}).Routes()
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("logout with revocation failure: got %d, want 500", rec.Code)
+	}
+	if rec := h.do(t, http.MethodGet, "/auth/me", token, nil); rec.Code != http.StatusOK {
+		t.Fatalf("session unexpectedly revoked: got %d, want 200", rec.Code)
+	}
+}
+
 func TestAC_AUTH_4_LoginWrongPassword(t *testing.T) {
 	h := newHarness()
 	h.registerVerifiedUser(t, "z@example.com", "password123")
@@ -277,6 +324,7 @@ func TestAC_AUTH_4b_LoginRateLimited(t *testing.T) {
 func TestAC_AUTH_3_PasswordReset(t *testing.T) {
 	h := newHarness()
 	id := h.registerVerifiedUser(t, "reset@example.com", "password123")
+	_, oldSession := h.login(t, "reset@example.com", "password123")
 
 	if rec := h.do(t, http.MethodPost, "/auth/password-reset/request", "", resetReq{Email: "reset@example.com"}); rec.Code != http.StatusOK {
 		t.Fatalf("reset request: got %d, want 200", rec.Code)
@@ -300,6 +348,9 @@ func TestAC_AUTH_3_PasswordReset(t *testing.T) {
 	if code, _ := h.login(t, "reset@example.com", "newpassword456"); code != http.StatusOK {
 		t.Errorf("new password after reset: got %d, want 200", code)
 	}
+	if rec := h.do(t, http.MethodGet, "/auth/me", oldSession, nil); rec.Code != http.StatusUnauthorized {
+		t.Errorf("session issued before reset: got %d, want 401", rec.Code)
+	}
 }
 
 func TestPasswordResetInvalidToken(t *testing.T) {
@@ -317,6 +368,32 @@ func TestPasswordResetExpired(t *testing.T) {
 	*h.now = h.now.Add(2 * time.Hour) // past ResetTTL
 	if rec := h.do(t, http.MethodPost, "/auth/password-reset/confirm", "", resetConfirmReq{Token: tok, NewPassword: "newpassword456"}); rec.Code != http.StatusBadRequest {
 		t.Errorf("expired reset token: got %d, want 400", rec.Code)
+	}
+}
+
+func TestVerificationExpired(t *testing.T) {
+	h := newHarness()
+	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{
+		Email: "verify-expired@example.com", Password: "password123", Consent: true,
+	})
+	id := decodeBody(t, rec)["id"].(string)
+	tok, _ := h.repo.VerificationToken(id)
+	*h.now = h.now.Add(25 * time.Hour)
+	if rec := h.do(t, http.MethodPost, "/auth/verify", "", tokenReq{Token: tok}); rec.Code != http.StatusBadRequest {
+		t.Errorf("expired verification: got %d, want 400", rec.Code)
+	}
+}
+
+func TestRegistrationRequiresMailDelivery(t *testing.T) {
+	h := newHarnessWith(func(c *Config) { c.Mailer = nil })
+	rec := h.do(t, http.MethodPost, "/auth/register", "", registerReq{
+		Email: "no-mail@example.com", Password: "password123", Consent: true,
+	})
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("register without delivery: got %d, want 503", rec.Code)
+	}
+	if _, err := h.repo.UserByEmail(context.Background(), "no-mail@example.com"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("account created without delivery: %v", err)
 	}
 }
 
@@ -424,6 +501,9 @@ func TestDevExposeTokens(t *testing.T) {
 	})
 	if _, ok := decodeBody(t, rec)["verification_token"]; ok {
 		t.Fatal("verification_token must not be exposed by default")
+	}
+	if len(off.mailer.messages) != 1 || !strings.Contains(off.mailer.messages[0], "Auto Applier verification token") {
+		t.Fatal("verification email was not sent")
 	}
 
 	on := newHarnessWith(func(c *Config) { c.DevExposeTokens = true })

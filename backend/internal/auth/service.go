@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -13,6 +15,7 @@ import (
 // Config tunes the auth service. Zero values fall back to secure defaults.
 type Config struct {
 	SessionTTL       time.Duration
+	VerificationTTL  time.Duration
 	ResetTTL         time.Duration
 	LoginMaxAttempts int
 	LoginWindow      time.Duration
@@ -31,6 +34,7 @@ type Config struct {
 	Now              func() time.Time
 	// GoogleOIDC, when set, enables the Google OAuth login route (AUTH-2).
 	GoogleOIDC OIDCProvider
+	Mailer     Mailer
 	// DevExposeTokens, when true, returns the email-verification and
 	// password-reset tokens in the API response instead of only emailing them.
 	// It exists solely so the flow is demoable locally without an email service
@@ -41,6 +45,9 @@ type Config struct {
 func (c Config) withDefaults() Config {
 	if c.SessionTTL == 0 {
 		c.SessionTTL = 24 * time.Hour
+	}
+	if c.VerificationTTL == 0 {
+		c.VerificationTTL = 24 * time.Hour
 	}
 	if c.ResetTTL == 0 {
 		c.ResetTTL = time.Hour
@@ -135,12 +142,17 @@ func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
+	req.Email = normalizeEmail(req.Email)
 	if !validEmail(req.Email) || len(req.Password) < 8 {
 		writeErr(w, http.StatusBadRequest, "invalid email or password too short (min 8)")
 		return
 	}
 	if !req.Consent {
 		writeErr(w, http.StatusBadRequest, "consent to data processing is required")
+		return
+	}
+	if s.cfg.Mailer == nil && !s.cfg.DevExposeTokens {
+		writeErr(w, http.StatusServiceUnavailable, "email delivery unavailable")
 		return
 	}
 	hash, err := HashPassword(req.Password)
@@ -159,17 +171,28 @@ func (s *Service) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	// Record consent as its own audit fact (UU PDP), captured at signup time.
 	if err := s.repo.SetConsent(r.Context(), u.ID, s.cfg.Now()); err != nil {
+		s.deleteNewUser(r.Context(), u.ID)
 		writeErr(w, http.StatusInternalServerError, "consent error")
 		return
 	}
 	token, err := NewToken()
 	if err != nil {
+		s.deleteNewUser(r.Context(), u.ID)
 		writeErr(w, http.StatusInternalServerError, "token error")
 		return
 	}
-	if err := s.repo.CreateVerification(r.Context(), u.ID, token); err != nil {
+	if err := s.repo.CreateVerification(r.Context(), u.ID, token, s.cfg.Now().Add(s.cfg.VerificationTTL)); err != nil {
+		s.deleteNewUser(r.Context(), u.ID)
 		writeErr(w, http.StatusInternalServerError, "verification error")
 		return
+	}
+	if s.cfg.Mailer != nil {
+		body := fmt.Sprintf("Your Auto Applier verification token is:\n\n%s\n\nIt expires in %s.", token, s.cfg.VerificationTTL)
+		if err := s.cfg.Mailer.Send(r.Context(), u.Email, "Verify your Auto Applier account", body); err != nil {
+			s.deleteNewUser(r.Context(), u.ID)
+			writeErr(w, http.StatusBadGateway, "verification email failed")
+			return
+		}
 	}
 	// Production emails the token; it is never returned in the response unless
 	// DevExposeTokens is set for local demos.
@@ -191,12 +214,10 @@ func (s *Service) handleVerify(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	userID, err := s.repo.ConsumeVerification(r.Context(), req.Token)
-	if err != nil {
+	if err := s.repo.VerifyUser(r.Context(), req.Token, s.cfg.Now()); errors.Is(err, ErrInvalidToken) {
 		writeErr(w, http.StatusBadRequest, "invalid verification token")
 		return
-	}
-	if err := s.repo.SetVerified(r.Context(), userID); err != nil {
+	} else if err != nil {
 		writeErr(w, http.StatusInternalServerError, "verify error")
 		return
 	}
@@ -214,7 +235,8 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// Composite IP+email keying: throttles targeted brute force without letting
 	// an attacker lock a victim out globally (the victim's own IP is unaffected)
 	// or bypass the limit by rotating emails (the per-IP limiter above caps that).
-	key := "login:" + s.clientIP(r) + "|" + strings.ToLower(req.Email)
+	req.Email = normalizeEmail(req.Email)
+	key := "login:" + s.clientIP(r) + "|" + req.Email
 	if !s.limiter.Allow(key, s.cfg.Now()) {
 		writeErr(w, http.StatusTooManyRequests, "too many login attempts")
 		return
@@ -236,7 +258,7 @@ func (s *Service) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	s.limiter.Reset(key)
 	s.setSessionCookie(w, sess)
-	writeJSON(w, http.StatusOK, map[string]any{"token": token})
+	writeJSON(w, http.StatusOK, map[string]any{"status": "authenticated"})
 }
 
 // startSession creates a session for userID, sets the cookie, and returns the
@@ -268,10 +290,14 @@ func (s *Service) setSessionCookie(w http.ResponseWriter, sess Session) {
 
 func (s *Service) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if token := sessionToken(r); token != "" {
-		_ = s.repo.DeleteSession(r.Context(), token)
+		if err := s.repo.DeleteSession(r.Context(), token); err != nil {
+			writeErr(w, http.StatusInternalServerError, "logout error")
+			return
+		}
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
+		Secure: true, SameSite: http.SameSiteLaxMode,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"status": "logged_out"})
 }
@@ -299,9 +325,20 @@ func (s *Service) handleResetRequest(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]any{"status": "ok"}
 	if u, err := s.repo.UserByEmail(r.Context(), req.Email); err == nil {
 		if token, err := NewToken(); err == nil {
-			_ = s.repo.CreateReset(r.Context(), u.ID, token, s.cfg.Now().Add(s.cfg.ResetTTL))
-			if s.cfg.DevExposeTokens {
-				resp["reset_token"] = token
+			if err := s.repo.CreateReset(r.Context(), u.ID, token, s.cfg.Now().Add(s.cfg.ResetTTL)); err != nil {
+				log.Printf("auth: create password reset: %v", err)
+			} else {
+				if s.cfg.Mailer != nil {
+					body := fmt.Sprintf("Your Auto Applier password-reset token is:\n\n%s\n\nIt expires in %s.", token, s.cfg.ResetTTL)
+					if err := s.cfg.Mailer.Send(r.Context(), u.Email, "Reset your Auto Applier password", body); err != nil {
+						log.Printf("auth: send password reset: %v", err)
+					}
+				} else if !s.cfg.DevExposeTokens {
+					log.Printf("auth: password reset email delivery unavailable")
+				}
+				if s.cfg.DevExposeTokens {
+					resp["reset_token"] = token
+				}
 			}
 		}
 	}
@@ -325,17 +362,16 @@ func (s *Service) handleResetConfirm(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "password too short (min 8)")
 		return
 	}
-	userID, err := s.repo.ConsumeReset(r.Context(), req.Token, s.cfg.Now())
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid or expired reset token")
-		return
-	}
 	hash, err := HashPassword(req.NewPassword)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "hash error")
 		return
 	}
-	if err := s.repo.UpdatePassword(r.Context(), userID, hash); err != nil {
+	if err := s.repo.ResetPassword(r.Context(), req.Token, hash, s.cfg.Now()); err != nil {
+		if errors.Is(err, ErrInvalidToken) {
+			writeErr(w, http.StatusBadRequest, "invalid or expired reset token")
+			return
+		}
 		writeErr(w, http.StatusInternalServerError, "update error")
 		return
 	}
@@ -352,13 +388,25 @@ func (s *Service) RequireVerified(next http.Handler) http.Handler {
 			return
 		}
 		sess, err := s.repo.SessionByToken(r.Context(), token)
-		if err != nil || s.cfg.Now().After(sess.ExpiresAt) {
+		if errors.Is(err, ErrNotFound) {
+			writeErr(w, http.StatusUnauthorized, "invalid or expired session")
+			return
+		}
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "session lookup error")
+			return
+		}
+		if s.cfg.Now().After(sess.ExpiresAt) {
 			writeErr(w, http.StatusUnauthorized, "invalid or expired session")
 			return
 		}
 		u, err := s.repo.UserByID(r.Context(), sess.UserID)
-		if err != nil {
+		if errors.Is(err, ErrNotFound) {
 			writeErr(w, http.StatusUnauthorized, "invalid session")
+			return
+		}
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "user lookup error")
 			return
 		}
 		if !u.Verified {
@@ -380,6 +428,12 @@ func (s *Service) ipAllowed(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+func (s *Service) deleteNewUser(ctx context.Context, userID string) {
+	if err := s.repo.DeleteUser(ctx, userID); err != nil {
+		log.Printf("auth: roll back new user: %v", err)
+	}
 }
 
 // clientIP derives the key the rate limiters bucket on. By default it uses the

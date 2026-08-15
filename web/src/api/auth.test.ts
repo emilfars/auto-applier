@@ -17,7 +17,7 @@ describe("auth client", () => {
     const f = mockFetch(201, { id: "u1", email: "a@b.co", verified: false, consent: true });
     vi.stubGlobal("fetch", f);
 
-    const res = await register("a@b.co", "password123");
+    const res = await register("a@b.co", "password123", true);
     expect(res.email).toBe("a@b.co");
     expect(f).toHaveBeenCalledWith(
       "/auth/register",
@@ -32,7 +32,7 @@ describe("auth client", () => {
   });
 
   it("logs in and posts credentials to /auth/login", async () => {
-    const f = mockFetch(200, { token: "t" });
+    const f = mockFetch(200, { status: "authenticated" });
     vi.stubGlobal("fetch", f);
     await login("a@b.co", "password123");
     expect(f.mock.calls[0][0]).toBe("/auth/login");
@@ -53,8 +53,8 @@ describe("auth client", () => {
 
   it("surfaces the server error message as ApiError", async () => {
     vi.stubGlobal("fetch", mockFetch(409, { error: "email already registered" }));
-    await expect(register("a@b.co", "password123")).rejects.toBeInstanceOf(ApiError);
-    await expect(register("a@b.co", "password123")).rejects.toThrow(/already registered/);
+    await expect(register("a@b.co", "password123", true)).rejects.toBeInstanceOf(ApiError);
+    await expect(register("a@b.co", "password123", true)).rejects.toThrow(/already registered/);
   });
 
   it("requestReset always resolves (no account enumeration)", async () => {

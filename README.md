@@ -55,6 +55,10 @@ Environment variables (all optional for local dev):
 | `CAREERJET_AFFID` | Free Careerjet affiliate id enabling the Tier-1 source (unset → source disabled). |
 | `CV_PARSER_URL` | Hosted résumé-parse API (unset → parsing returns 503). |
 | `ENFORCE_HTTPS` | Reject plain HTTP + set HSTS (default off for local). |
+| `SMTP_ADDR` | STARTTLS-capable SMTP server as `host:port`; required for verification/reset email outside dev mode. |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | Optional SMTP credentials. |
+| `SMTP_FROM` | Sender address; required when `SMTP_ADDR` is set. |
+| `AUTH_DEV_EXPOSE_TOKENS` | Return verification/reset tokens in API responses for local demos only. |
 
 ## Verification gate
 

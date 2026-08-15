@@ -37,7 +37,7 @@
   "auth.signin": "Sign in",
   "auth.signup": "Create account",
   "auth.signout": "Sign out",
-  "auth.consent": "By creating an account you consent to processing of your data (UU PDP No. 27/2022).",
+  "auth.consent": "I consent to processing of my data under UU PDP No. 27/2022.",
   "auth.signedInAs": "Signed in as",
   "auth.needVerify": "Check your email to verify your account, then sign in.",
   "auth.verify.heading": "Verify your account",

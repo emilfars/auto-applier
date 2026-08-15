@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -39,13 +40,17 @@ type Repo interface {
 	// erasure under UU PDP (AC-AUTH-5).
 	DeleteUser(ctx context.Context, userID string) error
 
-	CreateVerification(ctx context.Context, userID, token string) error
-	ConsumeVerification(ctx context.Context, token string) (userID string, err error)
+	CreateVerification(ctx context.Context, userID, token string, expiresAt time.Time) error
+	VerifyUser(ctx context.Context, token string, now time.Time) error
 
 	CreateSession(ctx context.Context, s Session) error
 	SessionByToken(ctx context.Context, token string) (Session, error)
 	DeleteSession(ctx context.Context, token string) error
 
 	CreateReset(ctx context.Context, userID, token string, expiresAt time.Time) error
-	ConsumeReset(ctx context.Context, token string, now time.Time) (userID string, err error)
+	ResetPassword(ctx context.Context, token, passwordHash string, now time.Time) error
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
 }

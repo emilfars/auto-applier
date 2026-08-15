@@ -22,12 +22,16 @@ type OIDCProvider interface {
 }
 
 type oauthCallbackReq struct {
-	Code string `json:"code"`
+	Code    string `json:"code"`
+	Consent bool   `json:"consent"`
 }
 
 // handleGoogleCallback exchanges an auth code, then links or creates a verified
 // account and issues a session (AUTH-2). It never accepts an unverified email.
 func (s *Service) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
+	if !s.ipAllowed(w, r) {
+		return
+	}
 	var req oauthCallbackReq
 	if !decode(w, r, &req) {
 		return
@@ -48,13 +52,23 @@ func (s *Service) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 
 	u, err := s.repo.UserByEmail(r.Context(), claims.Email)
 	if errors.Is(err, ErrNotFound) {
+		if !req.Consent {
+			writeErr(w, http.StatusBadRequest, "consent to data processing is required")
+			return
+		}
 		// New OAuth account: no local password, email already verified by Google.
 		u, err = s.repo.CreateUser(r.Context(), claims.Email, "")
 		if err != nil {
 			writeErr(w, http.StatusInternalServerError, "create user error")
 			return
 		}
+		if err := s.repo.SetConsent(r.Context(), u.ID, s.cfg.Now()); err != nil {
+			s.deleteNewUser(r.Context(), u.ID)
+			writeErr(w, http.StatusInternalServerError, "consent error")
+			return
+		}
 		if err := s.repo.SetVerified(r.Context(), u.ID); err != nil {
+			s.deleteNewUser(r.Context(), u.ID)
 			writeErr(w, http.StatusInternalServerError, "verify error")
 			return
 		}
@@ -62,7 +76,17 @@ func (s *Service) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		writeErr(w, http.StatusInternalServerError, "lookup error")
 		return
-	} else if !u.Verified {
+	} else if u.ConsentAt.IsZero() {
+		if !req.Consent {
+			writeErr(w, http.StatusBadRequest, "consent to data processing is required")
+			return
+		}
+		if err := s.repo.SetConsent(r.Context(), u.ID, s.cfg.Now()); err != nil {
+			writeErr(w, http.StatusInternalServerError, "consent error")
+			return
+		}
+	}
+	if !u.Verified {
 		// Existing local account, now proven via Google — mark verified.
 		if err := s.repo.SetVerified(r.Context(), u.ID); err != nil {
 			writeErr(w, http.StatusInternalServerError, "verify error")
@@ -70,10 +94,10 @@ func (s *Service) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	token, err := s.startSession(r.Context(), w, u.ID)
+	_, err = s.startSession(r.Context(), w, u.ID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "session error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"token": token, "id": u.ID})
+	writeJSON(w, http.StatusOK, map[string]any{"status": "authenticated", "id": u.ID})
 }

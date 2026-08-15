@@ -25,6 +25,7 @@ export function AuthPanel({ locale }: { locale: Locale }) {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function AuthPanel({ locale }: { locale: Locale }) {
     e.preventDefault();
     if (mode === "signup") {
       void run(async () => {
-        const res: RegisterResult = await register(email, password);
+        const res: RegisterResult = await register(email, password, consent);
         setShowVerify(true);
         if (res.verification_token) {
           setVerifyToken(res.verification_token);
@@ -155,7 +156,17 @@ export function AuthPanel({ locale }: { locale: Locale }) {
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
           />
         </label>
-        {mode === "signup" && <p className="auth__consent">{t(locale, "auth.consent")}</p>}
+        {mode === "signup" && (
+          <label className="auth__consent">
+            <input
+              type="checkbox"
+              required
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+            />
+            {t(locale, "auth.consent")}
+          </label>
+        )}
         <button type="submit" className="btn btn--primary" disabled={busy}>
           {mode === "signup" ? t(locale, "auth.signup") : t(locale, "auth.signin")}
         </button>
