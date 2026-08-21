@@ -105,12 +105,14 @@ export function AuthPanel({ locale }: { locale: Locale }) {
     });
   };
 
-  const onRequestReset = () =>
+  const onRequestReset = () => {
+    if (!email.trim()) return;
     void run(async () => {
       const res = await requestReset(email);
       if (res.reset_token) setResetToken(res.reset_token);
       setNotice(t(locale, "auth.reset.sent"));
     });
+  };
 
   const onConfirmReset = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,33 +126,22 @@ export function AuthPanel({ locale }: { locale: Locale }) {
 
   return (
     <div className="auth max-w-xl">
-      <div className="auth__tabs grid grid-cols-2 gap-2" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "signin"}
-          className={
-            mode === "signin"
-              ? "tab tab--active rounded-xl border border-brand-primary bg-brand-primary-soft px-4 py-2 font-semibold text-brand-text transition"
-              : "tab rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-muted transition hover:border-brand-primary"
-          }
-          onClick={() => setMode("signin")}
-        >
-          {t(locale, "auth.tab.signin")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "signup"}
-          className={
-            mode === "signup"
-              ? "tab tab--active rounded-xl border border-brand-primary bg-brand-primary-soft px-4 py-2 font-semibold text-brand-text transition"
-              : "tab rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-muted transition hover:border-brand-primary"
-          }
-          onClick={() => setMode("signup")}
-        >
-          {t(locale, "auth.tab.signup")}
-        </button>
+      <div className="auth__tabs grid grid-cols-2 gap-2">
+        {(["signin", "signup"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={mode === m}
+            className={
+              mode === m
+                ? "tab tab--active rounded-xl border border-brand-primary bg-brand-primary-soft px-4 py-2 font-semibold text-brand-text transition"
+                : "tab rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-muted transition hover:border-brand-primary"
+            }
+            onClick={() => setMode(m)}
+          >
+            {t(locale, m === "signin" ? "auth.tab.signin" : "auth.tab.signup")}
+          </button>
+        ))}
       </div>
 
       <form

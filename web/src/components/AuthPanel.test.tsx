@@ -16,7 +16,7 @@ vi.mock("../auth/session", () => ({
 describe("AuthPanel signup", () => {
   it("requires explicit data-processing consent", () => {
     render(<AuthPanel locale="en" />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign up" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     const checkbox = screen.getByRole("checkbox") as HTMLInputElement;
     expect(checkbox.required).toBe(true);
     expect(checkbox.checked).toBe(false);

@@ -52,8 +52,10 @@ describe("JobFeed pagination", () => {
 
     fireEvent.click(screen.getByText("Next"));
 
-    await waitFor(() => expect(screen.getByText("Page 2 of 3")).toBeTruthy());
-    expect(fetchMock.mock.calls.some(([u]) => String(u).includes("offset=24"))).toBe(true);
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes("offset=24"))).toBe(true),
+    );
+    expect(screen.getByText("Page 2 of 3")).toBeTruthy();
   });
 
   it("hides the pager when a single page covers all results", async () => {

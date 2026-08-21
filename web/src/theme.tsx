@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { t, type Locale } from "./i18n";
 
 export type Theme = "dark" | "light";
 
@@ -22,7 +23,7 @@ export function applyTheme(theme: Theme): void {
   }
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ locale = "en" }: { locale?: Locale }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
 
   useEffect(() => applyTheme(theme), [theme]);
@@ -31,10 +32,10 @@ export function ThemeToggle() {
     <button
       type="button"
       className="theme-toggle inline-flex items-center gap-2 rounded-full border border-brand-border bg-brand-surface-2 px-3 py-1.5 text-sm font-semibold text-brand-text transition hover:border-brand-primary focus-visible:ring-2 focus-visible:ring-brand-primary"
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label={t(locale, theme === "dark" ? "theme.toLight" : "theme.toDark")}
       onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
     >
-      <span aria-hidden="true">{theme === "dark" ? "Light" : "Dark"}</span>
+      <span aria-hidden="true">{theme === "dark" ? t(locale, "theme.light") : t(locale, "theme.dark")}</span>
     </button>
   );
 }

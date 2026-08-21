@@ -43,7 +43,7 @@ export function CvPanel({
         setError(t(locale, "auth.error"));
       });
     return () => controller.abort();
-  }, [user, locale]);
+  }, [user]); // locale change doesn't affect the stored CV list
 
   if (!user) {
     return <p className="panel__status text-sm text-brand-muted">{t(locale, "profile.loginRequired")}</p>;

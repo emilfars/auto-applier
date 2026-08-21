@@ -137,7 +137,7 @@ export function ProfilePanel({
         setError(t(locale, "auth.error"));
       });
     return () => controller.abort();
-  }, [user, applyProfile, locale]);
+  }, [user, applyProfile]); // refetching on locale change would wipe unsaved edits
 
   if (!user) {
     return <p className="panel__status text-sm text-brand-muted">{t(locale, "profile.loginRequired")}</p>;

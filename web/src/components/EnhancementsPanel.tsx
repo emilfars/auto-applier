@@ -107,7 +107,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
             {filters.map((filter) => (
               <li className="flex items-center justify-between gap-2" key={filter.id}>
                 <span>{filter.name}</span>
-                <button className="text-brand-danger" type="button" onClick={() => void deleteSavedFilter(filter.id).then(() => setFilters((current) => current.filter((item) => item.id !== filter.id)))}>{t(locale, "m5.remove")}</button>
+                <button className="text-brand-danger" type="button" onClick={() => void deleteSavedFilter(filter.id).then(() => setFilters((current) => current.filter((item) => item.id !== filter.id))).catch((err: unknown) => setError(err instanceof ApiError ? err.message : t(locale, "auth.error")))}>{t(locale, "m5.remove")}</button>
               </li>
             ))}
           </ul>
@@ -141,7 +141,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
           {snippets.map((snippet) => (
             <li className="flex flex-wrap items-center justify-between gap-2" key={snippet.id}>
               <span><strong className="text-brand-text">{snippet.name}</strong>: {snippet.body}</span>
-              <button className="text-brand-danger" type="button" onClick={() => void deleteSnippet(snippet.id).then(() => setSnippets((current) => current.filter((item) => item.id !== snippet.id)))}>{t(locale, "m5.remove")}</button>
+              <button className="text-brand-danger" type="button" onClick={() => void deleteSnippet(snippet.id).then(() => setSnippets((current) => current.filter((item) => item.id !== snippet.id))).catch((err: unknown) => setError(err instanceof ApiError ? err.message : t(locale, "auth.error")))}>{t(locale, "m5.remove")}</button>
             </li>
           ))}
         </ul>

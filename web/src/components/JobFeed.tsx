@@ -88,9 +88,9 @@ export function JobFeed({
     if (source) query.source = source;
     if (employmentType) query.employment_type = employmentType;
 
-    setStatus("loading");
     clearTimeout(debounce.current);
     debounce.current = setTimeout(() => {
+      setStatus("loading");
       fetchFeed(query, controller.signal)
         .then((res) => {
           setData(res);

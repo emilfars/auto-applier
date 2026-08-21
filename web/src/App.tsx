@@ -31,20 +31,20 @@ export default function App() {
             </h1>
             <div className="flex items-center gap-2">
               <label className="app__lang inline-flex items-center gap-2 text-sm text-brand-muted">
-            Language
-            <select
-              className="w-auto rounded-lg py-1 text-sm"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-            >
-              {locales.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-              </option>
-            ))}
-              </select>
+                {t(locale, "app.language")}
+                <select
+                  className="w-auto rounded-lg py-1 text-sm"
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value as Locale)}
+                >
+                  {locales.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <ThemeToggle />
+              <ThemeToggle locale={locale} />
             </div>
           </div>
           <p className="app__tagline mt-3 max-w-2xl text-base leading-7 text-brand-muted">

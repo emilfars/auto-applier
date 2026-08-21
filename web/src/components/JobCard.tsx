@@ -109,7 +109,7 @@ export function JobCard({
         )}
       </p>
       <p
-        className={`job-card__salary m-0 text-base font-bold ${stated ? "text-brand-success" : job.salary.estimated ? "font-semibold text-brand-warning" : "font-medium italic text-brand-muted"}`}
+        className={`job-card__salary m-0 text-base ${stated ? "font-bold text-brand-success" : job.salary.estimated ? "font-semibold text-brand-warning" : "font-medium italic text-brand-muted"}`}
         data-stated={stated}
       >
         {stated || job.salary.estimated ? job.salary.label : t(locale, "feed.salary.undisclosed")}
