@@ -332,7 +332,7 @@ export function JobFeed({
               {t(locale, "feed.empty")}
             </p>
           ) : (
-            <div className="feed__list grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="feed__list grid auto-rows-fr gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {data.jobs.map((job) => (
                 <JobCard
                   key={`${job.source}:${job.source_url}`}

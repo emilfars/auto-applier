@@ -91,12 +91,12 @@ export function JobCard({
   return (
     <article className="job-card flex h-full flex-col gap-4 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-lg transition hover:-translate-y-0.5 hover:border-brand-primary">
       <div className="job-card__head flex items-start justify-between gap-3">
-        <h3 className="job-card__title m-0 text-lg font-bold leading-tight text-brand-text">{job.title}</h3>
+        <h3 className="job-card__title m-0 line-clamp-2 h-[46px] text-lg font-bold leading-[23px] [overflow-wrap:anywhere] text-brand-text">{job.title}</h3>
         <span className="job-card__source shrink-0 rounded-full bg-brand-surface-2 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-widest text-brand-muted">
           {job.source}
         </span>
       </div>
-      <p className="job-card__company m-0 font-semibold text-brand-accent-light">{job.company}</p>
+      <p className="job-card__company m-0 line-clamp-1 font-semibold [overflow-wrap:anywhere] text-brand-accent-light">{job.company}</p>
       <p className="job-card__meta m-0 flex flex-wrap items-center gap-2 text-sm text-brand-muted">
         <span>{job.location}</span>
         {job.remote && <span className="badge badge--remote rounded-full bg-brand-primary-soft px-2.5 py-1 text-xs font-semibold text-brand-accent-light">{t(locale, "feed.remote")}</span>}
@@ -109,7 +109,7 @@ export function JobCard({
         )}
       </p>
       <p
-        className={`job-card__salary m-0 text-base ${stated ? "font-bold text-brand-success" : job.salary.estimated ? "font-semibold text-brand-warning" : "font-medium italic text-brand-muted"}`}
+        className={`job-card__salary m-0 line-clamp-1 [overflow-wrap:anywhere] text-base ${stated ? "font-bold text-brand-success" : job.salary.estimated ? "font-semibold text-brand-warning" : "font-medium italic text-brand-muted"}`}
         data-stated={stated}
       >
         {stated || job.salary.estimated ? job.salary.label : t(locale, "feed.salary.undisclosed")}
@@ -119,15 +119,16 @@ export function JobCard({
           {t(locale, "feed.matchScore", { score: job.match_score })}
         </p>
       )}
-      {tags.length > 0 && (
-        <ul className="job-card__reqs m-0 flex list-none flex-wrap gap-2 p-0" aria-label={t(locale, "feed.requirements")}>
-          {tags.slice(0, 6).map((req) => (
-            <li key={req} className="chip rounded-lg bg-brand-surface-2 px-2.5 py-1 text-xs text-brand-text">
-              {req}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul
+        className="job-card__reqs m-0 flex h-[60px] content-start list-none flex-wrap gap-2 overflow-hidden p-0"
+        aria-label={t(locale, "feed.requirements")}
+      >
+        {tags.slice(0, 6).map((req) => (
+          <li key={req} className="chip max-w-full rounded-lg bg-brand-surface-2 px-2.5 py-1 text-xs [overflow-wrap:anywhere] text-brand-text">
+            {req}
+          </li>
+        ))}
+      </ul>
       <div className="job-card__foot mt-auto flex flex-wrap items-center gap-2 pt-2">
         <button
           type="button"
