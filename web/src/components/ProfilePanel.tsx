@@ -140,10 +140,17 @@ export function ProfilePanel({
   }, [user, applyProfile, locale]);
 
   if (!user) {
-    return <p className="panel__status">{t(locale, "profile.loginRequired")}</p>;
+    return <p className="panel__status text-sm text-brand-muted">{t(locale, "profile.loginRequired")}</p>;
   }
   if (!form) {
-    return <p className="panel__status">{t(locale, "common.loading")}</p>;
+    return (
+      <div className="panel__status grid animate-pulse gap-3" aria-live="polite">
+        <span className="h-10 rounded-xl bg-brand-surface-2" />
+        <span className="h-10 rounded-xl bg-brand-surface-2" />
+        <span className="h-24 rounded-xl bg-brand-surface-2" />
+        <span className="sr-only">{t(locale, "common.loading")}</span>
+      </div>
+    );
   }
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -183,9 +190,12 @@ export function ProfilePanel({
   };
 
   return (
-    <div className="profile">
-      <form className="profile__form" onSubmit={onSave}>
-        <label className="full">
+    <div className="profile space-y-6">
+      <form
+        className="profile__form grid grid-cols-1 gap-4 md:grid-cols-2 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
+        onSubmit={onSave}
+      >
+        <label className="full md:col-span-2">
           {t(locale, "profile.fullName")}
           <input required value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
         </label>
@@ -213,11 +223,11 @@ export function ProfilePanel({
           {t(locale, "profile.city")}
           <input value={form.city} onChange={(e) => set("city", e.target.value)} />
         </label>
-        <label className="full">
+        <label className="full md:col-span-2">
           {t(locale, "profile.address")}
           <input value={form.address} onChange={(e) => set("address", e.target.value)} />
         </label>
-        <label className="full">
+        <label className="full md:col-span-2">
           {t(locale, "profile.summary")}
           <textarea rows={4} value={form.summary} onChange={(e) => set("summary", e.target.value)} />
         </label>
@@ -275,7 +285,7 @@ export function ProfilePanel({
             ))}
           </select>
         </label>
-        <label className="profile__checkbox">
+        <label className="profile__checkbox !flex !grid-cols-none items-center gap-2">
           <input
             type="checkbox"
             checked={form.open_to_relocation}
@@ -283,7 +293,7 @@ export function ProfilePanel({
           />
           {t(locale, "profile.relocation")}
         </label>
-        <label className="full">
+        <label className="full md:col-span-2">
           {t(locale, "profile.education")}
           <textarea
             required
@@ -292,7 +302,7 @@ export function ProfilePanel({
             onChange={(e) => set("education", e.target.value)}
           />
         </label>
-        <label className="full">
+        <label className="full md:col-span-2">
           {t(locale, "profile.workHistory")}
           <textarea
             rows={8}
@@ -300,11 +310,11 @@ export function ProfilePanel({
             onChange={(e) => set("work_history", e.target.value)}
           />
         </label>
-        <label className="full">
+        <label className="full md:col-span-2">
           {t(locale, "profile.skills")}
           <input required value={form.skills} onChange={(e) => set("skills", e.target.value)} />
         </label>
-        <label className="full">
+        <label className="full md:col-span-2">
           {t(locale, "profile.preferredLocations")}
           <input
             required
@@ -312,23 +322,34 @@ export function ProfilePanel({
             onChange={(e) => set("preferred_locations", e.target.value)}
           />
         </label>
-        <div className="full">
-          <button type="submit" className="btn btn--primary" disabled={busy}>
+        <div className="full md:col-span-2">
+          <button
+            type="submit"
+            className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+          >
             {t(locale, "profile.save")}
           </button>
         </div>
       </form>
 
-      <div className="profile__confirm">
+      <div className="profile__confirm border-t border-brand-border pt-5">
         {confirmed ? (
-          <p className="panel__status">
-            <span className="badge badge--confirmed">✓</span>{" "}
+          <p className="panel__status flex items-center gap-2 text-sm font-semibold text-brand-success">
+            <span className="badge badge--confirmed inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-success text-sm text-brand-bg">✓</span>
             {t(locale, "profile.confirmed")}
           </p>
         ) : (
           <>
-            <p className="profile__confirm-note">{t(locale, "profile.confirmNote")}</p>
-            <button type="button" className="btn" disabled={busy} onClick={onConfirm}>
+            <p className="profile__confirm-note m-0 mb-4 max-w-3xl text-sm leading-6 text-brand-muted">
+              {t(locale, "profile.confirmNote")}
+            </p>
+            <button
+              type="button"
+              className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2.5 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busy}
+              onClick={onConfirm}
+            >
               {t(locale, "profile.confirm")}
             </button>
           </>
@@ -336,11 +357,11 @@ export function ProfilePanel({
       </div>
 
       {error && (
-        <p className="panel__status panel__status--error" role="alert">
+          <p className="panel__status panel__status--error rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
           {error}
         </p>
       )}
-      {notice && <p className="panel__status">{notice}</p>}
+      {notice && <p className="panel__status rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm text-brand-success">{notice}</p>}
     </div>
   );
 }

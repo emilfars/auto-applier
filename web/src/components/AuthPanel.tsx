@@ -36,16 +36,27 @@ export function AuthPanel({ locale }: { locale: Locale }) {
   const [newPassword, setNewPassword] = useState("");
 
   if (loading) {
-    return <p className="panel__status">{t(locale, "common.loading")}</p>;
+    return (
+      <div className="panel__status grid animate-pulse gap-3" aria-live="polite">
+        <span className="h-4 w-36 rounded bg-brand-surface-2" />
+        <span className="h-10 rounded-xl bg-brand-surface-2" />
+        <span className="h-10 rounded-xl bg-brand-surface-2" />
+        <span className="sr-only">{t(locale, "common.loading")}</span>
+      </div>
+    );
   }
 
   if (user) {
     return (
-      <div className="auth auth--signedin">
-        <p>
+      <div className="auth auth--signedin flex flex-wrap items-center justify-between gap-4">
+        <p className="m-0 text-sm text-brand-muted">
           {t(locale, "auth.signedInAs")} <strong>{user.email}</strong>
         </p>
-        <button type="button" className="btn" onClick={() => void signOut()}>
+        <button
+          type="button"
+          className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => void signOut()}
+        >
           {t(locale, "auth.signout")}
         </button>
       </div>
@@ -112,13 +123,17 @@ export function AuthPanel({ locale }: { locale: Locale }) {
   };
 
   return (
-    <div className="auth">
-      <div className="auth__tabs" role="tablist">
+    <div className="auth max-w-xl">
+      <div className="auth__tabs grid grid-cols-2 gap-2" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={mode === "signin"}
-          className={mode === "signin" ? "tab tab--active" : "tab"}
+          className={
+            mode === "signin"
+              ? "tab tab--active rounded-xl border border-brand-primary bg-brand-primary-soft px-4 py-2 font-semibold text-brand-text transition"
+              : "tab rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-muted transition hover:border-brand-primary"
+          }
           onClick={() => setMode("signin")}
         >
           {t(locale, "auth.tab.signin")}
@@ -127,14 +142,21 @@ export function AuthPanel({ locale }: { locale: Locale }) {
           type="button"
           role="tab"
           aria-selected={mode === "signup"}
-          className={mode === "signup" ? "tab tab--active" : "tab"}
+          className={
+            mode === "signup"
+              ? "tab tab--active rounded-xl border border-brand-primary bg-brand-primary-soft px-4 py-2 font-semibold text-brand-text transition"
+              : "tab rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-muted transition hover:border-brand-primary"
+          }
           onClick={() => setMode("signup")}
         >
           {t(locale, "auth.tab.signup")}
         </button>
       </div>
 
-      <form className="auth__form" onSubmit={onSubmit}>
+      <form
+        className="auth__form grid gap-4 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
+        onSubmit={onSubmit}
+      >
         <label>
           {t(locale, "auth.email")}
           <input
@@ -157,7 +179,7 @@ export function AuthPanel({ locale }: { locale: Locale }) {
           />
         </label>
         {mode === "signup" && (
-          <label className="auth__consent">
+          <label className="auth__consent !flex !grid-cols-none items-start gap-2 text-xs font-normal">
             <input
               type="checkbox"
               required
@@ -167,22 +189,29 @@ export function AuthPanel({ locale }: { locale: Locale }) {
             {t(locale, "auth.consent")}
           </label>
         )}
-        <button type="submit" className="btn btn--primary" disabled={busy}>
+        <button
+          type="submit"
+          className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={busy}
+        >
           {mode === "signup" ? t(locale, "auth.signup") : t(locale, "auth.signin")}
         </button>
       </form>
 
       <button
         type="button"
-        className="linklike"
+        className="linklike mt-1 inline-flex text-sm font-semibold text-brand-accent-light hover:underline"
         onClick={() => setShowReset((v) => !v)}
       >
         {t(locale, "auth.reset.toggle")}
       </button>
 
       {showVerify && (
-        <form className="auth__form auth__verify" onSubmit={onVerify}>
-          <h3>{t(locale, "auth.verify.heading")}</h3>
+        <form
+          className="auth__form auth__verify mt-5 grid gap-4 border-t border-brand-border pt-5 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
+          onSubmit={onVerify}
+        >
+          <h3 className="m-0 text-base font-bold text-brand-text">{t(locale, "auth.verify.heading")}</h3>
           <label>
             {t(locale, "auth.verify.token")}
             <input
@@ -192,19 +221,31 @@ export function AuthPanel({ locale }: { locale: Locale }) {
               onChange={(e) => setVerifyToken(e.target.value)}
             />
           </label>
-          <button type="submit" className="btn" disabled={busy}>
+          <button
+            type="submit"
+            className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+          >
             {t(locale, "auth.verify.submit")}
           </button>
         </form>
       )}
 
       {showReset && (
-        <div className="auth__reset">
-          <h3>{t(locale, "auth.reset.heading")}</h3>
-          <button type="button" className="btn" disabled={busy} onClick={onRequestReset}>
+        <div className="auth__reset mt-5 grid gap-4 border-t border-brand-border pt-5">
+          <h3 className="m-0 text-base font-bold text-brand-text">{t(locale, "auth.reset.heading")}</h3>
+          <button
+            type="button"
+            className="btn w-fit rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+            onClick={onRequestReset}
+          >
             {t(locale, "auth.reset.request")}
           </button>
-          <form className="auth__form" onSubmit={onConfirmReset}>
+            <form
+              className="auth__form grid gap-4 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
+              onSubmit={onConfirmReset}
+            >
             <label>
               {t(locale, "auth.reset.token")}
               <input
@@ -224,7 +265,11 @@ export function AuthPanel({ locale }: { locale: Locale }) {
                 onChange={(e) => setNewPassword(e.target.value)}
               />
             </label>
-            <button type="submit" className="btn" disabled={busy}>
+            <button
+              type="submit"
+              className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busy}
+            >
               {t(locale, "auth.reset.submit")}
             </button>
           </form>
@@ -232,11 +277,11 @@ export function AuthPanel({ locale }: { locale: Locale }) {
       )}
 
       {error && (
-        <p className="panel__status panel__status--error" role="alert">
+          <p className="panel__status panel__status--error mt-4 rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
           {error}
         </p>
       )}
-      {notice && <p className="panel__status">{notice}</p>}
+      {notice && <p className="panel__status mt-4 rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm text-brand-success">{notice}</p>}
     </div>
   );
 }

@@ -139,20 +139,29 @@ export function JobFeed({
   const hasNext = offset + PAGE_SIZE < total;
 
   return (
-    <section id="feed" className="feed">
-      <h2 className="feed__heading">{t(locale, "feed.heading")}</h2>
+    <section id="feed" className="feed mx-auto max-w-app scroll-mt-28">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-accent-light">Auto Applier</p>
+          <h2 className="feed__heading m-0 text-2xl font-black tracking-tight text-brand-text sm:text-3xl">
+            {t(locale, "feed.heading")}
+          </h2>
+        </div>
+      </div>
 
-      <form
-        className="feed__filters"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (e.currentTarget.checkValidity() && validNumberFilters(payMin, payMax, maxYoE)) {
-            setOffset(0);
-          }
-        }}
-      >
+      <div className="feed__layout grid gap-6 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)] lg:items-start">
+        <aside className="rounded-2xl border border-brand-border bg-brand-surface p-4 shadow-lg lg:sticky lg:top-28">
+          <form
+            className="feed__filters grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (e.currentTarget.checkValidity() && validNumberFilters(payMin, payMax, maxYoE)) {
+                setOffset(0);
+              }
+            }}
+          >
         <input
-          className="feed__search"
+          className="feed__search rounded-xl border-brand-primary bg-brand-bg"
           type="search"
           name="q"
           value={search}
@@ -169,10 +178,10 @@ export function JobFeed({
           placeholder={t(locale, "feed.filter.location")}
           aria-label={t(locale, "feed.filter.location")}
         />
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.payMin")}</span>
           <input
-            className="feed__location"
+             className="feed__location"
             type="number"
             name="pay_min"
             min="0"
@@ -183,10 +192,10 @@ export function JobFeed({
             aria-label={t(locale, "feed.filter.payMin")}
           />
         </label>
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.payMax")}</span>
           <input
-            className="feed__location"
+             className="feed__location"
             type="number"
             name="pay_max"
             min={payMinValue ?? 0}
@@ -196,7 +205,7 @@ export function JobFeed({
             aria-label={t(locale, "feed.filter.payMax")}
           />
         </label>
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.skills")}</span>
           <input
             className="feed__location"
@@ -207,7 +216,7 @@ export function JobFeed({
             aria-label={t(locale, "feed.filter.skills")}
           />
         </label>
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.maxYoe")}</span>
           <input
             className="feed__location"
@@ -220,7 +229,7 @@ export function JobFeed({
             aria-label={t(locale, "feed.filter.maxYoe")}
           />
         </label>
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.postedAfter")}</span>
           <input
             className="feed__location"
@@ -231,7 +240,7 @@ export function JobFeed({
             aria-label={t(locale, "feed.filter.postedAfter")}
           />
         </label>
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.source")}</span>
           <select
             className="feed__location"
@@ -248,7 +257,7 @@ export function JobFeed({
             ))}
           </select>
         </label>
-        <label className="feed__field">
+        <label className="feed__field grid gap-1.5 text-xs font-semibold text-brand-muted">
           <span>{t(locale, "feed.filter.employmentType")}</span>
           <select
             className="feed__location"
@@ -265,7 +274,7 @@ export function JobFeed({
             ))}
           </select>
         </label>
-        <label className="feed__remote">
+        <label className="feed__remote flex items-center gap-2 py-1 text-sm text-brand-muted">
           <input
             type="checkbox"
             name="remote"
@@ -274,29 +283,54 @@ export function JobFeed({
           />
           {t(locale, "feed.filter.remote")}
         </label>
-        <button type="submit" className="btn btn--primary">
+        <button
+          type="submit"
+          className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary"
+        >
           {t(locale, "feed.filter.apply")}
         </button>
-        <button type="button" className="btn btn--ghost" onClick={clearFilters}>
+        <button
+          type="button"
+          className="btn btn--ghost rounded-xl border border-brand-border bg-transparent px-4 py-2.5 font-semibold text-brand-text transition hover:border-brand-primary"
+          onClick={clearFilters}
+        >
           {t(locale, "feed.filter.clear")}
         </button>
-      </form>
+          </form>
+        </aside>
 
-      {status === "loading" && <p className="feed__status">{t(locale, "feed.loading")}</p>}
+        <div className="min-w-0">
+      {status === "loading" && (
+        <div className="feed__loading" aria-busy="true" aria-live="polite">
+          <p className="feed__status m-0 pb-4 text-sm text-brand-muted">{t(locale, "feed.loading")}</p>
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="animate-pulse rounded-2xl border border-brand-border bg-brand-surface p-5">
+                <div className="mb-4 h-5 w-3/4 rounded bg-brand-surface-2" />
+                <div className="mb-3 h-4 w-1/2 rounded bg-brand-surface-2" />
+                <div className="mb-6 h-4 w-2/3 rounded bg-brand-surface-2" />
+                <div className="h-9 rounded-xl bg-brand-surface-2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {status === "error" && (
-        <p className="feed__status feed__status--error" role="alert">
+        <p className="feed__status feed__status--error rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
           {t(locale, "feed.error")}
         </p>
       )}
       {status === "ready" && data && (
         <>
-          <p className="feed__count">
+          <p className="feed__count mb-4 text-sm text-brand-muted">
             {data.total} {t(locale, "feed.results.count")}
           </p>
           {data.jobs.length === 0 ? (
-            <p className="feed__status">{t(locale, "feed.empty")}</p>
+            <p className="feed__status rounded-2xl border border-dashed border-brand-border bg-brand-surface px-5 py-8 text-center text-sm text-brand-muted">
+              {t(locale, "feed.empty")}
+            </p>
           ) : (
-            <div className="feed__list">
+            <div className="feed__list grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {data.jobs.map((job) => (
                 <JobCard
                   key={`${job.source}:${job.source_url}`}
@@ -309,21 +343,21 @@ export function JobFeed({
             </div>
           )}
           {pages > 1 && (
-            <nav className="feed__pager" aria-label={t(locale, "feed.page.status", { page, pages })}>
+            <nav className="feed__pager mt-8 flex items-center justify-center gap-3" aria-label={t(locale, "feed.page.status", { page, pages })}>
               <button
                 type="button"
-                className="feed__pager-btn"
+                className="feed__pager-btn rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
                 disabled={!hasPrev}
               >
                 {t(locale, "feed.page.prev")}
               </button>
-              <span className="feed__pager-status">
+              <span className="feed__pager-status text-sm font-semibold text-brand-muted">
                 {t(locale, "feed.page.status", { page, pages })}
               </span>
               <button
                 type="button"
-                className="feed__pager-btn"
+                className="feed__pager-btn rounded-xl border border-brand-border bg-brand-surface-2 px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => setOffset((o) => o + PAGE_SIZE)}
                 disabled={!hasNext}
               >
@@ -333,6 +367,8 @@ export function JobFeed({
           )}
         </>
       )}
+        </div>
+      </div>
     </section>
   );
 }

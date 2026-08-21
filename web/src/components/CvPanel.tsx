@@ -46,7 +46,7 @@ export function CvPanel({
   }, [user, locale]);
 
   if (!user) {
-    return <p className="panel__status">{t(locale, "profile.loginRequired")}</p>;
+    return <p className="panel__status text-sm text-brand-muted">{t(locale, "profile.loginRequired")}</p>;
   }
 
   async function run(fn: () => Promise<void>) {
@@ -85,9 +85,9 @@ export function CvPanel({
     });
 
   return (
-    <div className="cv">
-      <form className="cv__upload" onSubmit={onUpload}>
-        <label>
+    <div className="cv space-y-5">
+      <form className="cv__upload flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={onUpload}>
+        <label className="grid flex-1 gap-2 text-sm font-medium text-brand-muted">
           {t(locale, "cv.selectFile")}
           <input
             type="file"
@@ -95,22 +95,36 @@ export function CvPanel({
             onChange={(e) => setSelected(e.target.files?.[0] ?? null)}
           />
         </label>
-        <button type="submit" className="btn btn--primary" disabled={busy || !selected}>
+        <button
+          type="submit"
+          className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={busy || !selected}
+        >
           {busy ? t(locale, "cv.uploading") : t(locale, "cv.upload")}
         </button>
       </form>
-      <p className="cv__note">{t(locale, "cv.reviewNote")}</p>
+      <p className="cv__note m-0 text-sm leading-6 text-brand-muted">{t(locale, "cv.reviewNote")}</p>
 
       {files.length === 0 ? (
-        <p className="panel__status">{t(locale, "cv.list.empty")}</p>
+        <p className="panel__status rounded-xl border border-dashed border-brand-border bg-brand-surface-2 px-4 py-4 text-sm text-brand-muted">
+          {t(locale, "cv.list.empty")}
+        </p>
       ) : (
-        <ul className="cv__list">
+        <ul className="cv__list m-0 grid list-none gap-2 p-0">
           {files.map((f) => (
-            <li key={f.id} className="cv__item">
-              <span>
-                {f.filename} <span className="cv__note">({formatSize(f.size_bytes)})</span>
+            <li
+              key={f.id}
+              className="cv__item flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-3"
+            >
+              <span className="min-w-0 truncate text-sm font-medium text-brand-text">
+                {f.filename} <span className="cv__note text-xs font-normal text-brand-muted">({formatSize(f.size_bytes)})</span>
               </span>
-              <button type="button" className="btn" disabled={busy} onClick={() => onParse(f.id)}>
+              <button
+                type="button"
+                className="btn rounded-xl border border-brand-border bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busy}
+                onClick={() => onParse(f.id)}
+              >
                 {t(locale, "cv.parse")}
               </button>
             </li>
@@ -119,11 +133,11 @@ export function CvPanel({
       )}
 
       {error && (
-        <p className="panel__status panel__status--error" role="alert">
+          <p className="panel__status panel__status--error rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
           {error}
         </p>
       )}
-      {notice && <p className="panel__status">{notice}</p>}
+      {notice && <p className="panel__status rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm text-brand-success">{notice}</p>}
     </div>
   );
 }

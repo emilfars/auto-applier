@@ -96,11 +96,11 @@ Test-type conventions:
 ## 5. Web UI & brand theme (M4.5)
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
-| AC-WEB-1 | plan M4.5 | Tailwind CSS is the styling layer in `/web`; hand-rolled `styles.css` is removed or reduced to token definitions only | static: no component-level `.css` imports besides tokens; `npm run build` green | ⬜ |
-| AC-WEB-2 | plan M4.5 | All colors resolve to design tokens derived from `design/brand/palette.md`; **no hardcoded hex/rgb values outside the token definition file** | grep-based unit test over `web/src` (mirrors AC-SAFE-1 pattern) | ⬜ |
-| AC-WEB-3 | plan M4.5 | Dark (default) and light themes both render; preference persists across reloads | unit (`data-theme` toggle + storage) + build smoke | ⬜ |
-| AC-WEB-4 | plan M4.5 | Body text meets WCAG AA contrast (≥4.5:1) against its background in both themes for the token set | unit test computing contrast ratios from token values | ⬜ |
-| AC-WEB-5 | plan M4.5 | Behavior frozen: all existing web tests pass unchanged in intent (selectors may be updated where class names changed); i18n key parity intact for both locales | existing suites + `i18n.test.ts` | ⬜ |
+| AC-WEB-1 | plan M4.5 | Tailwind CSS is the styling layer in `/web`; hand-rolled `styles.css` is removed or reduced to token definitions only | static: no component-level `.css` imports besides tokens; `npm run build` green | ✅ |
+| AC-WEB-2 | plan M4.5 | All colors resolve to design tokens derived from `design/brand/palette.md`; **no hardcoded hex/rgb values outside the token definition file** | grep-based unit test over `web/src` (mirrors AC-SAFE-1 pattern) | ✅ |
+| AC-WEB-3 | plan M4.5 | Dark (default) and light themes both render; preference persists across reloads | unit (`data-theme` toggle + storage) + build smoke | ✅ |
+| AC-WEB-4 | plan M4.5 | Body text meets WCAG AA contrast (≥4.5:1) against its background in both themes for the token set | unit test computing contrast ratios from token values | ✅ |
+| AC-WEB-5 | plan M4.5 | Behavior frozen: all existing web tests pass unchanged in intent (selectors may be updated where class names changed); i18n key parity intact for both locales | existing suites + `i18n.test.ts` | ✅ |
 
 ## 6. Post-MVP specs (write when milestone starts)
 | Test ID | ID | Criteria | Verification | Status |
