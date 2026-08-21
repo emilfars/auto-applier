@@ -13,11 +13,11 @@
 ## 1. Snapshot
 | Field | Value |
 |---|---|
-| Repo | `auto-applier` (branch `emilfars-autonomous-build-loop`, remote `origin` → github.com/emilfars/auto-applier) |
+| Repo | `auto-applier` (branch `main`, remote `origin` → github.com/emilfars/auto-applier) |
 | Product | Auto Applier — human-in-the-loop job-application autofill |
-| Stage | **MVP hardening** — M4 browser/runtime checks complete; 5,000 real-listing launch gate remains |
-| Active milestone | Close M0→M4 launch blockers before M5 |
-| Blocking gate | Real-browser M4 E2E plus 5,000 active real listings before registration opens |
+| Stage | **MVP hardening** — M4 browser/runtime and M4.5 web UI checks complete; 5,000 real-listing launch gate remains |
+| Active milestone | Close launch blockers before M5 |
+| Blocking gate | 5,000 active real listings before registration opens |
 | Prime directive | System never submits; user always clicks Apply |
 
 ## 2. Milestone status
@@ -38,7 +38,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | Component | Path | Exists | verify.sh checks | State |
 |---|---|---|---|---|
 | Backend (Go) | `/backend` | yes | build, vet, gofmt, test | Component tests green; CI supplies Postgres. M3 SQL filtering, ingestion recovery, 48h staleness, launch gating, and encrypted object persistence are verified. |
-| Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Dev and production proxy flows build and test; authenticated profile/CV snapshot transfer is covered. |
+| Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Dev and production proxy flows build and test; authenticated profile/CV snapshot transfer and M4.5 branded Tailwind UI are covered. |
 | Fill mappings | `/packages/fill-mappings` | yes | lint, typecheck, test, build | zero-dep shared engine + 7 versioned maps; lint/typecheck/test/build all green |
 | Extension (MV3) | `/extension` | yes | lint, typecheck, test, build | Engine, durable arm, dynamic injection, submit guard, review, CV, telemetry, unit/happy-dom/mocked Chrome tests, and native browser MV3 E2E are green. |
 | Android | `/android` | no | gradle assembleDebug | not scaffolded |
@@ -59,7 +59,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M0-M4 runtime and native browser MV3 Open & Fill verification are complete.
+- **Now:** M0-M4 runtime, native browser MV3 Open & Fill verification, and M4.5 web UI modernization are complete.
 - **Next:** seed/verify at least 5,000 active real listings before opening registration.
 - **Held (by decision, not blocking MVP):** AC-FEED-1p 4G, AC-NFR-SCALE, and real Google OAuth credentials. Sources Glints/Jobstreet/Indeed remain excluded from static ingestion (WAF/anti-bot/ToS).
 - **Blocked:** launch readiness still requires at least 5,000 active real listings in Postgres. Synthetic browser fixtures never open registration. M5 should not start before this gate closes.
