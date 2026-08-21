@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { t, type Locale } from "../i18n";
 import { useSession } from "../auth/session";
-import { listCVs, parseCV, uploadCV, type CVFile } from "../api/cv";
+import { listCVs, parseCV, updateCVVersion, uploadCV, type CVFile } from "../api/cv";
 import { ApiError } from "../api/http";
 
 function formatSize(bytes: number): string {
@@ -84,6 +84,13 @@ export function CvPanel({
       onParsed?.();
     });
 
+  const onPrimary = (id: string) =>
+    void run(async () => {
+      await updateCVVersion(id, { is_primary: true });
+      setFiles((current) => current.map((file) => ({ ...file, is_primary: file.id === id })));
+      setNotice(t(locale, "cv.primarySet"));
+    });
+
   return (
     <div className="cv space-y-5">
       <form className="cv__upload flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={onUpload}>
@@ -117,16 +124,29 @@ export function CvPanel({
               className="cv__item flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-3"
             >
               <span className="min-w-0 truncate text-sm font-medium text-brand-text">
-                {f.filename} <span className="cv__note text-xs font-normal text-brand-muted">({formatSize(f.size_bytes)})</span>
+                {f.label || f.filename} <span className="cv__note text-xs font-normal text-brand-muted">({formatSize(f.size_bytes)})</span>
+                {f.is_primary && <span className="ml-2 rounded-full bg-brand-success-soft px-2 py-1 text-xs text-brand-success">{t(locale, "cv.primary")}</span>}
               </span>
-              <button
-                type="button"
-                className="btn rounded-xl border border-brand-border bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={busy}
-                onClick={() => onParse(f.id)}
-              >
-                {t(locale, "cv.parse")}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn rounded-xl border border-brand-border bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={busy}
+                  onClick={() => onParse(f.id)}
+                >
+                  {t(locale, "cv.parse")}
+                </button>
+                {!f.is_primary && (
+                  <button
+                    type="button"
+                    className="btn rounded-xl border border-brand-border bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={busy}
+                    onClick={() => onPrimary(f.id)}
+                  >
+                    {t(locale, "cv.setPrimary")}
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>

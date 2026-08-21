@@ -1,6 +1,5 @@
-// Package feed serves the browsable, filterable job feed (FEED-1..3). Pay is
-// stated-only and clearly labeled at MVP — the feed never emits an estimated
-// salary field (locked decision). Stale listings are excluded.
+// Package feed serves the browsable, filterable job feed. Stale listings are
+// excluded; M5 salary estimates remain separate from stated compensation.
 package feed
 
 import (

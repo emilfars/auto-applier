@@ -39,10 +39,12 @@ export function JobFeed({
   locale,
   canFill = false,
   fillReason,
+  signedIn = false,
 }: {
   locale: Locale;
   canFill?: boolean;
   fillReason?: "needLogin" | "needProfile";
+  signedIn?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("");
@@ -338,6 +340,8 @@ export function JobFeed({
                   locale={locale}
                   canFill={canFill}
                   fillReason={fillReason}
+                  signedIn={signedIn}
+                  onDismiss={() => setData((current) => current ? { ...current, jobs: current.jobs.filter((item) => item !== job) } : current)}
                 />
               ))}
             </div>

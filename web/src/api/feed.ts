@@ -1,7 +1,6 @@
-// Typed client for the public job feed (FEED-1..3). Pay is employer-stated only
-// and clearly labeled — the client never derives or displays an estimate
-// (locked decision). Job cards link out to the original posting; the user
-// applies there themselves. The system never submits an application.
+// Typed client for the public job feed and its M5 personalization fields.
+// Job cards link out to the original posting; the user applies there
+// themselves. The system never submits an application.
 
 export interface Salary {
   stated_min: number | null;
@@ -11,9 +10,13 @@ export interface Salary {
   label: string;
   /** True only when the employer stated pay. Never set from an estimate. */
   stated: boolean;
+  estimated_min?: number | null;
+  estimated_max?: number | null;
+  estimated?: boolean;
 }
 
 export interface JobCard {
+  dedup_key?: string;
   source: string;
   source_url: string;
   title: string;
@@ -25,6 +28,9 @@ export interface JobCard {
   employment_type: string;
   years_experience: number | null;
   requirements: string[];
+  requirement_tags?: string[];
+  match_score?: number | null;
+  already_applied?: boolean;
   posted_at: string | null;
 }
 

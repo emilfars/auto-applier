@@ -105,10 +105,15 @@ Test-type conventions:
 ## 6. Post-MVP specs (write when milestone starts)
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
-| AC-SCR-5 | SCR-5 | Estimated salary labeled distinctly from stated; never shown as stated | unit + e2e on rendering | ⬜ |
-| AC-FEED-4 | FEED-4 | Match score computed from requirement overlap vs CV | unit | ⬜ |
-| AC-FEED-5 | FEED-5 | Saved filters persist; alert fires on new matching listing | integration | ⬜ |
-| AC-APP-6 | APP-6 | Tracker records "form filled" and user-confirmed "submitted"; statuses transition validly | integration | ⬜ |
+| AC-SCR-5 | SCR-5 | Estimated salary labeled distinctly from stated; never shown as stated | unit + feed rendering test in `internal/m5` and `internal/feed` | ✅ |
+| AC-SCR-6 | SCR-6 | Free-form requirements produce deduplicated structured tags | unit in `internal/m5` | ✅ |
+| AC-FEED-4 | FEED-4 | Match score computed from requirement overlap vs CV | unit + personalized feed fields | ✅ |
+| AC-FEED-5 | FEED-5 | Saved filters persist; alert fires on new matching listing | memory store + mailer test and periodic alert loop | ✅ |
+| AC-FEED-6 | FEED-6 | User can hide a job and mark it already applied without changing the public feed | API + memory store test | ✅ |
+| AC-APP-6 | APP-6 | Tracker records "form filled" and user-confirmed "submitted"; statuses transition validly | authenticated API + memory store test | ✅ |
+| AC-APP-7 | APP-7 | Reusable snippets substitute name, role, and company variables | authenticated API + unit test | ✅ |
+| AC-CV-5 | CV-5 | User can keep multiple CV versions and select a primary version | CV version repo/API | ✅ |
+| AC-CV-6 | CV-6 | Profile completeness returns a score and missing-field prompts | profile unit/API | ✅ |
 | AC-AUTH-5 | AUTH-5 | Account deletion removes PII; data export returns complete user data (UU PDP) | integration | ✅ |
 | AC-MOB-4 | MOB-4 | Android WebView consumes the **same** `fill-mappings` package (no forked copy) | build/dep test: android references shared package version | ⬜ |
 
@@ -124,6 +129,6 @@ Test-type conventions:
 
 ## Traceability & enforcement
 - Every `AC-*` test name embeds its Test ID so CI output maps 1:1 to this file.
-- `scripts/verify.sh` is the local gate; `.github/workflows/verify.yml` runs it with Postgres plus Docker/S3 smoke checks. Browser E2E and Postgres-backed perf stages remain.
+- `scripts/verify.sh` is the local gate; `.github/workflows/verify.yml` runs it with Postgres plus Docker/S3 smoke checks. The native Chrome MV3 browser E2E runs in the gate when an extension-capable Chrome binary is available (`CHROME_BIN`).
 - When you implement a requirement: (1) write its `AC-*` test, (2) make it pass, (3) flip Status here to ✅, (4) update `PROGRESS.md`.
 - Adding a new requirement means adding a row here **first** (spec before code).

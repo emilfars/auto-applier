@@ -63,11 +63,67 @@ func (s *Service) WithCVSource(source CVSource) *Service {
 func (s *Service) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /profile", s.handleGet)
+	mux.HandleFunc("GET /profile/completeness", s.handleCompleteness)
 	mux.HandleFunc("GET /profile/fill", s.handleFill)
 	mux.HandleFunc("PATCH /profile", s.handlePatch)
 	mux.HandleFunc("POST /profile/confirm", s.handleConfirm)
 	mux.HandleFunc("GET /profile/arm", s.handleArm)
 	return mux
+}
+
+// Completeness reports the fields that commonly block a useful application.
+// It is guidance only; the stricter confirmation gate remains authoritative.
+type Completeness struct {
+	Score    int      `json:"score"`
+	Complete bool     `json:"complete"`
+	Missing  []string `json:"missing"`
+}
+
+func CalculateCompleteness(p Profile) Completeness {
+	checks := []struct {
+		name string
+		ok   bool
+	}{
+		{"full_name", strings.TrimSpace(p.FullName) != ""},
+		{"email", validEmail(p.Email)},
+		{"phone", strings.TrimSpace(p.Phone) != ""},
+		{"education", hasEducation(p.Education)},
+		{"work_history", hasEntries(p.WorkHistory)},
+		{"skills", hasNonBlankString(p.Skills)},
+		{"work_authorization", strings.TrimSpace(p.WorkAuthorization) != ""},
+		{"preferred_locations", hasNonBlankString(p.PreferredLocations)},
+		{"employment_type", allowedEmploymentTypes[p.EmploymentType]},
+		{"summary", strings.TrimSpace(p.Summary) != ""},
+	}
+	missing := make([]string, 0)
+	complete := 0
+	for _, check := range checks {
+		if check.ok {
+			complete++
+		} else {
+			missing = append(missing, check.name)
+		}
+	}
+	return Completeness{Score: complete * 100 / len(checks), Complete: len(missing) == 0, Missing: missing}
+}
+
+func hasEntries(raw json.RawMessage) bool {
+	var values []json.RawMessage
+	return json.Unmarshal(raw, &values) == nil && len(values) > 0
+}
+
+func (s *Service) handleCompleteness(w http.ResponseWriter, r *http.Request) {
+	u, ok := auth.UserFrom(r.Context())
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	p, err := s.load(r, u.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "load error")
+		return
+	}
+	writeJSON(w, http.StatusOK, CalculateCompleteness(p))
 }
 
 // load returns the user's profile, or an initialised empty one if none exists.

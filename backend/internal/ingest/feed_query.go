@@ -11,18 +11,18 @@ var ErrInvalidJobQuery = errors.New("ingest: invalid job query")
 
 // JobQuery contains the feed filters shared by the in-memory and Postgres paths.
 type JobQuery struct {
-	Search         string
-	PayMin         *int64
-	PayMax         *int64
-	Location       string
-	Remote         *bool
-	Skills         []string
-	MaxYoE         *int
-	EmploymentType string
-	Source         string
-	PostedAfter    *time.Time
-	Limit          int
-	Offset         int
+	Search         string     `json:"q,omitempty"`
+	PayMin         *int64     `json:"pay_min,omitempty"`
+	PayMax         *int64     `json:"pay_max,omitempty"`
+	Location       string     `json:"location,omitempty"`
+	Remote         *bool      `json:"remote,omitempty"`
+	Skills         []string   `json:"skills,omitempty"`
+	MaxYoE         *int       `json:"max_yoe,omitempty"`
+	EmploymentType string     `json:"employment_type,omitempty"`
+	Source         string     `json:"source,omitempty"`
+	PostedAfter    *time.Time `json:"posted_after,omitempty"`
+	Limit          int        `json:"limit,omitempty"`
+	Offset         int        `json:"offset,omitempty"`
 }
 
 // JobPage is a filtered, ordered page of jobs.

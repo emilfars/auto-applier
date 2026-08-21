@@ -35,9 +35,33 @@ Recorded so the loop does not re-litigate them. These solidify the MVP before an
 | Held until MVP is solid | Extension runtime bundler (already shipped — no further work), backend telemetry ingestion endpoint for `fill_correction`, and perf-stage NFRs (AC-FEED-1p 4G, AC-NFR-SCALE). |
 | Web UI (in MVP) | Ship the seeker web UI: **profile + CV-upload screens, feed pagination, and an "Open & Fill" button on feed cards.** |
 
-## Current implementation checkpoint (2026-08-15)
+## Sourcing-expansion decisions (locked 2026-08-21)
 
-M0-M4 are complete and the required Postgres plus Docker/API/S3 gate passes. The native Chrome MV3 Open & Fill browser gate is green; do not start M5 until the remaining launch blocker is closed:
+Verified against live endpoints on 2026-08-21. Supersedes the earlier
+"Tier 1 sources" finding where needed.
+
+| Topic | Decision |
+|---|---|
+| Remote listings | **Non-Indonesia roles are acceptable if the role is remote.** Location must render as "Remote"; FEED-2's remote filter applies. Stated-salary-only rule unchanged (drop unstated pay, never estimate). |
+| Paid job-board APIs | **Deferred.** Techmap, TheirStack, and jobdata API ($345/mo entry) are out of scope until the free stack is proven insufficient for the 5k gate. |
+| Jooble | **Reclassified backfill-only.** Verified 2026-08-21: free key = **500 requests lifetime** (not monthly), per-key, per-country-domain. Do not spend it on recurring sweeps; reserve for initial backfill and gap-filling. |
+| Careerjet | **Approved, implement next Tier 1 source.** Confirmed: `careerjet.co.id` serves Indonesian listings; free affiliate `affid`, locale `id_ID`, frequency-limited (no lifetime quota) — safe at 6h polling. Env var `CAREERJET_AFFID` is already scaffolded in README. Verify HTTPS support of the search endpoint during implementation; degrade gracefully when unset (existing keyed-source pattern). |
+| ATS public-board harvester | **Approved as a supplement.** Greenhouse (`boards-api.greenhouse.io/v1/boards/{slug}/jobs`), Lever (`api.lever.co/v0/postings/{slug}?mode=json`), Workable widget API, Ashby posting API: public JSON, **no keys, no documented rate limits**. Requires a curated list of company slugs (start from confirmed hits such as Xendit/Greenhouse; expect tens of ID companies, not hundreds — large local hirers use Workday/Glints). Store the slug list as data (e.g. `backend/internal/ingest/atscompanies/*.json`), one entry per ATS. |
+| Remote-only boards | **Approved as supplements.** Remotive (`remotive.com/api/remote-jobs`), Jobicy (`jobicy.com/api/v2/remote-jobs`), RemoteOK — free, keyless, verified live. Volume is small and roles are worldwide-remote; tag location "Remote". |
+| Kalibrr | Unchanged: primary free source. |
+
+**Milestone placement:** these sources are an **extension of M3 (Ingestion +
+feed)** — they exist to close the 5,000-real-listing launch gate and are
+tracked under `AC-SCR-7..10` in ACCEPTANCE.md. They are not part of M4.5
+(UI-only) and do not reopen M3's completed FEED scope. API keys
+(`CAREERJET_AFFID`, Jooble key) are supplied by the owner after
+implementation; every source must degrade gracefully when its key is unset.
+
+## Current implementation checkpoint (2026-08-21)
+
+M0-M5, the M3 sourcing extensions (AC-SCR-7..10), and M4.5 web modernization
+are complete. The native Chrome MV3 Open & Fill browser gate is green. Launch
+still has one operational blocker:
 
 | Blocker | Current state |
 |---|---|
@@ -137,11 +161,29 @@ The plan is ordered so that **each milestone is independently shippable and demo
 
 > **End of MVP.** At this point the product delivers its promise end-to-end on desktop.
 
+## Milestone 4.5 — Web UI modernization + brand theme (pre-M5)
+**Goal:** the web app looks like a branded product, not a prototype: Tailwind-based UI with a palette derived from the brand's previous static site.
+
+**Brand source of truth:** screenshots of the previous static site ("Ofrim")
+belong in `design/brand/`. `design/brand/palette.md` is the **authoritative,
+text-extractable token list** — the palette has been sampled and filled in
+(2026-08-21), so no image reading is required: coding agents must read
+`palette.md`, not the images.
+
+### Scope
+1. **Adopt Tailwind CSS** (per the approved tech stack above; replaces the hand-rolled `styles.css`). Use CSS-custom-property design tokens bridged into Tailwind theme config so colors are never hardcoded in components.
+2. **Brand palette tokens** from `design/brand/palette.md`: primary, secondary/accent, neutrals (bg/surface/border/text/muted), semantic success/warning/danger. Define dark (default, refined from current slate look) and light variants via `data-theme` attribute; persist the user's choice.
+3. **Layout modernization:** sticky header with nav + language switcher; feed as a responsive card grid with a filters sidebar on desktop (stacked on mobile); skeleton loaders for feed/profile fetches; consistent button/input/chip styling; visible focus states.
+4. **Constraint — behavior frozen:** no route/API/logic changes; all existing web tests must keep passing (update selectors only where classes changed). i18n keys untouched; both locales keep parity.
+
+**Done when:** every color in `web/src` resolves to a token defined from `palette.md`; dark + light themes render; existing tests green; visual smoke via `npm run build` + manual check.
+
 ---
 
 # Post-MVP (add components later)
 
 ## Milestone 5 — P1 enhancements
+- **Status: complete (2026-08-21).**
 - SCR-5 salary estimation model (title x location x seniority); label estimates distinctly from stated pay (trust-critical).
 - SCR-6 requirement extraction into structured tags.
 - FEED-4 match score vs user's CV.

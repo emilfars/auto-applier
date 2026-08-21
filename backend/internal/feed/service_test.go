@@ -9,7 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/ingest"
+	"github.com/auto-applier/backend/internal/m5"
+	"github.com/auto-applier/backend/internal/profile"
 )
 
 func i64(v int64) *int64          { return &v }
@@ -123,8 +126,8 @@ func TestPaginationUsesDedupKeyForEqualDateAndTitle(t *testing.T) {
 	}
 }
 
-// AC-FEED-1: response carries stated pay, labeled, and NO estimated field.
-func TestFeedResponseNoEstimatedField(t *testing.T) {
+// AC-SCR-5: estimated pay is explicitly distinct from stated pay.
+func TestFeedResponseLabelsEstimatedPay(t *testing.T) {
 	svc := NewService(stubProvider{seed()})
 	rr := httptest.NewRecorder()
 	svc.Routes().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/feed", nil))
@@ -133,8 +136,8 @@ func TestFeedResponseNoEstimatedField(t *testing.T) {
 		t.Fatalf("status = %d", rr.Code)
 	}
 	body := rr.Body.String()
-	if strings.Contains(strings.ToLower(body), "estimat") {
-		t.Fatalf("feed response must not contain an estimated pay field:\n%s", body)
+	if !strings.Contains(strings.ToLower(body), "estimated") {
+		t.Fatalf("feed response should expose estimated pay for undisclosed roles:\n%s", body)
 	}
 
 	var resp feedResp
@@ -157,8 +160,9 @@ func TestFeedResponseNoEstimatedField(t *testing.T) {
 	if backend == nil || backend.Salary.Label != "Rp 15.000.000 - Rp 25.000.000" || !backend.Salary.Stated {
 		t.Errorf("backend salary card wrong: %+v", backend.Salary)
 	}
-	if analyst == nil || analyst.Salary.Stated || analyst.Salary.Label != "" {
-		t.Errorf("unstated salary should be empty/stated=false: %+v", analyst.Salary)
+	if analyst == nil || analyst.Salary.Stated || !analyst.Salary.Estimated ||
+		!strings.Contains(analyst.Salary.Label, "(estimated)") || analyst.Salary.EstimatedMin == nil {
+		t.Errorf("unstated salary should be explicitly estimated: %+v", analyst.Salary)
 	}
 }
 
@@ -214,4 +218,42 @@ func TestFeedHTTPPreservesPaginationNormalization(t *testing.T) {
 	if resp.Limit != 100 || resp.Offset != 0 {
 		t.Fatalf("pagination = limit %d offset %d, want 100/0", resp.Limit, resp.Offset)
 	}
+}
+
+func TestAC_FEED_4_PersonalizedMatchScoreAndState(t *testing.T) {
+	jobs := seed()
+	jobs[0].DedupKey = "backend-job"
+	profileRepo := profile.NewMemoryRepo()
+	_, err := profileRepo.Save(context.Background(), profile.Profile{
+		UserID: "user-1", Skills: json.RawMessage(`["Go", "PostgreSQL"]`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateStore := m5.NewMemoryStore(time.Now)
+	if _, err := stateStore.SetJobState(context.Background(), "user-1", m5.JobState{JobKey: "backend-job", AlreadyApplied: true}); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(stubProvider{jobs})
+	svc.WithPersonalization(profileRepo, stateStore)
+	req := httptest.NewRequest(http.MethodGet, "/feed", nil)
+	req = req.WithContext(auth.ContextWithUser(req.Context(), auth.User{ID: "user-1", Verified: true}))
+	rr := httptest.NewRecorder()
+	svc.Routes().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rr.Code, rr.Body.String())
+	}
+	var response feedResp
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	for _, job := range response.Jobs {
+		if job.Title == "Senior Backend Engineer" {
+			if job.MatchScore == nil || *job.MatchScore != 100 || !job.AlreadyApplied {
+				t.Fatalf("personalized card = %+v", job)
+			}
+			return
+		}
+	}
+	t.Fatal("personalized job missing")
 }

@@ -6,6 +6,7 @@ import { ProfilePanel } from "./components/ProfilePanel";
 import { CvPanel } from "./components/CvPanel";
 import { useSession } from "./auth/session";
 import { ThemeToggle } from "./theme";
+import { EnhancementsPanel } from "./components/EnhancementsPanel";
 
 export default function App() {
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
@@ -67,6 +68,7 @@ export default function App() {
                 {t(locale, "nav.profile")}
               </a>
             )}
+            {user && <a className="text-brand-accent-light" href="#enhancements">{t(locale, "nav.tools")}</a>}
           </nav>
         </div>
       </header>
@@ -107,10 +109,20 @@ export default function App() {
                 onConfirmedChange={setProfileConfirmed}
               />
             </section>
+
+            <section
+              id="enhancements"
+              className="panel mb-6 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-xl sm:p-7"
+            >
+              <h2 className="panel__heading mb-5 text-xl font-bold tracking-tight text-brand-text">
+                {t(locale, "m5.heading")}
+              </h2>
+              <EnhancementsPanel locale={locale} />
+            </section>
           </>
         )}
 
-        <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} />
+        <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} signedIn={!!user} />
       </div>
     </main>
   );

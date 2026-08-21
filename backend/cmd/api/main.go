@@ -22,6 +22,7 @@ import (
 	"github.com/auto-applier/backend/internal/db"
 	"github.com/auto-applier/backend/internal/feed"
 	"github.com/auto-applier/backend/internal/ingest"
+	"github.com/auto-applier/backend/internal/m5"
 	"github.com/auto-applier/backend/internal/profile"
 	"github.com/auto-applier/backend/internal/queue"
 	"github.com/auto-applier/backend/internal/seed"
@@ -55,7 +56,7 @@ func main() {
 	})
 
 	// CV uploads are stored encrypted at rest (AC-CV-1b) and gated behind a
-	// verified session. Object-store backend is in-memory until S3 lands.
+	// verified session.
 	// Parsing (AC-CV-2) uses a hosted resume-parse API when CV_PARSER_URL is
 	// set; otherwise it degrades to 503 (upload/edit still work fully).
 	// Profile edit + confirm-before-apply gate (AC-CV-3/4/5).
@@ -74,16 +75,21 @@ func main() {
 
 	// Data-rights endpoints (AC-AUTH-5 / UU PDP): export all user data and
 	// delete the account with every piece of PII it owns.
-	accountSvc := account.NewService(authRepo, profileRepo, cvSvc)
-	gatedAccount := authSvc.RequireVerified(accountSvc.Routes())
 	telemetrySvc := telemetry.NewService()
 
-	// Public job feed (FEED-1..3): browsable before signup, stated-pay only.
+	// Public job feed: browsable before signup; M5 estimates are explicitly
+	// labeled separately from stated pay.
 	// Postgres-backed when DATABASE_URL is set (jobs persist across restarts and
 	// are populated by the seed/ingestion); otherwise an in-memory store with a
 	// synthetic demo seed backs local dev.
 	jobStore, jobCounter, pgxJobStore := newJobStore(pool)
-	feedSvc := feed.NewService(jobStore)
+	m5Store := newM5Store(pool)
+	accountSvc := account.NewService(authRepo, profileRepo, cvSvc).WithAdditionalStore(m5Store)
+	gatedAccount := authSvc.RequireVerified(accountSvc.Routes())
+	m5Svc := m5.NewService(m5Store, jobStore, authRepo, profileRepo, mailer, time.Now)
+	feedSvc := feed.NewService(jobStore).WithPersonalization(profileRepo, m5Store)
+	stopAlerts := startM5AlertLoop(m5Svc, mailer != nil, durEnv("ALERT_INTERVAL", 6*time.Hour))
+	defer stopAlerts()
 
 	// Background ingestion + staleness sweep via River (Postgres only).
 	stopQueue, err := startIngestQueue(pool, pgxJobStore)
@@ -100,8 +106,15 @@ func main() {
 			api.Mount{Pattern: "/profile/", Handler: gatedProfile},
 			api.Mount{Pattern: "/account", Handler: gatedAccount},
 			api.Mount{Pattern: "/account/", Handler: gatedAccount},
-			api.Mount{Pattern: "/feed", Handler: feedSvc.Routes()},
+			api.Mount{Pattern: "/feed", Handler: authSvc.OptionalVerified(feedSvc.Routes())},
 			api.Mount{Pattern: "/telemetry/", Handler: telemetrySvc.Routes()},
+			api.Mount{Pattern: "/saved-filters", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/saved-filters/", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/jobs/", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/applications", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/applications/", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/snippets", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/snippets/", Handler: authSvc.RequireVerified(m5Svc.Routes())},
 		), api.SecurityConfig{
 			EnforceHTTPS:        boolEnv("ENFORCE_HTTPS", false),
 			TrustForwardedProto: trustedProxyHops > 0,
@@ -126,6 +139,40 @@ func main() {
 		log.Fatalf("shutdown error: %v", err)
 	}
 	log.Println("api stopped")
+}
+
+func startM5AlertLoop(service *m5.Service, enabled bool, interval time.Duration) func() {
+	if !enabled || interval <= 0 {
+		return func() {}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if _, err := service.NotifyAllMatches(ctx); err != nil {
+					log.Printf("m5 alerts: %v", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		<-done
+	}
+}
+
+func newM5Store(pool *pgxpool.Pool) m5.Store {
+	if pool == nil {
+		return m5.NewMemoryStore(time.Now)
+	}
+	return m5.NewPgxStore(pool)
 }
 
 // newJobStore returns the feed provider, its real-active counter, and, when

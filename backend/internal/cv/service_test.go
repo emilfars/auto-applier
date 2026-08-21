@@ -230,3 +230,26 @@ func TestMemoryRepoCreatesUUIDFileIDs(t *testing.T) {
 		t.Fatalf("memory file id = %q, want UUID: %v", file.ID, err)
 	}
 }
+
+func TestAC_CV_5_MultipleVersionsAndPrimarySelection(t *testing.T) {
+	repo := NewMemoryRepo()
+	first, err := repo.CreateFile(context.Background(), File{UserID: "user-1", Filename: "base.pdf"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := repo.CreateFile(context.Background(), File{UserID: "user-1", Filename: "tech.pdf"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.IsPrimary || second.IsPrimary {
+		t.Fatalf("initial primary versions = %+v, %+v", first, second)
+	}
+	primary := true
+	if _, err := repo.UpdateVersion(context.Background(), "user-1", second.ID, "Technical CV", &primary); err != nil {
+		t.Fatal(err)
+	}
+	files, err := repo.FilesByUser(context.Background(), "user-1")
+	if err != nil || len(files) != 2 || !files[0].IsPrimary || files[0].Label != "Technical CV" {
+		t.Fatalf("versions = %+v, err=%v", files, err)
+	}
+}

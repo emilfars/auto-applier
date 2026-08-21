@@ -38,16 +38,34 @@ type CVStore interface {
 	DeleteUserFiles(ctx context.Context, userID string) error
 }
 
+type AdditionalStore interface {
+	DeleteUser(context.Context, string) error
+}
+
+type AdditionalExporter interface {
+	ExportUser(context.Context, string) (any, error)
+}
+
 // Service exposes the export + delete endpoints.
 type Service struct {
-	users    UserStore
-	profiles ProfileStore
-	cvs      CVStore
+	users      UserStore
+	profiles   ProfileStore
+	cvs        CVStore
+	additional AdditionalStore
+	exporter   AdditionalExporter
 }
 
 // NewService builds the account service from the three domain stores.
 func NewService(users UserStore, profiles ProfileStore, cvs CVStore) *Service {
 	return &Service{users: users, profiles: profiles, cvs: cvs}
+}
+
+func (s *Service) WithAdditionalStore(store AdditionalStore) *Service {
+	s.additional = store
+	if exporter, ok := store.(AdditionalExporter); ok {
+		s.exporter = exporter
+	}
+	return s
 }
 
 // Routes returns the account HTTP handler. Callers must wrap it with auth
@@ -102,10 +120,11 @@ type cvFileExport struct {
 }
 
 type exportResponse struct {
-	Account  accountExport  `json:"account"`
-	Profile  *profileExport `json:"profile"`
-	CVFiles  []cvFileExport `json:"cv_files"`
-	Exported time.Time      `json:"exported_at"`
+	Account    accountExport  `json:"account"`
+	Profile    *profileExport `json:"profile"`
+	CVFiles    []cvFileExport `json:"cv_files"`
+	Additional any            `json:"additional,omitempty"`
+	Exported   time.Time      `json:"exported_at"`
 }
 
 func (s *Service) handleExport(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +169,14 @@ func (s *Service) handleExport(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:   f.CreatedAt.UTC(),
 		})
 	}
+	if s.exporter != nil {
+		additional, exportErr := s.exporter.ExportUser(ctx, u.ID)
+		if exportErr != nil {
+			writeErr(w, http.StatusInternalServerError, "load additional data")
+			return
+		}
+		out.Additional = additional
+	}
 
 	writeJSON(w, http.StatusOK, out)
 }
@@ -174,6 +201,12 @@ func (s *Service) handleDelete(w http.ResponseWriter, r *http.Request) {
 	if err := s.profiles.Delete(ctx, u.ID); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete profile")
 		return
+	}
+	if s.additional != nil {
+		if err := s.additional.DeleteUser(ctx, u.ID); err != nil {
+			writeErr(w, http.StatusInternalServerError, "delete account data")
+			return
+		}
 	}
 	if err := s.users.DeleteUser(ctx, u.ID); err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete account")

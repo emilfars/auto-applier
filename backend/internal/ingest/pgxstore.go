@@ -117,6 +117,17 @@ func (s *PgxStore) ActiveJobs(ctx context.Context) ([]Job, error) {
 // SearchFeed applies feed filters in Postgres and returns only the requested
 // page. It is the optional production capability used by the feed HTTP service.
 func (s *PgxStore) SearchFeed(ctx context.Context, q JobQuery) (JobPage, error) {
+	return s.searchFeed(ctx, q, "")
+}
+
+// SearchFeedForUser applies the same query while excluding that user's hidden
+// jobs. It keeps authenticated feed requests paginated in Postgres instead of
+// loading the whole listing table into the API process.
+func (s *PgxStore) SearchFeedForUser(ctx context.Context, q JobQuery, userID string) (JobPage, error) {
+	return s.searchFeed(ctx, q, userID)
+}
+
+func (s *PgxStore) searchFeed(ctx context.Context, q JobQuery, userID string) (JobPage, error) {
 	if err := ValidateJobQuery(q); err != nil {
 		return JobPage{}, fmt.Errorf("validate feed query: %w", err)
 	}
@@ -131,6 +142,13 @@ func (s *PgxStore) SearchFeed(ctx context.Context, q JobQuery) (JobPage, error) 
 	}
 
 	where, args := feedWhere(q)
+	if userID != "" {
+		args = append(args, userID)
+		where += ` AND NOT EXISTS (
+			SELECT 1 FROM job_user_states
+			WHERE user_id = $` + strconv.Itoa(len(args)) + `
+			  AND job_key = jobs.dedup_key AND dismissed = true)`
+	}
 	var total int
 	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE `+where, args...).Scan(&total); err != nil {
 		return JobPage{}, fmt.Errorf("count filtered jobs: %w", err)

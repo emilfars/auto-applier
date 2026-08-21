@@ -7,6 +7,8 @@ import { apiFetch } from "./http";
 export interface CVFile {
   id: string;
   filename: string;
+  label?: string;
+  is_primary?: boolean;
   content_type: string;
   size_bytes: number;
   created_at: string;
@@ -27,4 +29,8 @@ export function uploadCV(file: File): Promise<CVFile> {
 /** Parse a previously-uploaded CV into the user's profile. */
 export function parseCV(id: string): Promise<unknown> {
   return apiFetch<unknown>(`/cv/${encodeURIComponent(id)}/parse`, { method: "POST" });
+}
+
+export function updateCVVersion(id: string, patch: { label?: string; is_primary?: boolean }): Promise<CVFile> {
+  return apiFetch<CVFile>(`/cv/${encodeURIComponent(id)}`, { method: "PATCH", body: patch });
 }

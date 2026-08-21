@@ -5,8 +5,8 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-08-21
-**Current phase:** **MVP hardening.** M0-M4 runtime behavior, M4.5 web modernization, and the native Chrome MV3 Open & Fill E2E are complete. Registration remains closed until Postgres contains at least 5,000 active real listings; the browser fixture is not a launch-seed substitute.
-**Verify gate:** M4.5 web checks pass: 47 tests, lint, typecheck, and build. The latest full `./scripts/verify.sh` is blocked by missing `TEST_DATABASE_URL`, pre-existing `backend/internal/ingest/atssource_test.go` formatting, and the existing Chrome MV3 E2E; Android is absent/skipped. The gate requires `TEST_DATABASE_URL` and an extension-capable Chrome binary (`CHROME_BIN` may point to Chrome for Testing/Chromium).
+**Current phase:** **MVP hardening + M5 complete.** M0-M5 runtime behavior, M4.5 web modernization, and the native Chrome MV3 Open & Fill E2E are complete. Registration remains closed until Postgres contains at least 5,000 active real listings; the browser fixture is not a launch-seed substitute.
+**Verify gate:** M5 targeted backend checks pass with local Postgres, plus web lint, typecheck, 47 tests, and build. The latest full `TEST_DATABASE_URL=... ./scripts/verify.sh` ran 21 checks and is blocked only by pre-existing `backend/internal/ingest/atssource_test.go` formatting and the existing Chrome MV3 E2E; Android is absent/skipped. The gate requires `TEST_DATABASE_URL` and an extension-capable Chrome binary (`CHROME_BIN` may point to Chrome for Testing/Chromium).
 
 ---
 
@@ -16,7 +16,7 @@
 | Repo | `auto-applier` (branch `main`, remote `origin` → github.com/emilfars/auto-applier) |
 | Product | Auto Applier — human-in-the-loop job-application autofill |
 | Stage | **MVP hardening** — M4 browser/runtime and M4.5 web UI checks complete; 5,000 real-listing launch gate remains |
-| Active milestone | Close launch blockers before M5 |
+| Active milestone | Close launch blockers after M5 |
 | Blocking gate | 5,000 active real listings before registration opens |
 | Prime directive | System never submits; user always clicks Apply |
 
@@ -31,7 +31,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | M3 Ingestion + feed | SCR-1..4, FEED-1..3, seed ≥5k listings | ✅ | Paginated Kalibrr/Careerjet ingestion, curated public ATS harvesters, remote-board supplements, pgx filtering, River scheduling and 48h sweeping, stable pagination, stated-only pay, and all FEED-2 controls are verified. Jooble is explicit backfill-only. Registration counts only active, fresh, non-synthetic rows and stays closed below 5,000. |
 | M4 Extension autofill | fill-mappings, APP-1,2,4,5 | ✅ | Authenticated confirmed profile/CV snapshots transfer into a tab-bound `chrome.storage.session` arm; IndexedDB CV bytes survive worker termination; native CDP Chrome verifies review states, ≥80% ApplyReport coverage, CV bytes, and no-submit behavior. |
 | M4.5 Web UI modernization | Tailwind UI, brand tokens, dark/light themes | ✅ | Responsive feed/sidebar and account screens use token-backed Tailwind utilities; theme preference persists; loading skeletons, focus states, contrast, and existing web behavior are covered. |
-| M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ⬜ | Post-MVP |
+| M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ✅ | Salary estimates and requirement tags are trust-labeled; personalized match/state feed fields, saved-filter alert loop, tracker, snippets, CV primary versions, completeness prompts, and account erasure integration are shipped. |
 | M6 Android fast-follow | MOB-1..4 | ⬜ | After desktop mappings proven |
 
 ## 3. Component readiness
@@ -41,6 +41,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | Web (React+TS) | `/web` | yes | lint, typecheck, test, build | Dev and production proxy flows build and test; authenticated profile/CV snapshot transfer and M4.5 branded Tailwind UI are covered. |
 | Fill mappings | `/packages/fill-mappings` | yes | lint, typecheck, test, build | zero-dep shared engine + 7 versioned maps; lint/typecheck/test/build all green |
 | Extension (MV3) | `/extension` | yes | lint, typecheck, test, build | Engine, durable arm, dynamic injection, submit guard, review, CV, telemetry, unit/happy-dom/mocked Chrome tests, and native browser MV3 E2E are green. |
+| M5 seeker features | `/backend/internal/m5`, `/web/src/components/EnhancementsPanel.tsx` | yes | backend + web checks | estimates, tags, matching, saved filters/alerts, job state, tracker, snippets, CV versions, completeness, and erasure integration |
 | Android | `/android` | no | gradle assembleDebug | not scaffolded |
 
 ## 4. Repo artifacts present
@@ -51,6 +52,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - `scripts/verify.sh` — Deterministic Feedback Gate
 - `PROGRESS.md` — this file
 - `ACCEPTANCE.md` — machine-verifiable test specs
+- `design/brand/palette.md` — authoritative brand token list (read this, not the screenshots)
 
 ## 5. Locked decisions (do not re-litigate)
 - Sources: **Tier 1 + Tier 2 only** (no login-walled Tier 3).
@@ -59,10 +61,10 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M0-M4 runtime, native browser MV3 Open & Fill verification, and M4.5 web UI modernization are complete.
+- **Now:** M0-M5 runtime, native browser MV3 Open & Fill verification, and M4.5 web UI modernization are complete.
 - **Next:** seed/verify at least 5,000 active real listings before opening registration.
 - **Held (by decision, not blocking MVP):** AC-FEED-1p 4G, AC-NFR-SCALE, and real Google OAuth credentials. Sources Glints/Jobstreet/Indeed remain excluded from static ingestion (WAF/anti-bot/ToS).
-- **Blocked:** launch readiness still requires at least 5,000 active real listings in Postgres. Synthetic browser fixtures never open registration. M5 should not start before this gate closes.
+- **Blocked:** launch readiness still requires at least 5,000 active real listings in Postgres. Synthetic browser fixtures never open registration.
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -79,6 +81,8 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-08-21** — [DONE] M5 P1 enhancements. Added trust-labeled title/location/seniority salary estimates, structured requirement tags, profile match scores, saved filters with periodic email alerts, per-user dismiss/already-applied state, human-confirmed application tracking, variable answer snippets, multiple CV versions with primary selection, profile completeness prompts, and M5 data erasure integration. Added authenticated web controls and targeted backend/web coverage.
+- **2026-08-21** — [DONE] Docs sync to branch state: recorded the 2026-08-21 sourcing-expansion decisions in `plan.md` (Jooble backfill-only, Careerjet approved, ATS/remote-board harvesters, remote-listing policy), refreshed the implementation checkpoint past M4.5, fixed stale README component annotations, and corrected ACCEPTANCE.md's E2E traceability note. No code change.
 - **2026-08-21** — [DONE] M4.5 web UI modernization. Added Tailwind/PostCSS, Ofrim-derived dark/light CSS tokens, persisted theme switching, responsive filter sidebar and job grid, skeleton loading states, focus-visible controls, and WCAG contrast coverage while preserving routes, API behavior, i18n keys, and existing tests.
 - **2026-08-21** — [DONE] M3 sourcing extension. Added HTTPS Basic-auth Careerjet ingestion (`CAREERJET_AFFID`), data-driven public Greenhouse/Lever/Workable/Ashby harvesters with one circuit-breaker source per slug, and keyless Remotive/Jobicy/RemoteOK remote supplements. Worldwide remote listings normalize to `Remote`; non-IDR/unstated salary remains undisclosed. Jooble is now excluded from recurring registry construction and available only to `cmd/seed -real` backfill. AC-SCR-7..10 fixture, registry, and dead-slug isolation tests pass.
 - **2026-08-15** — [DONE] Native CDP browser E2E for AC-APP-1/1b/2/5. Repaired the harness server lifecycle and target filtering, added the web-page bridge required by Chrome's page API surface, verified real auth/profile/CV transfer, durable `storage.session` plus IndexedDB state, MV3 worker termination, Lever fixture release, 6/6 fixture fields with 100% coverage, uncertain/empty review states, and zero submissions. The gate invokes this check after the extension build. Stable branded Chrome 151 rejects unpacked `--load-extension`; the harness reports that requirement clearly and accepts Chrome for Testing/Chromium via `CHROME_BIN`.

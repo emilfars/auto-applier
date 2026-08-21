@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/ingest"
+	"github.com/auto-applier/backend/internal/m5"
+	"github.com/auto-applier/backend/internal/profile"
 )
 
 // Provider supplies the active (non-stale) jobs the feed serves.
@@ -20,13 +23,35 @@ type queryProvider interface {
 	SearchFeed(ctx context.Context, q ingest.JobQuery) (ingest.JobPage, error)
 }
 
+type personalizedQueryProvider interface {
+	SearchFeedForUser(context.Context, ingest.JobQuery, string) (ingest.JobPage, error)
+}
+
+type profileProvider interface {
+	Get(context.Context, string) (profile.Profile, error)
+}
+
+type stateProvider interface {
+	GetJobState(context.Context, string, string) (m5.JobState, error)
+}
+
 // Service exposes the feed HTTP API.
 type Service struct {
 	provider Provider
+	profiles profileProvider
+	states   stateProvider
 }
 
 // NewService builds a feed service over a job provider.
 func NewService(p Provider) *Service { return &Service{provider: p} }
+
+// WithPersonalization adds optional per-user match scores and job state. The
+// public feed remains unchanged for anonymous visitors.
+func (s *Service) WithPersonalization(profiles profileProvider, states stateProvider) *Service {
+	s.profiles = profiles
+	s.states = states
+	return s
+}
 
 // Routes returns the feed HTTP handler. The feed is public (browsable before
 // signup) so it needs no auth middleware.
@@ -36,17 +61,21 @@ func (s *Service) Routes() http.Handler {
 	return mux
 }
 
-// salaryCard carries stated pay only, clearly labeled. There is deliberately no
-// estimated field at MVP (locked decision).
+// salaryCard keeps stated and estimated pay separate so estimates cannot be
+// mistaken for employer-provided compensation.
 type salaryCard struct {
-	StatedMin *int64 `json:"stated_min"`
-	StatedMax *int64 `json:"stated_max"`
-	Currency  string `json:"currency"`
-	Label     string `json:"label"`
-	Stated    bool   `json:"stated"`
+	StatedMin    *int64 `json:"stated_min"`
+	StatedMax    *int64 `json:"stated_max"`
+	EstimatedMin *int64 `json:"estimated_min,omitempty"`
+	EstimatedMax *int64 `json:"estimated_max,omitempty"`
+	Currency     string `json:"currency"`
+	Label        string `json:"label"`
+	Stated       bool   `json:"stated"`
+	Estimated    bool   `json:"estimated"`
 }
 
 type card struct {
+	DedupKey        string     `json:"dedup_key"`
 	Source          string     `json:"source"`
 	SourceURL       string     `json:"source_url"`
 	Title           string     `json:"title"`
@@ -58,6 +87,9 @@ type card struct {
 	EmploymentType  string     `json:"employment_type"`
 	YearsExperience *int       `json:"years_experience"`
 	Requirements    []string   `json:"requirements"`
+	RequirementTags []string   `json:"requirement_tags"`
+	MatchScore      *int       `json:"match_score"`
+	AlreadyApplied  bool       `json:"already_applied"`
 	PostedAt        *string    `json:"posted_at"`
 }
 
@@ -76,8 +108,39 @@ func (s *Service) handleFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	q = normalizeQuery(q)
 
+	user, signedIn := auth.UserFrom(r.Context())
+	personalized := signedIn && s.states != nil
+	states := map[string]m5.JobState{}
 	var res Result
-	if provider, ok := s.provider.(queryProvider); ok {
+	if personalized {
+		if provider, ok := s.provider.(personalizedQueryProvider); ok {
+			page, queryErr := provider.SearchFeedForUser(r.Context(), q, user.ID)
+			if queryErr != nil {
+				writeErr(w, http.StatusInternalServerError, "feed unavailable")
+				return
+			}
+			res = Result{Total: page.Total, Jobs: page.Jobs}
+		} else {
+			jobs, activeErr := s.provider.ActiveJobs(r.Context())
+			if activeErr != nil {
+				writeErr(w, http.StatusInternalServerError, "feed unavailable")
+				return
+			}
+			visible := make([]ingest.Job, 0, len(jobs))
+			for _, job := range jobs {
+				state, stateErr := s.states.GetJobState(r.Context(), user.ID, job.DedupKey)
+				if stateErr != nil {
+					writeErr(w, http.StatusInternalServerError, "feed unavailable")
+					return
+				}
+				states[job.DedupKey] = state
+				if !state.Dismissed {
+					visible = append(visible, job)
+				}
+			}
+			res = NewIndex(visible).Search(q)
+		}
+	} else if provider, ok := s.provider.(queryProvider); ok {
 		page, queryErr := provider.SearchFeed(r.Context(), q)
 		if queryErr != nil {
 			writeErr(w, http.StatusInternalServerError, "feed unavailable")
@@ -93,9 +156,34 @@ func (s *Service) handleFeed(w http.ResponseWriter, r *http.Request) {
 		res = NewIndex(jobs).Search(q)
 	}
 
+	var matchingProfile profile.Profile
+	hasProfile := personalized && s.profiles != nil
+	if hasProfile {
+		var profileErr error
+		matchingProfile, profileErr = s.profiles.Get(r.Context(), user.ID)
+		hasProfile = profileErr == nil
+	}
 	cards := make([]card, 0, len(res.Jobs))
 	for _, j := range res.Jobs {
-		cards = append(cards, toCard(j))
+		item := toCard(j)
+		if personalized {
+			state, ok := states[j.DedupKey]
+			if !ok {
+				var stateErr error
+				state, stateErr = s.states.GetJobState(r.Context(), user.ID, j.DedupKey)
+				if stateErr != nil {
+					writeErr(w, http.StatusInternalServerError, "feed unavailable")
+					return
+				}
+			}
+			item.AlreadyApplied = state.AlreadyApplied
+		}
+		if hasProfile {
+			if score, ok := m5.MatchScore(j, matchingProfile); ok {
+				item.MatchScore = &score
+			}
+		}
+		cards = append(cards, item)
 	}
 	writeJSON(w, http.StatusOK, feedResp{Total: res.Total, Limit: q.Limit, Offset: q.Offset, Jobs: cards})
 }
@@ -173,27 +261,46 @@ func toCard(j ingest.Job) card {
 	if reqs == nil {
 		reqs = []string{}
 	}
+	tags := m5.ExtractRequirementTags(reqs)
+	if tags == nil {
+		tags = []string{}
+	}
 	stated := j.SalaryStatedMin != nil || j.SalaryStatedMax != nil
+	salary := salaryCard{
+		StatedMin: j.SalaryStatedMin,
+		StatedMax: j.SalaryStatedMax,
+		Currency:  j.SalaryCurrency,
+		Label:     salaryLabel(j),
+		Stated:    stated,
+	}
+	if !stated {
+		if estimate, ok := m5.EstimateSalary(j); ok {
+			salary.EstimatedMin = &estimate.Min
+			salary.EstimatedMax = &estimate.Max
+			salary.Estimated = true
+			salary.Label = estimatedSalaryLabel(estimate)
+		}
+	}
 	return card{
-		Source:    j.Source,
-		SourceURL: j.SourceURL,
-		Title:     j.Title,
-		Company:   j.Company,
-		Location:  j.Location,
-		Remote:    j.Remote,
-		Salary: salaryCard{
-			StatedMin: j.SalaryStatedMin,
-			StatedMax: j.SalaryStatedMax,
-			Currency:  j.SalaryCurrency,
-			Label:     salaryLabel(j),
-			Stated:    stated,
-		},
+		DedupKey:        j.DedupKey,
+		Source:          j.Source,
+		SourceURL:       j.SourceURL,
+		Title:           j.Title,
+		Company:         j.Company,
+		Location:        j.Location,
+		Remote:          j.Remote,
+		Salary:          salary,
 		Seniority:       j.Seniority,
 		EmploymentType:  j.EmploymentType,
 		YearsExperience: j.YearsExperience,
 		Requirements:    reqs,
+		RequirementTags: tags,
 		PostedAt:        posted,
 	}
+}
+
+func estimatedSalaryLabel(estimate m5.SalaryEstimate) string {
+	return "~Rp " + grouped(estimate.Min) + " - Rp " + grouped(estimate.Max) + " (estimated)"
 }
 
 // salaryLabel formats stated pay for display. It returns an empty string when no

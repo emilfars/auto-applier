@@ -76,10 +76,46 @@ func (s *Service) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /cv", s.handleUpload)
 	mux.HandleFunc("GET /cv", s.handleList)
+	mux.HandleFunc("PATCH /cv/{id}", s.handleUpdateVersion)
 	if s.parser != nil {
 		mux.HandleFunc("POST /cv/{id}/parse", s.handleParse)
 	}
 	return mux
+}
+
+type versionRequest struct {
+	Label     string `json:"label"`
+	IsPrimary *bool  `json:"is_primary"`
+}
+
+func (s *Service) handleUpdateVersion(w http.ResponseWriter, r *http.Request) {
+	u, ok := auth.UserFrom(r.Context())
+	if !ok {
+		writeErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	versions, ok := s.repo.(VersionRepo)
+	if !ok {
+		writeErr(w, http.StatusNotImplemented, "cv versions unavailable")
+		return
+	}
+	var req versionRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil || (req.Label == "" && req.IsPrimary == nil) || len(req.Label) > 100 {
+		writeErr(w, http.StatusBadRequest, "invalid cv version")
+		return
+	}
+	f, err := versions.UpdateVersion(r.Context(), u.ID, r.PathValue("id"), req.Label, req.IsPrimary)
+	if errors.Is(err, ErrNotFound) {
+		writeErr(w, http.StatusNotFound, "cv not found")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "update cv version")
+		return
+	}
+	writeJSON(w, http.StatusOK, toResp(f))
 }
 
 // FilesByUser returns a user's CV file metadata (for data export, AC-AUTH-5).
@@ -129,6 +165,8 @@ func (s *Service) DeleteUserFiles(ctx context.Context, userID string) error {
 type fileResp struct {
 	ID          string `json:"id"`
 	Filename    string `json:"filename"`
+	Label       string `json:"label"`
+	IsPrimary   bool   `json:"is_primary"`
 	ContentType string `json:"content_type"`
 	SizeBytes   int64  `json:"size_bytes"`
 	CreatedAt   string `json:"created_at"`
@@ -299,6 +337,8 @@ func toResp(f File) fileResp {
 	return fileResp{
 		ID:          f.ID,
 		Filename:    f.Filename,
+		Label:       f.Label,
+		IsPrimary:   f.IsPrimary,
 		ContentType: f.ContentType,
 		SizeBytes:   f.SizeBytes,
 		CreatedAt:   f.CreatedAt.Format(time.RFC3339),

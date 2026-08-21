@@ -7,11 +7,11 @@ import {
   type OpenFillResult,
   type OpenFillStatus,
 } from "../api/openfill";
+import { recordApplication, setJobState } from "../api/m5";
 
 /**
- * JobCard renders a single feed listing. Salary is shown only when the employer
- * stated it; otherwise a neutral "not disclosed" label is shown — never an
- * estimate (locked decision).
+ * JobCard renders a single feed listing. Employer pay and M5 estimates use
+ * separate labels so a coarse estimate is never presented as stated pay.
  *
  * "Open & Fill" arms the browser extension to autofill the posting and opens it
  * in a new tab. The user reviews every field and clicks Apply themselves — the
@@ -23,17 +23,23 @@ export function JobCard({
   locale,
   canFill = false,
   fillReason,
+  signedIn = false,
+  onDismiss,
   runOpenFill = (url) => requestOpenAndFill(url, openFillDeps),
 }: {
   job: Job;
   locale: Locale;
   canFill?: boolean;
   fillReason?: "needLogin" | "needProfile";
+  signedIn?: boolean;
+  onDismiss?: () => void;
   runOpenFill?: (url: string) => Promise<OpenFillResult>;
 }) {
   const stated = hasStatedSalary(job.salary);
+  const tags = job.requirement_tags?.length ? job.requirement_tags : job.requirements;
   const [notice, setNotice] = useState<OpenFillStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [applied, setApplied] = useState(job.already_applied ?? false);
 
   const noticeKey: Record<OpenFillStatus, TranslationKey> = {
     armed: "feed.openFill.armed",
@@ -52,6 +58,23 @@ export function JobCard({
     try {
       const result = await runOpenFill(job.source_url);
       setNotice(result.status);
+      if (result.status === "armed" && signedIn && job.dedup_key && !applied) {
+        void recordApplication(job.dedup_key).catch(() => undefined);
+      }
+    } catch {
+      setNotice("error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeState(action: "dismiss" | "applied") {
+    if (!job.dedup_key) return;
+    setBusy(true);
+    try {
+      await setJobState(job.dedup_key, action);
+      if (action === "applied") setApplied(true);
+      if (action === "dismiss") onDismiss?.();
     } catch {
       setNotice("error");
     } finally {
@@ -86,14 +109,19 @@ export function JobCard({
         )}
       </p>
       <p
-        className={`job-card__salary m-0 text-base font-bold ${stated ? "text-brand-success" : "font-medium italic text-brand-muted"}`}
+        className={`job-card__salary m-0 text-base font-bold ${stated ? "text-brand-success" : job.salary.estimated ? "font-semibold text-brand-warning" : "font-medium italic text-brand-muted"}`}
         data-stated={stated}
       >
-        {stated ? job.salary.label : t(locale, "feed.salary.undisclosed")}
+        {stated || job.salary.estimated ? job.salary.label : t(locale, "feed.salary.undisclosed")}
       </p>
-      {job.requirements.length > 0 && (
+      {job.match_score != null && (
+        <p className="job-card__match m-0 text-sm font-semibold text-brand-accent-light">
+          {t(locale, "feed.matchScore", { score: job.match_score })}
+        </p>
+      )}
+      {tags.length > 0 && (
         <ul className="job-card__reqs m-0 flex list-none flex-wrap gap-2 p-0" aria-label={t(locale, "feed.requirements")}>
-          {job.requirements.slice(0, 6).map((req) => (
+          {tags.slice(0, 6).map((req) => (
             <li key={req} className="chip rounded-lg bg-brand-surface-2 px-2.5 py-1 text-xs text-brand-text">
               {req}
             </li>
@@ -117,6 +145,26 @@ export function JobCard({
         >
           {t(locale, "feed.viewApply")}
         </a>
+        {signedIn && (
+          <>
+            <button
+              type="button"
+              className="job-card__dismiss rounded-xl border border-brand-border bg-transparent px-3.5 py-2 text-sm font-semibold text-brand-muted transition hover:border-brand-danger hover:text-brand-danger disabled:opacity-60"
+              onClick={() => void changeState("dismiss")}
+              disabled={busy}
+            >
+              {t(locale, "feed.dismiss")}
+            </button>
+            <button
+              type="button"
+              className={`job-card__applied rounded-xl border px-3.5 py-2 text-sm font-semibold transition disabled:opacity-60 ${applied ? "border-brand-success bg-brand-success-soft text-brand-success" : "border-brand-border bg-transparent text-brand-muted hover:border-brand-success"}`}
+              onClick={() => void changeState("applied")}
+              disabled={busy || applied}
+            >
+              {applied ? t(locale, "feed.applied") : t(locale, "feed.markApplied")}
+            </button>
+          </>
+        )}
       </div>
       <p className="job-card__apply-note m-0 text-xs leading-5 text-brand-muted">{t(locale, "feed.openFill.note")}</p>
       {notice && (

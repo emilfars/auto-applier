@@ -418,6 +418,29 @@ func (s *Service) RequireVerified(next http.Handler) http.Handler {
 	})
 }
 
+// OptionalVerified attaches a verified session when present while preserving
+// anonymous access. It is used by the public feed for per-user M5 fields.
+func (s *Service) OptionalVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := sessionToken(r)
+		if token == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		sess, err := s.repo.SessionByToken(r.Context(), token)
+		if err != nil || s.cfg.Now().After(sess.ExpiresAt) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		u, err := s.repo.UserByID(r.Context(), sess.UserID)
+		if err != nil || !u.Verified {
+			next.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userCtxKey, u)))
+	})
+}
+
 // --- helpers ---
 
 // ipAllowed throttles expensive unauthenticated endpoints per client IP. It

@@ -106,3 +106,28 @@ func TestProfileAppFieldsMigration(t *testing.T) {
 		}
 	}
 }
+
+func TestAC_M5_Migrations(t *testing.T) {
+	migrations, err := LoadMigrations()
+	if err != nil {
+		t.Fatalf("LoadMigrations() error: %v", err)
+	}
+	checks := map[int][]string{
+		9:  {"saved_filters", "job_user_states", "answer_snippets"},
+		10: {"label", "is_primary", "cv_files_one_primary_per_user"},
+	}
+	for version, fragments := range checks {
+		var up string
+		for _, migration := range migrations {
+			if migration.Version == version {
+				up = migration.Up
+				break
+			}
+		}
+		for _, fragment := range fragments {
+			if !strings.Contains(up, fragment) {
+				t.Errorf("migration %d missing %q", version, fragment)
+			}
+		}
+	}
+}

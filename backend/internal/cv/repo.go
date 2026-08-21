@@ -18,6 +18,8 @@ type File struct {
 	UserID      string
 	ObjectKey   string
 	Filename    string
+	Label       string
+	IsPrimary   bool
 	ContentType string
 	SizeBytes   int64
 	CreatedAt   time.Time
@@ -33,4 +35,11 @@ type Repo interface {
 	// (right to erasure, AC-AUTH-5). Callers must delete the referenced
 	// objects from storage separately.
 	DeleteByUser(ctx context.Context, userID string) error
+}
+
+// VersionRepo is the optional M5 capability for naming and selecting a user's
+// CV version. Keeping it separate preserves small test fakes for the upload
+// contract.
+type VersionRepo interface {
+	UpdateVersion(context.Context, string, string, string, *bool) (File, error)
 }

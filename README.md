@@ -8,8 +8,8 @@ The system never submits. See `PRD.md` and `plan.md`.
 ```
 /backend                 Go API + ingestion workers and public source adapters
 /web                     React + TypeScript web app (Vite)
-/packages/fill-mappings  Shared, versioned per-portal fill maps (later)
-/extension               Chrome MV3 extension (later)
+/packages/fill-mappings  Shared, versioned per-portal fill maps
+/extension               Chrome MV3 extension
 /scripts/verify.sh       Deterministic verification gate
 ```
 
@@ -68,6 +68,7 @@ Environment variables (all optional for local dev):
 | `ATS_PUBLIC_ENABLED` | Enable curated public Greenhouse/Lever/Workable/Ashby boards (default `true`). |
 | `REMOTE_SOURCES_ENABLED` | Enable Remotive, Jobicy, and RemoteOK (default `true`). |
 | `REMOTE_LIMIT` | Maximum listings per remote source per run (default 100). |
+| `ALERT_INTERVAL` | Saved-filter email alert interval (default 6h; disabled without SMTP). |
 | `CV_PARSER_URL` | Hosted résumé-parse API (unset → parsing returns 503). |
 | `CV_ENCRYPTION_KEY` | 64 hex characters used to encrypt CV bytes before object storage. |
 | `S3_ENDPOINT` | S3-compatible endpoint. Required with `DATABASE_URL`. |

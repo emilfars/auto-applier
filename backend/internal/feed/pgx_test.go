@@ -7,12 +7,13 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/auto-applier/backend/internal/auth"
 	"github.com/auto-applier/backend/internal/db"
 	"github.com/auto-applier/backend/internal/ingest"
+	"github.com/auto-applier/backend/internal/m5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -126,9 +127,6 @@ func TestPgxFeedCombinedFiltersPaginationAndStatedPay(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("feed HTTP status = %d: %s", rr.Code, rr.Body.String())
 	}
-	if body := rr.Body.String(); strings.Contains(strings.ToLower(body), "estimat") {
-		t.Fatalf("feed response leaked estimated pay: %s", body)
-	}
 	var response feedResp
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode feed response: %v", err)
@@ -168,6 +166,39 @@ func TestPgxAndMemoryPaginationHaveStableTieBreakParity(t *testing.T) {
 			memory.Jobs[0].DedupKey != postgres.Jobs[0].DedupKey {
 			t.Fatalf("offset %d memory=%#v postgres=%#v", offset, memory.Jobs, postgres.Jobs)
 		}
+	}
+}
+
+func TestAC_FEED_6_PgxPersonalizedFeedExcludesDismissed(t *testing.T) {
+	store, pool := newFeedPgxStore(t)
+	ctx := context.Background()
+	var userID string
+	if err := pool.QueryRow(ctx, `INSERT INTO users (email) VALUES ($1) RETURNING id::text`, "feed-personalized@example.com").Scan(&userID); err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	t.Cleanup(func() { _, _ = pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID) })
+	job := ingest.Job{Source: "fixture", SourceURL: "https://example.test/personalized", DedupKey: "personalized-job", Title: "Engineer", Company: "Acme"}
+	if _, err := store.Upsert(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m5.NewPgxStore(pool).SetJobState(ctx, userID, m5.JobState{JobKey: job.DedupKey, Dismissed: true}); err != nil {
+		t.Fatal(err)
+	}
+	page, err := store.SearchFeedForUser(ctx, Query{}, userID)
+	if err != nil {
+		t.Fatalf("personalized search: %v", err)
+	}
+	if page.Total != 0 || len(page.Jobs) != 0 {
+		t.Fatalf("dismissed job remained visible: %+v", page)
+	}
+
+	service := NewService(store).WithPersonalization(nil, m5.NewPgxStore(pool))
+	req := httptest.NewRequest(http.MethodGet, "/feed", nil)
+	req = req.WithContext(auth.ContextWithUser(req.Context(), auth.User{ID: userID, Verified: true}))
+	rr := httptest.NewRecorder()
+	service.Routes().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("personalized HTTP status = %d: %s", rr.Code, rr.Body.String())
 	}
 }
 

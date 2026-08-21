@@ -201,6 +201,22 @@ func TestAC_CV_5_ConfirmBeforeApplyGate(t *testing.T) {
 	}
 }
 
+func TestAC_CV_6_CompletenessScoreAndPrompts(t *testing.T) {
+	p := Profile{
+		FullName: "Dina", Email: "dina@example.com", Phone: "+62812",
+		Education: json.RawMessage(`[{"institution":"UI"}]`),
+		Skills:    json.RawMessage(`["Go"]`), WorkAuthorization: "WNI",
+		PreferredLocations: json.RawMessage(`["Jakarta"]`), EmploymentType: "full_time",
+	}
+	result := CalculateCompleteness(p)
+	if result.Score != 80 || result.Complete {
+		t.Fatalf("completeness = %+v, want 80%% and incomplete", result)
+	}
+	if len(result.Missing) != 2 || result.Missing[0] != "work_history" || result.Missing[1] != "summary" {
+		t.Fatalf("missing = %v", result.Missing)
+	}
+}
+
 func TestProfileRequiresAuth(t *testing.T) {
 	svc := NewService(NewMemoryRepo(), nil)
 	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
