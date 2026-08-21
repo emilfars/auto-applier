@@ -161,9 +161,11 @@ func cityOf(location string) string {
 
 var employmentSynonyms = map[string]string{
 	"full time": "full_time", "fulltime": "full_time", "full-time": "full_time",
+	"full_time":   "full_time",
 	"penuh waktu": "full_time", "tetap": "full_time", "permanent": "full_time",
 	"part time": "part_time", "part-time": "part_time", "paruh waktu": "part_time",
-	"contract": "contract", "kontrak": "contract",
+	"part_time": "part_time",
+	"contract":  "contract", "kontrak": "contract",
 	"internship": "internship", "intern": "internship", "magang": "internship",
 	"freelance": "freelance", "lepas": "freelance",
 	"temporary": "temporary", "sementara": "temporary",
@@ -255,7 +257,7 @@ func ParseSalaryIDR(text string) (*int64, *int64) {
 	if s == "" {
 		return nil, nil
 	}
-	for _, skip := range []string{"nego", "competitive", "disclos", "undisclosed", "kompetitif"} {
+	for _, skip := range []string{"nego", "competitive", "disclos", "undisclosed", "kompetitif", "estimate", "based on experience"} {
 		if strings.Contains(s, skip) {
 			return nil, nil
 		}

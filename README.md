@@ -6,7 +6,7 @@ The system never submits. See `PRD.md` and `plan.md`.
 
 ## Repository layout
 ```
-/backend                 Go API + (later) scrapers + ingestion workers
+/backend                 Go API + ingestion workers and public source adapters
 /web                     React + TypeScript web app (Vite)
 /packages/fill-mappings  Shared, versioned per-portal fill maps (later)
 /extension               Chrome MV3 extension (later)
@@ -63,6 +63,11 @@ Environment variables (all optional for local dev):
 | `DATABASE_URL` | Postgres DSN. Unset → in-memory repos. |
 | `FEED_SEED_COUNT` | Synthetic demo listings seeded on boot (default 200; 0 disables). |
 | `CAREERJET_AFFID` | Free Careerjet affiliate id enabling the Tier-1 source (unset → source disabled). |
+| `CAREERJET_LIMIT` | Maximum Careerjet listings per recurring run (default 5,000 when configured). |
+| `JOOBLE_API_KEY` | Jooble partner key for explicit `cmd/seed -real` backfill only; never scheduled. |
+| `ATS_PUBLIC_ENABLED` | Enable curated public Greenhouse/Lever/Workable/Ashby boards (default `true`). |
+| `REMOTE_SOURCES_ENABLED` | Enable Remotive, Jobicy, and RemoteOK (default `true`). |
+| `REMOTE_LIMIT` | Maximum listings per remote source per run (default 100). |
 | `CV_PARSER_URL` | Hosted résumé-parse API (unset → parsing returns 503). |
 | `CV_ENCRYPTION_KEY` | 64 hex characters used to encrypt CV bytes before object storage. |
 | `S3_ENDPOINT` | S3-compatible endpoint. Required with `DATABASE_URL`. |

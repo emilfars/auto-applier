@@ -77,6 +77,10 @@ Test-type conventions:
 | AC-FEED-3 | FEED-3 | Free-text search matches on title + company | integration | ✅ |
 | AC-FEED-1p | NFR | Feed p95 < 2s on simulated 4G profile | perf test (may run in CI perf stage, not per-commit) | ⬜ |
 | AC-SEED-1 | plan | Seed job present that loads ≥5,000 active real listings before signup opens; synthetic listings never count | Postgres integration: fixture-source ingestion reaches 5,000 non-synthetic rows; registration gate remains closed for synthetic/below-threshold data | ✅ |
+| AC-SCR-7 | plan (2026-08-21) | Careerjet Tier-1 source ingests Indonesian listings when `CAREERJET_AFFID` is set; degrades to unregistered when unset; salary carried only when stated (no estimates) | unit + fixture-server integration mirroring `jooblesource_test.go` | ✅ |
+| AC-SCR-8 | plan (2026-08-21) | ATS public-board harvester ingests normalized jobs from a curated slug list per ATS (Greenhouse/Lever/Workable/Ashby); a dead slug fails its source only (circuit breaker), never the run | unit + fixture-server integration per ATS shape | ✅ |
+| AC-SCR-9 | plan (2026-08-21) | Remote-only board sources (Remotive/Jobicy/RemoteOK) ingest worldwide-remote listings with location normalized to "Remote"; unstated salary dropped, never estimated | unit + fixture-server integration | ✅ |
+| AC-SCR-10 | plan (2026-08-21) | Jooble is not scheduled on the recurring ingest interval (backfill-only); recurring registry excludes it unless an explicit backfill flag/env is set | unit on registry/schedule construction | ✅ |
 
 ## 4. Extension Autofill (M4 — core value)
 | Test ID | ID | Criteria | Verification | Status |
@@ -89,7 +93,16 @@ Test-type conventions:
 | AC-APP-5 | APP-5 | "Open & Fill" transfers the confirmed profile/CV, survives MV3 worker suspension, and fills the opened source page | browser e2e | ✅ — native Chrome storage.session + IndexedDB durability and worker-termination assertion |
 | AC-APP-TEL | plan | Fill-correction events are emitted when user overrides a filled value | unit on telemetry emitter + metadata-only ingestion | ✅ |
 
-## 5. Post-MVP specs (write when milestone starts)
+## 5. Web UI & brand theme (M4.5)
+| Test ID | ID | Criteria | Verification | Status |
+|---|---|---|---|---|
+| AC-WEB-1 | plan M4.5 | Tailwind CSS is the styling layer in `/web`; hand-rolled `styles.css` is removed or reduced to token definitions only | static: no component-level `.css` imports besides tokens; `npm run build` green | ⬜ |
+| AC-WEB-2 | plan M4.5 | All colors resolve to design tokens derived from `design/brand/palette.md`; **no hardcoded hex/rgb values outside the token definition file** | grep-based unit test over `web/src` (mirrors AC-SAFE-1 pattern) | ⬜ |
+| AC-WEB-3 | plan M4.5 | Dark (default) and light themes both render; preference persists across reloads | unit (`data-theme` toggle + storage) + build smoke | ⬜ |
+| AC-WEB-4 | plan M4.5 | Body text meets WCAG AA contrast (≥4.5:1) against its background in both themes for the token set | unit test computing contrast ratios from token values | ⬜ |
+| AC-WEB-5 | plan M4.5 | Behavior frozen: all existing web tests pass unchanged in intent (selectors may be updated where class names changed); i18n key parity intact for both locales | existing suites + `i18n.test.ts` | ⬜ |
+
+## 6. Post-MVP specs (write when milestone starts)
 | Test ID | ID | Criteria | Verification | Status |
 |---|---|---|---|---|
 | AC-SCR-5 | SCR-5 | Estimated salary labeled distinctly from stated; never shown as stated | unit + e2e on rendering | ⬜ |
@@ -99,7 +112,7 @@ Test-type conventions:
 | AC-AUTH-5 | AUTH-5 | Account deletion removes PII; data export returns complete user data (UU PDP) | integration | ✅ |
 | AC-MOB-4 | MOB-4 | Android WebView consumes the **same** `fill-mappings` package (no forked copy) | build/dep test: android references shared package version | ⬜ |
 
-## 6. Non-functional acceptance
+## 7. Non-functional acceptance
 | Test ID | Criteria | Verification | Status |
 |---|---|---|---|
 | AC-NFR-SEC | CV/PII encrypted in persistent object storage; HTTPS enforced in deployment | S3 integration (AC-CV-1b) + deployment config test | ✅ |

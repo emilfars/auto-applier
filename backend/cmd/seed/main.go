@@ -7,9 +7,10 @@
 //	  -n) and offline demos. Refuses DATABASE_URL; use -real for Postgres.
 //
 //	-real: pulls the requested target of REAL listings from the enabled live sources
-//	  (Kalibrr Tier 2 always; Jooble Tier 1 when JOOBLE_API_KEY is set) into
-//	  Postgres via the ingestion Runner. -n is the total real-listing target,
-//	  divided across enabled sources. Requires DATABASE_URL.
+//	  (Kalibrr, Careerjet, public ATS boards, and remote boards; Jooble only when
+//	  JOOBLE_API_KEY is set) into
+//	  Postgres via the ingestion Runner. -n is the requested target cap for
+//	  the primary source set. Requires DATABASE_URL.
 //
 // Neither mode fabricates salaries — listings carry employer-stated pay only.
 package main
@@ -84,17 +85,24 @@ func seedReal(target int) error {
 	defer closePool()
 
 	joobleKey := strings.TrimSpace(os.Getenv("JOOBLE_API_KEY"))
+	careerjetAffid := strings.TrimSpace(os.Getenv("CAREERJET_AFFID"))
 	kalibrrLimit, joobleLimit := realSeedCaps(target, joobleKey != "")
 	if joobleLimit == 0 {
 		joobleKey = ""
 	}
 	reg := ingest.BuildRegistry(ingest.SourceConfig{
-		KalibrrLimit: kalibrrLimit,
-		JoobleAPIKey: joobleKey,
-		JoobleLimit:  joobleLimit,
+		KalibrrLimit:   kalibrrLimit,
+		JoobleAPIKey:   joobleKey,
+		JoobleLimit:    joobleLimit,
+		JoobleBackfill: joobleKey != "",
+		CareerjetAffid: careerjetAffid,
+		CareerjetLimit: target,
+		ATSEnabled:     true,
+		RemoteEnabled:  true,
+		RemoteLimit:    100,
 	})
 	if len(reg.Sources()) == 0 {
-		return errors.New("no live sources enabled (check network / JOOBLE_API_KEY)")
+		return errors.New("no live sources enabled (check source configuration)")
 	}
 
 	store := ingest.NewPgxStore(pool)

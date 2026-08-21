@@ -81,6 +81,8 @@ func TestStartIngestQueueStartsWithNoSources(t *testing.T) {
 	t.Setenv("KALIBRR_LIMIT", "0")
 	t.Setenv("JOOBLE_LIMIT", "0")
 	t.Setenv("JOOBLE_API_KEY", "")
+	t.Setenv("ATS_PUBLIC_ENABLED", "false")
+	t.Setenv("REMOTE_SOURCES_ENABLED", "false")
 	t.Setenv("STALE_AFTER", "")
 
 	var started bool

@@ -214,7 +214,7 @@ func joobleSalaryText(s string) string {
 	}
 	if strings.Contains(l, "rp") || strings.Contains(l, "idr") ||
 		strings.Contains(l, "juta") || strings.Contains(l, "jt") {
-		return s
+		return trustedSalaryText(s)
 	}
 	return ""
 }

@@ -203,6 +203,14 @@ func startIngestQueueWith(pool *pgxpool.Pool, store *ingest.PgxStore, start queu
 		KalibrrLimit: intEnv("KALIBRR_LIMIT", seed.DefaultCount),
 		JoobleAPIKey: os.Getenv("JOOBLE_API_KEY"),
 		JoobleLimit:  intEnv("JOOBLE_LIMIT", seed.DefaultCount),
+		// Jooble is lifetime-quota backfill only and is not part of the recurring
+		// queue. The real seed command opts into it explicitly.
+		JoobleBackfill: false,
+		CareerjetAffid: os.Getenv("CAREERJET_AFFID"),
+		CareerjetLimit: intEnv("CAREERJET_LIMIT", seed.DefaultCount),
+		ATSEnabled:     boolEnv("ATS_PUBLIC_ENABLED", true),
+		RemoteEnabled:  boolEnv("REMOTE_SOURCES_ENABLED", true),
+		RemoteLimit:    intEnv("REMOTE_LIMIT", 100),
 	})
 	runner := ingest.NewRunner(reg, store, time.Now, 0, 0)
 	cfg, err := ingestQueueConfig()

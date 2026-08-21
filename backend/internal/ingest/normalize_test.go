@@ -196,6 +196,7 @@ func TestParseSalaryIDR(t *testing.T) {
 		{"$3,000 - $4,000", nil, nil},
 		{"Negotiable", nil, nil},
 		{"Gaji kompetitif", nil, nil},
+		{"Estimated based on experience: Rp 10.000.000 - Rp 15.000.000", nil, nil},
 		{"", nil, nil},
 	}
 	for _, c := range cases {
