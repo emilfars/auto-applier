@@ -18,7 +18,7 @@ const (
     "content": "<p>Go and PostgreSQL.</p>"
   }]
 }`
-	fixtureLeverJSON = `[{"text":"Platform Engineer","categories":{"location":"Remote","commitment":"Full-time"},"workplaceType":"remote","createdAt":1780308000000,"hostedUrl":"https://jobs.example.test/lever/1","descriptionPlain":"Build reliable systems."}]`
+	fixtureLeverJSON    = `[{"text":"Platform Engineer","categories":{"location":"Remote","commitment":"Full-time"},"workplaceType":"remote","createdAt":1780308000000,"hostedUrl":"https://jobs.example.test/lever/1","descriptionPlain":"Build reliable systems."}]`
 	fixtureWorkableJSON = `{
   "name": "PT Workable",
   "jobs": [{
