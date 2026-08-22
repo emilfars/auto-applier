@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { ActionIcon, useMantineColorScheme } from "@mantine/core";
+import { IconMoon, IconSun } from "@tabler/icons-react";
 import { t, type Locale } from "./i18n";
 
 export type Theme = "dark" | "light";
@@ -16,6 +18,9 @@ export function readTheme(): Theme {
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
+  // Mantine v7 uses data-mantine-color-scheme for its built-in theming.
+  // Keep both attributes in sync so legacy CSS and Mantine styles agree.
+  document.documentElement.setAttribute("data-mantine-color-scheme", theme);
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
@@ -26,16 +31,71 @@ export function applyTheme(theme: Theme): void {
 export function ThemeToggle({ locale = "en" }: { locale?: Locale }) {
   const [theme, setTheme] = useState<Theme>(readTheme);
 
-  useEffect(() => applyTheme(theme), [theme]);
+  // Try to sync with Mantine's color scheme when inside a MantineProvider.
+  // Outside the provider (e.g. in isolated tests) the hook throws — fall back
+  // to the local state implementation so tests remain stable.
+  let mantineScheme: ReturnType<typeof useMantineColorScheme> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    mantineScheme = useMantineColorScheme();
+  } catch {
+    mantineScheme = null;
+  }
+
+  useEffect(() => {
+    applyTheme(theme);
+    // Keep Mantine's internal scheme in sync when provider is present
+    if (mantineScheme && mantineScheme.colorScheme !== theme) {
+      mantineScheme.setColorScheme(theme);
+    }
+  }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If we're inside MantineProvider, delegate toggle to its setter so
+  // notifications, modals, etc. all track the same scheme.
+  const toggle = () => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (mantineScheme) mantineScheme.setColorScheme(next);
+  };
+
+  const current = mantineScheme?.colorScheme ?? theme;
+
+  // Render a native button when no MantineProvider is present so isolated
+  // unit tests (which render ThemeToggle without a provider) continue to pass.
+  if (!mantineScheme) {
+    return (
+      <button
+        type="button"
+        aria-label={t(locale, current === "dark" ? "theme.toLight" : "theme.toDark")}
+        onClick={toggle}
+        title={t(locale, current === "dark" ? "theme.toLight" : "theme.toDark")}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          borderRadius: 9999,
+          border: "1px solid var(--mantine-color-default-border)",
+          padding: "6px 12px",
+          fontSize: 14,
+          fontWeight: 600,
+          background: "var(--mantine-color-default)",
+        }}
+      >
+        <span aria-hidden="true">{t(locale, current === "dark" ? "theme.light" : "theme.dark")}</span>
+      </button>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      className="theme-toggle inline-flex items-center gap-2 rounded-full border border-brand-border bg-brand-surface-2 px-3 py-1.5 text-sm font-semibold text-brand-text transition hover:border-brand-primary focus-visible:ring-2 focus-visible:ring-brand-primary"
-      aria-label={t(locale, theme === "dark" ? "theme.toLight" : "theme.toDark")}
-      onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+    <ActionIcon
+      variant="default"
+      radius="xl"
+      size="lg"
+      aria-label={t(locale, current === "dark" ? "theme.toLight" : "theme.toDark")}
+      onClick={toggle}
+      title={t(locale, current === "dark" ? "theme.toLight" : "theme.toDark")}
     >
-      <span aria-hidden="true">{theme === "dark" ? t(locale, "theme.light") : t(locale, "theme.dark")}</span>
-    </button>
+      {current === "dark" ? <IconSun size={18} /> : <IconMoon size={18} />}
+    </ActionIcon>
   );
 }

@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MantineProvider } from "@mantine/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilePanel } from "./ProfilePanel";
 import * as profileApi from "../api/profile";
+
+const wrap = (ui: React.ReactElement) => <MantineProvider>{ui}</MantineProvider>;
 
 vi.mock("../auth/session", () => ({
   useSession: () => ({ user: true }),
@@ -52,18 +55,18 @@ describe("ProfilePanel", () => {
     vi.mocked(profileApi.getProfile).mockResolvedValue(profile);
     vi.mocked(profileApi.patchProfile).mockResolvedValue(profile);
 
-    render(<ProfilePanel locale="en" />);
+    render(wrap(<ProfilePanel locale="en" />));
 
-    const education = await screen.findByLabelText("Education (JSON)");
-    const workHistory = screen.getByLabelText("Work history (JSON)");
+    const education = await screen.findByLabelText(/Education \(JSON\)/);
+    const workHistory = screen.getByLabelText(/Work history \(JSON\)/);
     expect((education as HTMLTextAreaElement).value).toContain('"institution": "UI"');
     expect((workHistory as HTMLTextAreaElement).value).toContain('"company": "Acme"');
 
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "new@example.com" } });
-    fireEvent.change(screen.getByLabelText("LinkedIn URL"), {
+    fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText(/LinkedIn URL/), {
       target: { value: "https://linkedin.com/in/new" },
     });
-    fireEvent.change(screen.getByLabelText("Professional summary"), {
+    fireEvent.change(screen.getByLabelText(/Professional summary/), {
       target: { value: "New summary" },
     });
     fireEvent.change(education, {
@@ -92,7 +95,7 @@ describe("ProfilePanel", () => {
     vi.mocked(profileApi.patchProfile).mockResolvedValue(profile);
     vi.mocked(profileApi.confirmProfile).mockResolvedValue({ ...profile, confirmed: true });
 
-    render(<ProfilePanel locale="en" />);
+    render(wrap(<ProfilePanel locale="en" />));
     fireEvent.click(await screen.findByRole("button", { name: "Confirm profile" }));
 
     await waitFor(() => expect(profileApi.confirmProfile).toHaveBeenCalledOnce());

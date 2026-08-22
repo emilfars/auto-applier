@@ -1,4 +1,26 @@
 import { useState } from "react";
+import {
+  Alert,
+  AppShell,
+  Burger,
+  Container,
+  Group,
+  NavLink,
+  Paper,
+  Select,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import {
+  IconBriefcase,
+  IconFileCv,
+  IconShieldCheck,
+  IconTools,
+  IconUser,
+  IconUsers,
+} from "@tabler/icons-react";
 import { t, locales, DEFAULT_LOCALE, type Locale } from "./i18n";
 import { JobFeed } from "./components/JobFeed";
 import { AuthPanel } from "./components/AuthPanel";
@@ -13,6 +35,7 @@ export default function App() {
   const { user } = useSession();
   const [profileRefresh, setProfileRefresh] = useState(0);
   const [profileConfirmed, setProfileConfirmed] = useState(false);
+  const [opened, { toggle, close }] = useDisclosure();
 
   const canFill = !!user && profileConfirmed;
   const fillReason: "needLogin" | "needProfile" | undefined = !user
@@ -22,108 +45,130 @@ export default function App() {
       : undefined;
 
   return (
-    <main className="app min-h-screen bg-brand-bg text-brand-text">
-      <header className="app__header sticky top-0 z-30 border-b border-brand-border bg-brand-bg shadow-sm">
-        <div className="mx-auto max-w-app px-4 py-4 sm:px-6 lg:px-8">
-          <div className="app__brand flex flex-wrap items-center justify-between gap-4">
-            <h1 className="text-2xl font-black tracking-tight text-brand-text sm:text-3xl">
+    <AppShell
+      header={{ height: 64 }}
+      navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }}
+      padding="md"
+    >
+      <AppShell.Header>
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+          <Group gap="sm">
+            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+            <Title order={3} fw={900} style={{ letterSpacing: -0.5 }}>
               {t(locale, "app.title")}
-            </h1>
-            <div className="flex items-center gap-2">
-              <label className="app__lang inline-flex items-center gap-2 text-sm text-brand-muted">
-                {t(locale, "app.language")}
-                <select
-                  className="w-auto rounded-lg py-1 text-sm"
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value as Locale)}
-                >
-                  {locales.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <ThemeToggle locale={locale} />
-            </div>
-          </div>
-          <p className="app__tagline mt-3 max-w-2xl text-base leading-7 text-brand-muted">
-            {t(locale, "app.tagline")}
-          </p>
-          <p
-            className="app__safety mt-4 rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm font-medium text-brand-text"
-            role="note"
-          >
-            {t(locale, "app.safety")}
-          </p>
-          <nav className="app__nav flex flex-wrap gap-x-6 gap-y-2 border-t border-brand-border pt-4 text-sm font-semibold">
-            <a className="text-brand-accent-light" href="#feed">
-              {t(locale, "nav.feed")}
-            </a>
-            <a className="text-brand-accent-light" href="#account">
-              {t(locale, "nav.account")}
-            </a>
-            {user && (
-              <a className="text-brand-accent-light" href="#profile">
-                {t(locale, "nav.profile")}
-              </a>
-            )}
-            {user && <a className="text-brand-accent-light" href="#enhancements">{t(locale, "nav.tools")}</a>}
-          </nav>
-        </div>
-      </header>
+            </Title>
+          </Group>
+          <Group gap="xs" wrap="nowrap">
+            <Select
+              aria-label={t(locale, "app.language")}
+              value={locale}
+              onChange={(v) => setLocale((v as Locale) ?? DEFAULT_LOCALE)}
+              data={locales.map((l) => ({ value: l, label: l }))}
+              w={96}
+              size="xs"
+            />
+            <ThemeToggle locale={locale} />
+          </Group>
+        </Group>
+      </AppShell.Header>
 
-      <div className="mx-auto max-w-app px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <section
-          id="account"
-          className="panel mb-6 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-xl sm:p-7"
-        >
-          <h2 className="panel__heading mb-5 text-xl font-bold tracking-tight text-brand-text">
-            {t(locale, "auth.heading")}
-          </h2>
-          <AuthPanel locale={locale} />
-        </section>
-
-        {user && (
-          <>
-            <section
-              id="cv"
-              className="panel mb-6 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-xl sm:p-7"
-            >
-              <h2 className="panel__heading mb-5 text-xl font-bold tracking-tight text-brand-text">
-                {t(locale, "cv.heading")}
-              </h2>
-              <CvPanel locale={locale} onParsed={() => setProfileRefresh((n) => n + 1)} />
-            </section>
-
-            <section
-              id="profile"
-              className="panel mb-6 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-xl sm:p-7"
-            >
-              <h2 className="panel__heading mb-5 text-xl font-bold tracking-tight text-brand-text">
-                {t(locale, "profile.heading")}
-              </h2>
-              <ProfilePanel
-                key={profileRefresh}
-                locale={locale}
-                onConfirmedChange={setProfileConfirmed}
+      <AppShell.Navbar p="md">
+        <Stack gap="xs">
+          <NavLink
+            href="#feed"
+            label={t(locale, "nav.feed")}
+            leftSection={<IconBriefcase size={16} />}
+            onClick={close}
+          />
+          <NavLink
+            href="#account"
+            label={t(locale, "nav.account")}
+            leftSection={<IconUser size={16} />}
+            onClick={close}
+          />
+          {user && (
+            <>
+              <NavLink
+                href="#cv"
+                label={t(locale, "cv.heading")}
+                leftSection={<IconFileCv size={16} />}
+                onClick={close}
               />
-            </section>
+              <NavLink
+                href="#profile"
+                label={t(locale, "nav.profile")}
+                leftSection={<IconUsers size={16} />}
+                onClick={close}
+              />
+              <NavLink
+                href="#enhancements"
+                label={t(locale, "nav.tools")}
+                leftSection={<IconTools size={16} />}
+                onClick={close}
+              />
+            </>
+          )}
+        </Stack>
+      </AppShell.Navbar>
 
-            <section
-              id="enhancements"
-              className="panel mb-6 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-xl sm:p-7"
-            >
-              <h2 className="panel__heading mb-5 text-xl font-bold tracking-tight text-brand-text">
-                {t(locale, "m5.heading")}
-              </h2>
-              <EnhancementsPanel locale={locale} />
-            </section>
-          </>
-        )}
+      <AppShell.Main>
+        <Container size="xl" px={0}>
+          <Stack gap="lg">
+            <Stack gap="xs">
+              <Text c="dimmed" size="sm" maw={600}>
+                {t(locale, "app.tagline")}
+              </Text>
+              <Alert
+                color="teal"
+                variant="light"
+                icon={<IconShieldCheck size={16} />}
+                title={t(locale, "app.safety")}
+                p="sm"
+              >
+                {/* visual safety reassurance already in title */}
+              </Alert>
+            </Stack>
 
-        <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} signedIn={!!user} />
-      </div>
-    </main>
+            <Paper id="account" withBorder shadow="sm" p="lg" radius="lg">
+              <Title order={4} mb="md">
+                {t(locale, "auth.heading")}
+              </Title>
+              <AuthPanel locale={locale} />
+            </Paper>
+
+            {user && (
+              <>
+                <Paper id="cv" withBorder shadow="sm" p="lg" radius="lg">
+                  <Title order={4} mb="md">
+                    {t(locale, "cv.heading")}
+                  </Title>
+                  <CvPanel locale={locale} onParsed={() => setProfileRefresh((n) => n + 1)} />
+                </Paper>
+
+                <Paper id="profile" withBorder shadow="sm" p="lg" radius="lg">
+                  <Title order={4} mb="md">
+                    {t(locale, "profile.heading")}
+                  </Title>
+                  <ProfilePanel
+                    key={profileRefresh}
+                    locale={locale}
+                    onConfirmedChange={setProfileConfirmed}
+                  />
+                </Paper>
+
+                <Paper id="enhancements" withBorder shadow="sm" p="lg" radius="lg">
+                  <Title order={4} mb="md">
+                    {t(locale, "m5.heading")}
+                  </Title>
+                  <EnhancementsPanel locale={locale} />
+                </Paper>
+              </>
+            )}
+
+            <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} signedIn={!!user} />
+          </Stack>
+        </Container>
+      </AppShell.Main>
+    </AppShell>
   );
 }

@@ -1,4 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Checkbox,
+  Grid,
+  Group,
+  JsonInput,
+  NumberInput,
+  Select,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { t, type Locale } from "../i18n";
 import { useSession } from "../auth/session";
 import {
@@ -62,14 +79,11 @@ function toForm(p: Profile): FormState {
 }
 
 function splitList(s: string): string[] {
-  return s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
+  return s.split(",").map((x) => x.trim()).filter(Boolean);
 }
 
 function toPatch(f: FormState): ProfilePatch {
-  const patch: ProfilePatch = {
+  return {
     full_name: f.full_name,
     email: f.email,
     phone: f.phone,
@@ -92,15 +106,8 @@ function toPatch(f: FormState): ProfilePatch {
     expected_salary: f.expected_salary.trim() ? Number(f.expected_salary) : null,
     notice_period_days: f.notice_period_days.trim() ? Number(f.notice_period_days) : null,
   };
-  return patch;
 }
 
-/**
- * ProfilePanel lets a signed-in user review and edit the profile that backs
- * application autofill, then confirm it. Editing resets confirmation, so the
- * user always re-reviews before the fill flow can be armed (CV-3/4/5).
- * `onConfirmedChange` lets the feed enable/disable Open & Fill.
- */
 export function ProfilePanel({
   locale,
   onConfirmedChange,
@@ -109,26 +116,66 @@ export function ProfilePanel({
   onConfirmedChange?: (confirmed: boolean) => void;
 }) {
   const { user } = useSession();
-  const [form, setForm] = useState<FormState | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const form = useForm<FormState>({
+    initialValues: {
+      full_name: "",
+      email: "",
+      phone: "",
+      linkedin_url: "",
+      github_url: "",
+      portfolio_url: "",
+      address: "",
+      city: "",
+      summary: "",
+      current_employer: "",
+      current_title: "",
+      highest_education: "",
+      education: "[]",
+      work_history: "[]",
+      expected_salary: "",
+      notice_period_days: "",
+      work_authorization: "",
+      employment_type: "",
+      open_to_relocation: false,
+      skills: "",
+      preferred_locations: "",
+    },
+    validate: {
+      full_name: (v) => (v.trim() ? null : "Required"),
+      email: (v) => (/^\S+@\S+$/.test(v) ? null : "Invalid email"),
+      phone: (v) => (v.trim() ? null : "Required"),
+      work_authorization: (v) => (v.trim() ? null : "Required"),
+      employment_type: (v) => (v.trim() ? null : "Required"),
+      education: (v) => {
+        try { JSON.parse(v); return null; } catch { return "Invalid JSON"; }
+      },
+      work_history: (v) => {
+        try { JSON.parse(v); return null; } catch { return "Invalid JSON"; }
+      },
+    },
+  });
+
+  const [loaded, setLoaded] = useState(false);
+
   const applyProfile = useCallback(
     (p: Profile) => {
-      setForm(toForm(p));
+      form.setValues(toForm(p));
       setConfirmed(p.confirmed);
       onConfirmedChange?.(p.confirmed);
+      setLoaded(true);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [onConfirmedChange],
   );
 
   useEffect(() => {
-    if (!user) {
-      setForm(null);
-      return;
-    }
+    if (!user) return;
+    setLoaded(false);
     const controller = new AbortController();
     getProfile(controller.signal)
       .then(applyProfile)
@@ -137,24 +184,20 @@ export function ProfilePanel({
         setError(t(locale, "auth.error"));
       });
     return () => controller.abort();
-  }, [user, applyProfile]); // refetching on locale change would wipe unsaved edits
+  }, [user, applyProfile]);
 
   if (!user) {
-    return <p className="panel__status text-sm text-brand-muted">{t(locale, "profile.loginRequired")}</p>;
+    return <Text size="sm" c="dimmed">{t(locale, "profile.loginRequired")}</Text>;
   }
-  if (!form) {
+  if (!loaded) {
     return (
-      <div className="panel__status grid animate-pulse gap-3" aria-live="polite">
-        <span className="h-10 rounded-xl bg-brand-surface-2" />
-        <span className="h-10 rounded-xl bg-brand-surface-2" />
-        <span className="h-24 rounded-xl bg-brand-surface-2" />
-        <span className="sr-only">{t(locale, "common.loading")}</span>
-      </div>
+      <Stack gap="sm">
+        <Skeleton height={40} radius="md" />
+        <Skeleton height={40} radius="md" />
+        <Skeleton height={96} radius="md" />
+      </Stack>
     );
   }
-
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -169,20 +212,18 @@ export function ProfilePanel({
     }
   }
 
-  const onSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form) return;
+  const onSave = form.onSubmit((values) => {
     void run(async () => {
-      const saved = await patchProfile(toPatch(form));
+      const saved = await patchProfile(toPatch(values));
       applyProfile(saved);
       setNotice(t(locale, "profile.saved"));
     });
-  };
+  });
 
   const onConfirm = () => {
-    if (!form) return;
     void run(async () => {
-      await patchProfile(toPatch(form));
+      const values = form.getValues();
+      await patchProfile(toPatch(values));
       const saved = await confirmProfile();
       applyProfile(saved);
       setNotice(t(locale, "profile.confirmed"));
@@ -190,178 +231,117 @@ export function ProfilePanel({
   };
 
   return (
-    <div className="profile space-y-6">
-      <form
-        className="profile__form grid grid-cols-1 gap-4 md:grid-cols-2 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
-        onSubmit={onSave}
-      >
-        <label className="full md:col-span-2">
-          {t(locale, "profile.fullName")}
-          <input required value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.email")}
-          <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.phone")}
-          <input required value={form.phone} onChange={(e) => set("phone", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.linkedin")}
-          <input type="url" value={form.linkedin_url} onChange={(e) => set("linkedin_url", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.github")}
-          <input type="url" value={form.github_url} onChange={(e) => set("github_url", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.portfolio")}
-          <input type="url" value={form.portfolio_url} onChange={(e) => set("portfolio_url", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.city")}
-          <input value={form.city} onChange={(e) => set("city", e.target.value)} />
-        </label>
-        <label className="full md:col-span-2">
-          {t(locale, "profile.address")}
-          <input value={form.address} onChange={(e) => set("address", e.target.value)} />
-        </label>
-        <label className="full md:col-span-2">
-          {t(locale, "profile.summary")}
-          <textarea rows={4} value={form.summary} onChange={(e) => set("summary", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.currentEmployer")}
-          <input value={form.current_employer} onChange={(e) => set("current_employer", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.currentTitle")}
-          <input value={form.current_title} onChange={(e) => set("current_title", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.highestEducation")}
-          <input value={form.highest_education} onChange={(e) => set("highest_education", e.target.value)} />
-        </label>
-        <label>
-          {t(locale, "profile.workAuth")}
-          <input
-            required
-            value={form.work_authorization}
-            onChange={(e) => set("work_authorization", e.target.value)}
-          />
-        </label>
-        <label>
-          {t(locale, "profile.expectedSalary")}
-          <input
-            type="number"
-            min={0}
-            value={form.expected_salary}
-            onChange={(e) => set("expected_salary", e.target.value)}
-          />
-        </label>
-        <label>
-          {t(locale, "profile.noticePeriod")}
-          <input
-            type="number"
-            min={0}
-            max={365}
-            value={form.notice_period_days}
-            onChange={(e) => set("notice_period_days", e.target.value)}
-          />
-        </label>
-        <label>
-          {t(locale, "profile.employmentType")}
-          <select
-            required
-            value={form.employment_type}
-            onChange={(e) => set("employment_type", e.target.value)}
-          >
-            <option value="">—</option>
-            {EMPLOYMENT_TYPES.map((et) => (
-              <option key={et} value={et}>
-                {et.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="profile__checkbox !flex !grid-cols-none items-center gap-2">
-          <input
-            type="checkbox"
-            checked={form.open_to_relocation}
-            onChange={(e) => set("open_to_relocation", e.target.checked)}
-          />
-          {t(locale, "profile.relocation")}
-        </label>
-        <label className="full md:col-span-2">
-          {t(locale, "profile.education")}
-          <textarea
-            required
-            rows={8}
-            value={form.education}
-            onChange={(e) => set("education", e.target.value)}
-          />
-        </label>
-        <label className="full md:col-span-2">
-          {t(locale, "profile.workHistory")}
-          <textarea
-            rows={8}
-            value={form.work_history}
-            onChange={(e) => set("work_history", e.target.value)}
-          />
-        </label>
-        <label className="full md:col-span-2">
-          {t(locale, "profile.skills")}
-          <input required value={form.skills} onChange={(e) => set("skills", e.target.value)} />
-        </label>
-        <label className="full md:col-span-2">
-          {t(locale, "profile.preferredLocations")}
-          <input
-            required
-            value={form.preferred_locations}
-            onChange={(e) => set("preferred_locations", e.target.value)}
-          />
-        </label>
-        <div className="full md:col-span-2">
-          <button
-            type="submit"
-            className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busy}
-          >
-            {t(locale, "profile.save")}
-          </button>
-        </div>
+    <Stack gap="md">
+      <form onSubmit={onSave}>
+        <Grid gutter="md">
+          <Grid.Col span={12}>
+            <TextInput label={t(locale, "profile.fullName")} required {...form.getInputProps("full_name")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.email")} required type="email" {...form.getInputProps("email")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.phone")} required {...form.getInputProps("phone")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.linkedin")} type="url" {...form.getInputProps("linkedin_url")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.github")} type="url" {...form.getInputProps("github_url")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.portfolio")} type="url" {...form.getInputProps("portfolio_url")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.city")} {...form.getInputProps("city")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <TextInput label={t(locale, "profile.address")} {...form.getInputProps("address")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Textarea label={t(locale, "profile.summary")} rows={4} {...form.getInputProps("summary")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.currentEmployer")} {...form.getInputProps("current_employer")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.currentTitle")} {...form.getInputProps("current_title")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.highestEducation")} {...form.getInputProps("highest_education")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.workAuth")} required {...form.getInputProps("work_authorization")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <NumberInput
+              label={t(locale, "profile.expectedSalary")}
+              min={0}
+              value={form.values.expected_salary ? Number(form.values.expected_salary) : undefined}
+              onChange={(v) => form.setFieldValue("expected_salary", v ? String(v) : "")}
+              placeholder="IDR"
+              hideControls
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <NumberInput
+              label={t(locale, "profile.noticePeriod")}
+              min={0}
+              max={365}
+              value={form.values.notice_period_days ? Number(form.values.notice_period_days) : undefined}
+              onChange={(v) => form.setFieldValue("notice_period_days", v ? String(v) : "")}
+              hideControls
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <Select
+              label={t(locale, "profile.employmentType")}
+              required
+              data={EMPLOYMENT_TYPES.map((et) => ({ value: et, label: et.replace("_", " ") }))}
+              {...form.getInputProps("employment_type")}
+            />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Checkbox label={t(locale, "profile.relocation")} {...form.getInputProps("open_to_relocation", { type: "checkbox" })} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <JsonInput label={t(locale, "profile.education")} formatOnBlur autosize minRows={6} {...form.getInputProps("education")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <JsonInput label={t(locale, "profile.workHistory")} formatOnBlur autosize minRows={6} {...form.getInputProps("work_history")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <TextInput label={t(locale, "profile.skills")} required {...form.getInputProps("skills")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <TextInput label={t(locale, "profile.preferredLocations")} required {...form.getInputProps("preferred_locations")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Group>
+              <Button type="submit" loading={busy}>{t(locale, "profile.save")}</Button>
+            </Group>
+          </Grid.Col>
+        </Grid>
       </form>
 
-      <div className="profile__confirm border-t border-brand-border pt-5">
+      <Stack gap="xs" pt="md" style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}>
         {confirmed ? (
-          <p className="panel__status flex items-center gap-2 text-sm font-semibold text-brand-success">
-            <span className="badge badge--confirmed inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand-success text-sm text-brand-bg">✓</span>
-            {t(locale, "profile.confirmed")}
-          </p>
+          <Group gap="xs">
+            <Badge color="teal" size="lg" circle>✓</Badge>
+            <Text size="sm" fw={600} c="teal">{t(locale, "profile.confirmed")}</Text>
+          </Group>
         ) : (
           <>
-            <p className="profile__confirm-note m-0 mb-4 max-w-3xl text-sm leading-6 text-brand-muted">
-              {t(locale, "profile.confirmNote")}
-            </p>
-            <button
-              type="button"
-              className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2.5 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={busy}
-              onClick={onConfirm}
-            >
+            <Text size="sm" c="dimmed">{t(locale, "profile.confirmNote")}</Text>
+            <Button variant="default" loading={busy} onClick={onConfirm} style={{ alignSelf: "flex-start" }}>
               {t(locale, "profile.confirm")}
-            </button>
+            </Button>
           </>
         )}
-      </div>
+      </Stack>
 
-      {error && (
-          <p className="panel__status panel__status--error rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="panel__status rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm text-brand-success">{notice}</p>}
-    </div>
+      {error && <Alert color="red" role="alert">{error}</Alert>}
+      {notice && <Alert color="teal">{notice}</Alert>}
+    </Stack>
   );
 }

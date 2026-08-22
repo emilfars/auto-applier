@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
+import { MantineProvider } from "@mantine/core";
 import { JobFeed } from "./JobFeed";
 import type { FeedResponse } from "../api/feed";
 import { t, type Locale } from "../i18n";
+
+const wrap = (ui: React.ReactElement) => <MantineProvider>{ui}</MantineProvider>;
 
 function page(offset: number, total: number): FeedResponse {
   return {
@@ -45,7 +48,7 @@ describe("JobFeed pagination", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<JobFeed locale="en" />);
+    render(wrap(<JobFeed locale="en" />));
 
     await waitFor(() => expect(screen.getByText("Page 1 of 3")).toBeTruthy());
     expect(screen.getByText("Job 0")).toBeTruthy();
@@ -63,7 +66,7 @@ describe("JobFeed pagination", () => {
       "fetch",
       vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => page(0, 10) }),
     );
-    render(<JobFeed locale="en" />);
+    render(wrap(<JobFeed locale="en" />));
     await waitFor(() => expect(screen.getByText("Job 0")).toBeTruthy());
     expect(screen.queryByText(/Page 1 of/)).toBeNull();
   });
@@ -76,7 +79,7 @@ describe("JobFeed pagination", () => {
         json: async () => page(0, 1),
       });
       vi.stubGlobal("fetch", fetchMock);
-      render(<JobFeed locale={locale} />);
+      render(wrap(<JobFeed locale={locale} />));
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
       fireEvent.change(screen.getByRole("searchbox"), { target: { value: "backend" } });

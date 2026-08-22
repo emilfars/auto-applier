@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Alert, Badge, Button, Card, Group, Stack, Text } from "@mantine/core";
+import { IconExternalLink, IconWand, IconTrash, IconCheck } from "@tabler/icons-react";
 import { t, type Locale, type TranslationKey } from "../i18n";
 import { hasStatedSalary, type JobCard as Job } from "../api/feed";
 import {
@@ -9,15 +11,6 @@ import {
 } from "../api/openfill";
 import { recordApplication, setJobState } from "../api/m5";
 
-/**
- * JobCard renders a single feed listing. Employer pay and M5 estimates use
- * separate labels so a coarse estimate is never presented as stated pay.
- *
- * "Open & Fill" arms the browser extension to autofill the posting and opens it
- * in a new tab. The user reviews every field and clicks Apply themselves — the
- * system never submits (Prime Directive). The plain apply link is always
- * available as a manual fallback.
- */
 export function JobCard({
   job,
   locale,
@@ -82,100 +75,109 @@ export function JobCard({
     }
   }
 
-  const noticeTone = notice === "armed"
-    ? "border-brand-success bg-brand-success-soft text-brand-success"
-    : notice === "error"
-      ? "border-brand-danger bg-brand-danger-soft text-brand-danger"
-      : "border-brand-warning bg-brand-warning-soft text-brand-warning";
+  const noticeColor = notice === "armed" ? "teal" : notice === "error" ? "red" : "yellow";
 
   return (
-    <article className="job-card flex h-full flex-col gap-4 rounded-2xl border border-brand-border bg-brand-surface p-5 shadow-lg transition hover:-translate-y-0.5 hover:border-brand-primary">
-      <div className="job-card__head flex items-start justify-between gap-3">
-        <h3 className="job-card__title m-0 line-clamp-2 h-[46px] text-lg font-bold leading-[23px] [overflow-wrap:anywhere] text-brand-text">{job.title}</h3>
-        <span className="job-card__source shrink-0 rounded-full bg-brand-surface-2 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-widest text-brand-muted">
+    <Card withBorder shadow="sm" radius="lg" padding="lg" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Group justify="space-between" align="flex-start" mb="xs" wrap="nowrap">
+        <Text fw={700} size="lg" lineClamp={2} style={{ flex: 1, lineHeight: "22px" }}>
+          {job.title}
+        </Text>
+        <Badge variant="light" size="sm" tt="uppercase">
           {job.source}
-        </span>
-      </div>
-      <p className="job-card__company m-0 line-clamp-1 font-semibold [overflow-wrap:anywhere] text-brand-accent-light">{job.company}</p>
-      <p className="job-card__meta m-0 flex flex-wrap items-center gap-2 text-sm text-brand-muted">
-        <span>{job.location}</span>
-        {job.remote && <span className="badge badge--remote rounded-full bg-brand-primary-soft px-2.5 py-1 text-xs font-semibold text-brand-accent-light">{t(locale, "feed.remote")}</span>}
-        {job.employment_type && <span className="badge rounded-full bg-brand-surface-2 px-2.5 py-1 text-xs font-medium text-brand-text">{job.employment_type}</span>}
-        {job.seniority && <span className="badge rounded-full bg-brand-surface-2 px-2.5 py-1 text-xs font-medium text-brand-text">{job.seniority}</span>}
-        {job.years_experience != null && (
-          <span className="badge rounded-full bg-brand-surface-2 px-2.5 py-1 text-xs font-medium text-brand-text">
-            {job.years_experience} {t(locale, "feed.experience")}
-          </span>
+        </Badge>
+      </Group>
+
+      <Text c="blue" fw={600} size="sm" truncate>
+        {job.company}
+      </Text>
+
+      <Group gap="xs" mt={4} wrap="wrap">
+        <Text size="sm" c="dimmed">
+          {job.location}
+        </Text>
+        {job.remote && (
+          <Badge color="blue" variant="light" size="xs">
+            {t(locale, "feed.remote")}
+          </Badge>
         )}
-      </p>
-      <p
-        className={`job-card__salary m-0 line-clamp-1 [overflow-wrap:anywhere] text-base ${stated ? "font-bold text-brand-success" : job.salary.estimated ? "font-semibold text-brand-warning" : "font-medium italic text-brand-muted"}`}
-        data-stated={stated}
+        {job.employment_type && <Badge variant="default" size="xs">{job.employment_type}</Badge>}
+        {job.seniority && <Badge variant="default" size="xs">{job.seniority}</Badge>}
+        {job.years_experience != null && (
+          <Badge variant="default" size="xs">
+            {job.years_experience} {t(locale, "feed.experience")}
+          </Badge>
+        )}
+      </Group>
+
+      <Text
+        mt="sm"
+        fw={stated ? 700 : 500}
+        c={stated ? "teal" : job.salary.estimated ? "yellow.7" : "dimmed"}
+        fs={!stated && !job.salary.estimated ? "italic" : undefined}
+        truncate
       >
         {stated || job.salary.estimated ? job.salary.label : t(locale, "feed.salary.undisclosed")}
-      </p>
+      </Text>
+
       {job.match_score != null && (
-        <p className="job-card__match m-0 text-sm font-semibold text-brand-accent-light">
+        <Text size="sm" fw={600} c="blue">
           {t(locale, "feed.matchScore", { score: job.match_score })}
-        </p>
+        </Text>
       )}
-      <ul
-        className="job-card__reqs m-0 flex h-[60px] content-start list-none flex-wrap gap-2 overflow-hidden p-0"
-        aria-label={t(locale, "feed.requirements")}
-      >
+
+      <Group gap={6} mt="sm" wrap="wrap" style={{ minHeight: 56, alignContent: "flex-start" }} aria-label={t(locale, "feed.requirements")}>
         {tags.slice(0, 6).map((req) => (
-          <li key={req} className="chip max-w-full rounded-lg bg-brand-surface-2 px-2.5 py-1 text-xs [overflow-wrap:anywhere] text-brand-text">
+          <Badge key={req} variant="default" size="sm" radius="sm">
             {req}
-          </li>
+          </Badge>
         ))}
-      </ul>
-      <div className="job-card__foot mt-auto flex flex-wrap items-center gap-2 pt-2">
-        <button
-          type="button"
-          className="job-card__fill rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-3.5 py-2 text-sm font-bold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-progress disabled:opacity-60"
-          onClick={onOpenFill}
-          disabled={busy}
-        >
-          {t(locale, "feed.openFill")}
-        </button>
-        <a
-          className="job-card__apply rounded-xl border border-brand-primary px-3.5 py-2 text-sm font-bold text-brand-accent-light no-underline transition hover:bg-brand-primary-soft"
-          href={job.source_url}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          {t(locale, "feed.viewApply")}
-        </a>
-        {signedIn && (
-          <>
-            <button
-              type="button"
-              className="job-card__dismiss rounded-xl border border-brand-border bg-transparent px-3.5 py-2 text-sm font-semibold text-brand-muted transition hover:border-brand-danger hover:text-brand-danger disabled:opacity-60"
-              onClick={() => void changeState("dismiss")}
-              disabled={busy}
-            >
-              {t(locale, "feed.dismiss")}
-            </button>
-            <button
-              type="button"
-              className={`job-card__applied rounded-xl border px-3.5 py-2 text-sm font-semibold transition disabled:opacity-60 ${applied ? "border-brand-success bg-brand-success-soft text-brand-success" : "border-brand-border bg-transparent text-brand-muted hover:border-brand-success"}`}
-              onClick={() => void changeState("applied")}
-              disabled={busy || applied}
-            >
-              {applied ? t(locale, "feed.applied") : t(locale, "feed.markApplied")}
-            </button>
-          </>
+      </Group>
+
+      <Stack gap="xs" mt="auto" pt="sm">
+        <Group gap="xs" wrap="wrap">
+          <Button size="xs" leftSection={<IconWand size={14} />} loading={busy} onClick={onOpenFill}>
+            {t(locale, "feed.openFill")}
+          </Button>
+          <Button
+            component="a"
+            href={job.source_url}
+            target="_blank"
+            rel="noreferrer noopener"
+            variant="outline"
+            size="xs"
+            rightSection={<IconExternalLink size={14} />}
+          >
+            {t(locale, "feed.viewApply")}
+          </Button>
+          {signedIn && (
+            <>
+              <Button variant="subtle" color="red" size="xs" leftSection={<IconTrash size={14} />} loading={busy} onClick={() => void changeState("dismiss")}>
+                {t(locale, "feed.dismiss")}
+              </Button>
+              <Button
+                variant={applied ? "light" : "default"}
+                color={applied ? "teal" : undefined}
+                size="xs"
+                leftSection={<IconCheck size={14} />}
+                loading={busy}
+                disabled={applied}
+                onClick={() => void changeState("applied")}
+              >
+                {applied ? t(locale, "feed.applied") : t(locale, "feed.markApplied")}
+              </Button>
+            </>
+          )}
+        </Group>
+        <Text size="xs" c="dimmed" lh={1.4}>
+          {t(locale, "feed.openFill.note")}
+        </Text>
+        {notice && (
+          <Alert color={noticeColor} variant="light" py={8} role="status">
+            {t(locale, noticeKey[notice])}
+          </Alert>
         )}
-      </div>
-      <p className="job-card__apply-note m-0 text-xs leading-5 text-brand-muted">{t(locale, "feed.openFill.note")}</p>
-      {notice && (
-        <p
-          className={`job-card__fill-notice job-card__fill-notice--${notice} rounded-xl border px-3 py-2 text-sm ${noticeTone}`}
-          role="status"
-        >
-          {t(locale, noticeKey[notice])}
-        </p>
-      )}
-    </article>
+      </Stack>
+    </Card>
   );
 }

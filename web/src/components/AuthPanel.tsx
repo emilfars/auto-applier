@@ -1,4 +1,18 @@
 import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Divider,
+  Group,
+  PasswordInput,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { t, type Locale } from "../i18n";
 import { useSession } from "../auth/session";
 import {
@@ -13,53 +27,50 @@ import { ApiError } from "../api/http";
 
 type Mode = "signin" | "signup";
 
-/**
- * AuthPanel drives the seeker account flow (AUTH-1/3): sign up (with required
- * consent), email verification, sign in, and password reset. Google OAuth is
- * deferred. When the backend runs in local demo mode it returns the
- * verification token, which we surface so the whole flow works without an email
- * service.
- */
 export function AuthPanel({ locale }: { locale: Locale }) {
   const { user, loading, refresh, signOut } = useSession();
   const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [verifyToken, setVerifyToken] = useState("");
   const [showVerify, setShowVerify] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [verifyToken, setVerifyToken] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
+  const form = useForm({
+    initialValues: { email: "", password: "", consent: false },
+    validate: {
+      email: (v) => (/^\S+@\S+$/.test(v) ? null : "Invalid email"),
+      password: (v) => (v.length >= 8 ? null : "Min 8 characters"),
+      consent: (v) => (mode === "signup" && !v ? "Consent required" : null),
+    },
+  });
+
   if (loading) {
     return (
-      <div className="panel__status grid animate-pulse gap-3" aria-live="polite">
-        <span className="h-4 w-36 rounded bg-brand-surface-2" />
-        <span className="h-10 rounded-xl bg-brand-surface-2" />
-        <span className="h-10 rounded-xl bg-brand-surface-2" />
-        <span className="sr-only">{t(locale, "common.loading")}</span>
-      </div>
+      <Stack gap="sm" aria-live="polite">
+        <Skeleton height={16} w={140} />
+        <Skeleton height={40} radius="md" />
+        <Skeleton height={40} radius="md" />
+        <Text span style={{ position: "absolute", left: -9999 }}>
+          {t(locale, "common.loading")}
+        </Text>
+      </Stack>
     );
   }
 
   if (user) {
     return (
-      <div className="auth auth--signedin flex flex-wrap items-center justify-between gap-4">
-        <p className="m-0 text-sm text-brand-muted">
-          {t(locale, "auth.signedInAs")} <strong>{user.email}</strong>
-        </p>
-        <button
-          type="button"
-          className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={() => void signOut()}
-        >
+      <Group justify="space-between" wrap="wrap">
+        <Text size="sm" c="dimmed">
+          {t(locale, "auth.signedInAs")} <Text span fw={700} c="bright">{user.email}</Text>
+        </Text>
+        <Button variant="default" onClick={() => void signOut()}>
           {t(locale, "auth.signout")}
-        </button>
-      </div>
+        </Button>
+      </Group>
     );
   }
 
@@ -76,24 +87,21 @@ export function AuthPanel({ locale }: { locale: Locale }) {
     }
   }
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = form.onSubmit((values) => {
     if (mode === "signup") {
       void run(async () => {
-        const res: RegisterResult = await register(email, password, consent);
+        const res: RegisterResult = await register(values.email, values.password, values.consent);
         setShowVerify(true);
-        if (res.verification_token) {
-          setVerifyToken(res.verification_token);
-        }
+        if (res.verification_token) setVerifyToken(res.verification_token);
         setNotice(t(locale, "auth.needVerify"));
       });
     } else {
       void run(async () => {
-        await login(email, password);
+        await login(values.email, values.password);
         await refresh();
       });
     }
-  };
+  });
 
   const onVerify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,9 +114,9 @@ export function AuthPanel({ locale }: { locale: Locale }) {
   };
 
   const onRequestReset = () => {
-    if (!email.trim()) return;
+    if (!form.values.email.trim()) return;
     void run(async () => {
-      const res = await requestReset(email);
+      const res = await requestReset(form.values.email);
       if (res.reset_token) setResetToken(res.reset_token);
       setNotice(t(locale, "auth.reset.sent"));
     });
@@ -125,154 +133,116 @@ export function AuthPanel({ locale }: { locale: Locale }) {
   };
 
   return (
-    <div className="auth max-w-xl">
-      <div className="auth__tabs grid grid-cols-2 gap-2">
+    <Stack gap="md" maw={520}>
+      <Group gap="xs">
         {(["signin", "signup"] as const).map((m) => (
-          <button
+          <Button
             key={m}
-            type="button"
+            variant={mode === m ? "filled" : "default"}
+            size="xs"
             aria-pressed={mode === m}
-            className={
-              mode === m
-                ? "tab tab--active rounded-xl border border-brand-primary bg-brand-primary-soft px-4 py-2 font-semibold text-brand-text transition"
-                : "tab rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-muted transition hover:border-brand-primary"
-            }
             onClick={() => setMode(m)}
           >
             {t(locale, m === "signin" ? "auth.tab.signin" : "auth.tab.signup")}
-          </button>
+          </Button>
         ))}
-      </div>
+      </Group>
 
-      <form
-        className="auth__form grid gap-4 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
-        onSubmit={onSubmit}
-      >
-        <label>
-          {t(locale, "auth.email")}
-          <input
+      <form onSubmit={onSubmit}>
+        <Stack gap="sm">
+          <TextInput
+            label={t(locale, "auth.email")}
             type="email"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
+            {...form.getInputProps("email")}
           />
-        </label>
-        <label>
-          {t(locale, "auth.password")}
-          <input
-            type="password"
+          <PasswordInput
+            label={t(locale, "auth.password")}
             required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            {...form.getInputProps("password")}
           />
-        </label>
-        {mode === "signup" && (
-          <label className="auth__consent !flex !grid-cols-none items-start gap-2 text-xs font-normal">
-            <input
-              type="checkbox"
+          {mode === "signup" && (
+            <Checkbox
+              label={t(locale, "auth.consent")}
               required
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
+              checked={form.values.consent}
+              onChange={(e) => form.setFieldValue("consent", e.currentTarget.checked)}
+              error={form.errors.consent}
             />
-            {t(locale, "auth.consent")}
-          </label>
-        )}
-        <button
-          type="submit"
-          className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={busy}
-        >
-          {mode === "signup" ? t(locale, "auth.signup") : t(locale, "auth.signin")}
-        </button>
+          )}
+          <Button type="submit" loading={busy} fullWidth>
+            {mode === "signup" ? t(locale, "auth.signup") : t(locale, "auth.signin")}
+          </Button>
+        </Stack>
       </form>
 
-      <button
-        type="button"
-        className="linklike mt-1 inline-flex text-sm font-semibold text-brand-accent-light hover:underline"
-        onClick={() => setShowReset((v) => !v)}
-      >
+      <Button variant="subtle" size="xs" onClick={() => setShowReset((v) => !v)} px={0} justify="flex-start">
         {t(locale, "auth.reset.toggle")}
-      </button>
+      </Button>
 
       {showVerify && (
-        <form
-          className="auth__form auth__verify mt-5 grid gap-4 border-t border-brand-border pt-5 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
-          onSubmit={onVerify}
-        >
-          <h3 className="m-0 text-base font-bold text-brand-text">{t(locale, "auth.verify.heading")}</h3>
-          <label>
-            {t(locale, "auth.verify.token")}
-            <input
-              type="text"
-              required
-              value={verifyToken}
-              onChange={(e) => setVerifyToken(e.target.value)}
-            />
-          </label>
-          <button
-            type="submit"
-            className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busy}
-          >
-            {t(locale, "auth.verify.submit")}
-          </button>
-        </form>
+        <>
+          <Divider />
+          <form onSubmit={onVerify}>
+            <Stack gap="sm">
+              <Title order={5}>{t(locale, "auth.verify.heading")}</Title>
+              <TextInput
+                label={t(locale, "auth.verify.token")}
+                required
+                value={verifyToken}
+                onChange={(e) => setVerifyToken(e.target.value)}
+              />
+              <Button type="submit" variant="default" loading={busy}>
+                {t(locale, "auth.verify.submit")}
+              </Button>
+            </Stack>
+          </form>
+        </>
       )}
 
       {showReset && (
-        <div className="auth__reset mt-5 grid gap-4 border-t border-brand-border pt-5">
-          <h3 className="m-0 text-base font-bold text-brand-text">{t(locale, "auth.reset.heading")}</h3>
-          <button
-            type="button"
-            className="btn w-fit rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busy}
-            onClick={onRequestReset}
-          >
-            {t(locale, "auth.reset.request")}
-          </button>
-            <form
-              className="auth__form grid gap-4 [&>label]:grid [&>label]:gap-2 [&>label]:text-sm [&>label]:font-medium [&>label]:text-brand-muted"
-              onSubmit={onConfirmReset}
-            >
-            <label>
-              {t(locale, "auth.reset.token")}
-              <input
-                type="text"
-                required
-                value={resetToken}
-                onChange={(e) => setResetToken(e.target.value)}
-              />
-            </label>
-            <label>
-              {t(locale, "auth.reset.newpw")}
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </label>
-            <button
-              type="submit"
-              className="btn rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-2 font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={busy}
-            >
-              {t(locale, "auth.reset.submit")}
-            </button>
-          </form>
-        </div>
+        <>
+          <Divider />
+          <Stack gap="sm">
+            <Title order={5}>{t(locale, "auth.reset.heading")}</Title>
+            <Button variant="default" size="xs" loading={busy} onClick={onRequestReset} style={{ alignSelf: "flex-start" }}>
+              {t(locale, "auth.reset.request")}
+            </Button>
+            <form onSubmit={onConfirmReset}>
+              <Stack gap="sm">
+                <TextInput
+                  label={t(locale, "auth.reset.token")}
+                  required
+                  value={resetToken}
+                  onChange={(e) => setResetToken(e.target.value)}
+                />
+                <PasswordInput
+                  label={t(locale, "auth.reset.newpw")}
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <Button type="submit" variant="default" loading={busy}>
+                  {t(locale, "auth.reset.submit")}
+                </Button>
+              </Stack>
+            </form>
+          </Stack>
+        </>
       )}
 
       {error && (
-          <p className="panel__status panel__status--error mt-4 rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
+        <Alert color="red" variant="light" role="alert">
           {error}
-        </p>
+        </Alert>
       )}
-      {notice && <p className="panel__status mt-4 rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm text-brand-success">{notice}</p>}
-    </div>
+      {notice && (
+        <Alert color="teal" variant="light">
+          {notice}
+        </Alert>
+      )}
+    </Stack>
   );
 }

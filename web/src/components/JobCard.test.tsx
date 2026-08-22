@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MantineProvider } from "@mantine/core";
 import { JobCard } from "./JobCard";
 import type { JobCard as Job } from "../api/feed";
+
+const wrap = (ui: React.ReactElement) => <MantineProvider>{ui}</MantineProvider>;
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -29,7 +32,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 
 describe("JobCard", () => {
   it("shows stated employer salary", () => {
-    render(<JobCard job={makeJob()} locale="en" />);
+    render(wrap(<JobCard job={makeJob()} locale="en" />));
     expect(screen.getByText("Rp 8.000.000 - Rp 11.000.000")).toBeTruthy();
   });
 
@@ -37,12 +40,12 @@ describe("JobCard", () => {
     const job = makeJob({
       salary: { stated_min: null, stated_max: null, currency: "IDR", label: "", stated: false },
     });
-    render(<JobCard job={job} locale="en" />);
+    render(wrap(<JobCard job={job} locale="en" />));
     expect(screen.getByText("Salary not disclosed")).toBeTruthy();
   });
 
   it("links out to the original posting for the user to apply themselves", () => {
-    render(<JobCard job={makeJob()} locale="en" />);
+    render(wrap(<JobCard job={makeJob()} locale="en" />));
     const link = screen.getByRole("link", { name: /view & apply/i }) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("https://example.com/jobs/1");
     expect(link.getAttribute("target")).toBe("_blank");
@@ -52,7 +55,7 @@ describe("JobCard", () => {
   it("prompts to sign in when Open & Fill is used while gated", async () => {
     const run = vi.fn();
     render(
-      <JobCard job={makeJob()} locale="en" canFill={false} fillReason="needLogin" runOpenFill={run} />,
+      wrap(<JobCard job={makeJob()} locale="en" canFill={false} fillReason="needLogin" runOpenFill={run} />),
     );
     fireEvent.click(screen.getByRole("button", { name: /open & fill/i }));
     expect(await screen.findByText(/sign in to use open & fill/i)).toBeTruthy();
@@ -61,7 +64,7 @@ describe("JobCard", () => {
 
   it("runs the arm+open flow and shows the armed notice when allowed", async () => {
     const run = vi.fn().mockResolvedValue({ status: "armed" });
-    render(<JobCard job={makeJob()} locale="en" canFill runOpenFill={run} />);
+    render(wrap(<JobCard job={makeJob()} locale="en" canFill runOpenFill={run} />));
     fireEvent.click(screen.getByRole("button", { name: /open & fill/i }));
     expect(await screen.findByText(/review the filled fields/i)).toBeTruthy();
     expect(run).toHaveBeenCalledWith("https://example.com/jobs/1");

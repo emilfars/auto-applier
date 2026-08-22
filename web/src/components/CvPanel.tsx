@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Alert, Badge, Button, FileInput, Group, Paper, Stack, Text } from "@mantine/core";
+import { IconUpload, IconWand, IconStar } from "@tabler/icons-react";
 import { t, type Locale } from "../i18n";
 import { useSession } from "../auth/session";
 import { listCVs, parseCV, updateCVVersion, uploadCV, type CVFile } from "../api/cv";
@@ -10,19 +12,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/**
- * CvPanel lets a signed-in user upload a CV (stored encrypted at rest) and
- * parse it into their profile. Parsing is an assist — the profile is left
- * unconfirmed afterwards so the user reviews it before confirming (CV-1/2/5).
- * `onParsed` lets the parent refresh the profile view.
- */
-export function CvPanel({
-  locale,
-  onParsed,
-}: {
-  locale: Locale;
-  onParsed?: () => void;
-}) {
+export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () => void }) {
   const { user } = useSession();
   const [files, setFiles] = useState<CVFile[]>([]);
   const [selected, setSelected] = useState<File | null>(null);
@@ -43,10 +33,14 @@ export function CvPanel({
         setError(t(locale, "auth.error"));
       });
     return () => controller.abort();
-  }, [user]); // locale change doesn't affect the stored CV list
+  }, [user]);
 
   if (!user) {
-    return <p className="panel__status text-sm text-brand-muted">{t(locale, "profile.loginRequired")}</p>;
+    return (
+      <Text size="sm" c="dimmed">
+        {t(locale, "profile.loginRequired")}
+      </Text>
+    );
   }
 
   async function run(fn: () => Promise<void>) {
@@ -56,11 +50,8 @@ export function CvPanel({
     try {
       await fn();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 503) {
-        setError(t(locale, "cv.parseUnavailable"));
-      } else {
-        setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
-      }
+      if (err instanceof ApiError && err.status === 503) setError(t(locale, "cv.parseUnavailable"));
+      else setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
     } finally {
       setBusy(false);
     }
@@ -92,72 +83,81 @@ export function CvPanel({
     });
 
   return (
-    <div className="cv space-y-5">
-      <form className="cv__upload flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={onUpload}>
-        <label className="grid flex-1 gap-2 text-sm font-medium text-brand-muted">
-          {t(locale, "cv.selectFile")}
-          <input
-            type="file"
+    <Stack gap="md">
+      <form onSubmit={onUpload}>
+        <Group align="end" gap="sm" wrap="wrap">
+          <FileInput
+            label={t(locale, "cv.selectFile")}
+            placeholder="PDF or DOCX"
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            onChange={(e) => setSelected(e.target.files?.[0] ?? null)}
+            value={selected}
+            onChange={setSelected}
+            clearable
+            style={{ flex: 1, minWidth: 220 }}
           />
-        </label>
-        <button
-          type="submit"
-          className="btn btn--primary rounded-xl border border-brand-primary-strong bg-brand-primary-strong px-4 py-2.5 font-semibold text-brand-on-primary transition hover:bg-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={busy || !selected}
-        >
-          {busy ? t(locale, "cv.uploading") : t(locale, "cv.upload")}
-        </button>
+          <Button
+            type="submit"
+            leftSection={<IconUpload size={16} />}
+            loading={busy}
+            disabled={!selected}
+          >
+            {busy ? t(locale, "cv.uploading") : t(locale, "cv.upload")}
+          </Button>
+        </Group>
       </form>
-      <p className="cv__note m-0 text-sm leading-6 text-brand-muted">{t(locale, "cv.reviewNote")}</p>
+
+      <Text size="xs" c="dimmed">
+        {t(locale, "cv.reviewNote")}
+      </Text>
 
       {files.length === 0 ? (
-        <p className="panel__status rounded-xl border border-dashed border-brand-border bg-brand-surface-2 px-4 py-4 text-sm text-brand-muted">
-          {t(locale, "cv.list.empty")}
-        </p>
+        <Paper withBorder p="md" radius="md" bg="var(--mantine-color-default-hover)">
+          <Text size="sm" c="dimmed" ta="center">
+            {t(locale, "cv.list.empty")}
+          </Text>
+        </Paper>
       ) : (
-        <ul className="cv__list m-0 grid list-none gap-2 p-0">
+        <Stack gap="xs">
           {files.map((f) => (
-            <li
-              key={f.id}
-              className="cv__item flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-2 px-4 py-3"
-            >
-              <span className="min-w-0 truncate text-sm font-medium text-brand-text">
-                {f.label || f.filename} <span className="cv__note text-xs font-normal text-brand-muted">({formatSize(f.size_bytes)})</span>
-                {f.is_primary && <span className="ml-2 rounded-full bg-brand-success-soft px-2 py-1 text-xs text-brand-success">{t(locale, "cv.primary")}</span>}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="btn rounded-xl border border-brand-border bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={busy}
-                  onClick={() => onParse(f.id)}
-                >
-                  {t(locale, "cv.parse")}
-                </button>
-                {!f.is_primary && (
-                  <button
-                    type="button"
-                    className="btn rounded-xl border border-brand-border bg-brand-surface px-3 py-2 text-sm font-semibold text-brand-text transition hover:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={busy}
-                    onClick={() => onPrimary(f.id)}
+            <Paper key={f.id} withBorder p="sm" radius="md">
+              <Group justify="space-between" wrap="wrap" gap="xs">
+                <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+                  <Text size="sm" fw={500} truncate>
+                    {f.label || f.filename}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    ({formatSize(f.size_bytes)})
+                  </Text>
+                  {f.is_primary && (
+                    <Badge color="teal" size="xs" leftSection={<IconStar size={10} />}>
+                      {t(locale, "cv.primary")}
+                    </Badge>
+                  )}
+                </Group>
+                <Group gap="xs">
+                  <Button
+                    size="xs"
+                    variant="default"
+                    leftSection={<IconWand size={14} />}
+                    loading={busy}
+                    onClick={() => onParse(f.id)}
                   >
-                    {t(locale, "cv.setPrimary")}
-                  </button>
-                )}
-              </div>
-            </li>
+                    {t(locale, "cv.parse")}
+                  </Button>
+                  {!f.is_primary && (
+                    <Button size="xs" variant="light" loading={busy} onClick={() => onPrimary(f.id)}>
+                      {t(locale, "cv.setPrimary")}
+                    </Button>
+                  )}
+                </Group>
+              </Group>
+            </Paper>
           ))}
-        </ul>
+        </Stack>
       )}
 
-      {error && (
-          <p className="panel__status panel__status--error rounded-xl border border-brand-danger bg-brand-danger-soft px-4 py-3 text-sm text-brand-danger" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="panel__status rounded-xl border border-brand-success bg-brand-success-soft px-4 py-3 text-sm text-brand-success">{notice}</p>}
-    </div>
+      {error && <Alert color="red" variant="light" role="alert">{error}</Alert>}
+      {notice && <Alert color="teal" variant="light">{notice}</Alert>}
+    </Stack>
   );
 }

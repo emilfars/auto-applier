@@ -1,99 +1,39 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Values sampled from design/brand/palette.md. Tailwind references this one
-   token set in every component. */
 :root {
-  --brand-primary: rgb(46 124 246); /* #2E7CF6 */
-  --brand-primary-strong: rgb(30 95 208); /* #1E5FD0 */
-  --brand-accent-light: rgb(90 167 255); /* #5AA7FF */
-  --brand-bg: rgb(11 24 48); /* #0B1830 */
-  --brand-surface: rgb(19 35 74); /* #13234A */
-  --brand-surface-2: rgb(27 47 94); /* #1B2F5E */
-  --brand-border: rgb(36 64 111); /* #24406F */
-  --brand-text: rgb(255 255 255); /* #FFFFFF */
-  --brand-on-primary: rgb(255 255 255); /* #FFFFFF */
-  --brand-muted: rgb(169 184 216); /* #A9B8D8 */
-  --brand-success: rgb(52 211 153); /* #34D399 */
-  --brand-warning: rgb(251 191 36); /* #FBBF24 */
-  --brand-danger: rgb(248 113 113); /* #F87171 */
-  --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 16%, transparent);
-  --brand-success-soft: color-mix(in srgb, var(--brand-success) 14%, transparent);
-  --brand-warning-soft: color-mix(in srgb, var(--brand-warning) 14%, transparent);
-  --brand-danger-soft: color-mix(in srgb, var(--brand-danger) 14%, transparent);
-  color-scheme: dark;
+  --brand-primary: #2e7cf6;
+  --brand-primary-strong: #1e5fd0;
+  --brand-accent-light: #5aa7ff;
+  --brand-bg: #0b1830;
+  --brand-surface: #13234a;
+  --brand-surface-2: #1b2f5e;
+  --brand-border: #24406f;
+  --brand-text: #ffffff;
+  --brand-on-primary: #ffffff;
+  --brand-muted: #a9b8d8;
+  --brand-success: #34d399;
+  --brand-warning: #fbbf24;
+  --brand-danger: #f87171;
 }
 
-[data-theme="light"] {
-  --brand-accent-light: rgb(30 95 208); /* accessible light interactive blue */
-  --brand-bg: rgb(244 247 252); /* #F4F7FC */
-  --brand-surface: rgb(255 255 255); /* #FFFFFF */
-  --brand-surface-2: rgb(232 238 248); /* derived light raised surface */
-  --brand-border: rgb(203 213 225); /* derived light border */
-  --brand-text: rgb(19 34 63); /* #13223F */
-  --brand-on-primary: rgb(255 255 255); /* #FFFFFF */
-  --brand-muted: rgb(82 98 127); /* derived light muted text */
-  --brand-success: rgb(19 121 91); /* accessible light success */
-  --brand-warning: rgb(161 98 7); /* accessible light warning */
-  --brand-danger: rgb(197 48 48); /* accessible light danger */
-  --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 10%, transparent);
-  --brand-success-soft: color-mix(in srgb, var(--brand-success) 12%, transparent);
-  --brand-warning-soft: color-mix(in srgb, var(--brand-warning) 12%, transparent);
-  --brand-danger-soft: color-mix(in srgb, var(--brand-danger) 12%, transparent);
-  color-scheme: light;
+[data-mantine-color-scheme="light"] {
+  --brand-accent-light: #1e5fd0;
+  --brand-bg: #f4f7fc;
+  --brand-surface: #ffffff;
+  --brand-surface-2: #e8eef8;
+  --brand-border: #cbd5e1;
+  --brand-text: #13223f;
+  --brand-muted: #52627f;
 }
 
-@layer base {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
+html {
+  scroll-behavior: smooth;
+}
 
-  html {
-    scroll-behavior: smooth;
-  }
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--mantine-color-body);
+}
 
-  body {
-    @apply min-w-[320px] bg-brand-bg font-sans text-brand-text antialiased;
-    margin: 0;
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-  }
-
-  input,
-  select,
-  textarea {
-    @apply w-full rounded-xl border border-brand-border bg-brand-bg px-3 py-2 text-brand-text transition placeholder:text-brand-muted focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary;
-  }
-
-  input[type="checkbox"] {
-    @apply h-4 w-4 rounded border-brand-border p-0 accent-brand-primary;
-  }
-
-  input[type="file"] {
-    @apply cursor-pointer px-2 py-1.5 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-primary file:px-3 file:py-1.5 file:font-semibold file:text-brand-on-primary;
-  }
-
-  a {
-    @apply text-brand-accent-light underline-offset-4 transition hover:underline;
-  }
-
-  button:focus-visible,
-  a:focus-visible,
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible {
-    @apply outline-none ring-2 ring-brand-primary ring-offset-2 ring-offset-brand-bg;
-  }
-
-  ::selection {
-    @apply bg-brand-primary-soft;
-  }
+::selection {
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
 }
