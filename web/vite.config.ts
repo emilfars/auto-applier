@@ -7,7 +7,7 @@ declare const process: { env: Record<string, string | undefined> };
 // The dev server proxies API calls to the Go backend so the SPA and API share
 // an origin during local development. Override the target with VITE_API_TARGET.
 const API_TARGET = process.env.VITE_API_TARGET ?? "http://localhost:8080";
-const API_PREFIXES = ["/feed", "/auth", "/cv", "/profile", "/account", "/telemetry", "/healthz"];
+const API_PREFIXES = ["/feed", "/auth", "/cv", "/profile", "/account", "/telemetry", "/healthz", "/saved-filters", "/applications", "/snippets", "/jobs"];
 
 export default defineConfig({
   plugins: [react()],
