@@ -194,6 +194,22 @@ text-extractable token list** — the palette has been sampled and filled in
 - CV-5 multiple CV versions; CV-6 completeness score.
 - AUTH-5 account deletion + data export (UU PDP).
 
+## Milestone 5.5 — CV parser service (close the M2 parsing gap)
+- **Status: not started.**
+- **Why:** M2 ships the hosted-parser *client* (`backend/internal/cv/hosted.go`) and the profile-apply flow, but no parser service exists. With `CV_PARSER_URL` unset, `POST /cv/{id}/parse` returns 503, so the "upload CV → parsed profile" promise (CV-2) is unmet.
+- **Goal:** a deployable parser service that accepts the project's documented envelope and returns the normalized shape so CV-2 works end to end.
+- **Interface (fixed by `hosted.go`):** `POST` JSON `{filename, content_type, document_base64}` with optional `Authorization: Bearer <CV_PARSER_API_KEY>`; response `{data:{name,email,phone,education[],work_history[],skills[]}}`. HTTPS required except loopback; the envelope means any engine needs a thin adapter.
+- **Candidate engines:**
+  - `orasik/resume-parser` (**MIT**, open source) — Flask API mapping PDF/DOCX → text → structured JSON via an LLM (OpenRouter by default). Free/self-hostable; can point at a local OpenAI-compatible model (Ollama/vLLM) so CV PII never leaves our infrastructure. LLM output is variable, mitigated by the mandatory confirm-before-apply gate.
+  - `affinda/resume-parser` — self-hosted Docker container, fully offline, high-accuracy ML + OCR + skills taxonomy. **Not open source**: free evaluation allowance (1,000 parses, 11,000 with a token) but production requires a paid commercial entitlement.
+- **Decision to record:** open-source LLM parser on a locally hosted model (privacy-first, ~free) vs. Affinda's commercial offline container (accuracy, paid). Recommendation: start with `orasik/resume-parser` + a local model, keep the adapter interface so Affinda can be swapped in later.
+- **Scope:**
+  1. Adapter service exposing the envelope (thin wrapper over the chosen engine).
+  2. Deploy on a **separate compute instance/container** (CPU-only for MVP), reachable over HTTPS or loopback; wire `CV_PARSER_URL` + `CV_PARSER_API_KEY`.
+  3. Accuracy check against the labeled id + en fixtures (≥90% field accuracy, `AC-CV-2`); the user-confirm gate is unchanged.
+  4. Never log CV contents or PII; prefer a locally hosted model over third-party clouds.
+- **Out of scope:** regenerating a downloadable CV (CV-7) and AI tailoring.
+
 ## Milestone 6 — Fast-follow: Android app (1–2 quarters)
 - MOB-1 feed + filters parity with web.
 - MOB-2 in-app WebView injecting the **same** `fill-mappings`; same fill-review; user taps apply.
