@@ -103,6 +103,19 @@ curl -fsS -X POST http://localhost:8080/ingest/run \
 # 202 started · 401 bad token · 409 a run is already in progress · 503 trigger disabled
 ```
 
+## CV parsing
+
+`POST /cv/{id}/parse` is served by the client in `backend/internal/cv/hosted.go`,
+which posts `{filename, content_type, document_base64}` to `CV_PARSER_URL` and
+expects `{data:{name,email,phone,education[],work_history[],skills[]}}`. The
+endpoint returns 503 until `CV_PARSER_URL` points at a running parser service.
+Any engine needs a thin adapter that speaks this envelope.
+
+The chosen engine (M5.5, `plan.md`) is `orasik/resume-parser` (MIT) driven by an
+**OpenRouter** model, deployed on **AWS** as a separate service that holds
+`OPENROUTER_API_KEY`. Set `CV_PARSER_URL` (HTTPS, or loopback) and
+`CV_PARSER_API_KEY` on the API. Never log CV contents or PII.
+
 ## Verification gate
 
 Every change must pass the deterministic gate before it is considered done:

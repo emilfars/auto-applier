@@ -199,15 +199,14 @@ text-extractable token list** — the palette has been sampled and filled in
 - **Why:** M2 ships the hosted-parser *client* (`backend/internal/cv/hosted.go`) and the profile-apply flow, but no parser service exists. With `CV_PARSER_URL` unset, `POST /cv/{id}/parse` returns 503, so the "upload CV → parsed profile" promise (CV-2) is unmet.
 - **Goal:** a deployable parser service that accepts the project's documented envelope and returns the normalized shape so CV-2 works end to end.
 - **Interface (fixed by `hosted.go`):** `POST` JSON `{filename, content_type, document_base64}` with optional `Authorization: Bearer <CV_PARSER_API_KEY>`; response `{data:{name,email,phone,education[],work_history[],skills[]}}`. HTTPS required except loopback; the envelope means any engine needs a thin adapter.
-- **Candidate engines:**
-  - `orasik/resume-parser` (**MIT**, open source) — Flask API mapping PDF/DOCX → text → structured JSON via an LLM (OpenRouter by default). Free/self-hostable; can point at a local OpenAI-compatible model (Ollama/vLLM) so CV PII never leaves our infrastructure. LLM output is variable, mitigated by the mandatory confirm-before-apply gate.
-  - `affinda/resume-parser` — self-hosted Docker container, fully offline, high-accuracy ML + OCR + skills taxonomy. **Not open source**: free evaluation allowance (1,000 parses, 11,000 with a token) but production requires a paid commercial entitlement.
-- **Decision to record:** open-source LLM parser on a locally hosted model (privacy-first, ~free) vs. Affinda's commercial offline container (accuracy, paid). Recommendation: start with `orasik/resume-parser` + a local model, keep the adapter interface so Affinda can be swapped in later.
+- **Engine (decided 2026-09-13):** `orasik/resume-parser` (**MIT**) driven by an **OpenRouter model**. The service is self-hosted; only the extracted text is sent to OpenRouter for structuring. The LLM output is variable, mitigated by the mandatory confirm-before-apply gate. A local OpenAI-compatible model (Ollama/vLLM) remains a drop-in alternative if CV PII must not leave our infrastructure.
+- **Rejected:** `affinda/resume-parser` — offline and higher-accuracy, but **not open source** and production requires a paid commercial entitlement.
+- **Deployment target (decided):** AWS. Run the parser as its own service (e.g., ECS/Fargate task or a small EC2 instance) alongside the API/web stack; keep it separate from the API process.
 - **Scope:**
-  1. Adapter service exposing the envelope (thin wrapper over the chosen engine).
-  2. Deploy on a **separate compute instance/container** (CPU-only for MVP), reachable over HTTPS or loopback; wire `CV_PARSER_URL` + `CV_PARSER_API_KEY`.
+  1. Adapter service exposing the envelope (thin wrapper over `orasik/resume-parser`) and holding `OPENROUTER_API_KEY`; the main API never sees the model key.
+  2. Deploy on AWS, reachable over HTTPS (or loopback if co-located); wire `CV_PARSER_URL` + `CV_PARSER_API_KEY` into the API. The engine needs `OPENROUTER_API_KEY` in its own environment.
   3. Accuracy check against the labeled id + en fixtures (≥90% field accuracy, `AC-CV-2`); the user-confirm gate is unchanged.
-  4. Never log CV contents or PII; prefer a locally hosted model over third-party clouds.
+  4. Never log CV contents or PII; document that parsed CV text is processed by OpenRouter and covered by the existing signup consent.
 - **Out of scope:** regenerating a downloadable CV (CV-7) and AI tailoring.
 
 ## Milestone 6 — Fast-follow: Android app (1–2 quarters)
