@@ -77,6 +77,11 @@ type Config struct {
 	IngestInterval time.Duration // how often to re-ingest sources
 	SweepInterval  time.Duration // how often to sweep stale listings
 	StaleAfter     time.Duration // age past which a listing is expired
+	// RunOnStart fires one ingestion pass the moment the queue starts. It
+	// defaults to false so a healthy deployment does not re-fetch every source
+	// on every restart; the API instead backfills only when the active
+	// real-listing count is low (internal/ingestctl).
+	RunOnStart bool
 }
 
 // ErrStaleAfterTooLong identifies a queue threshold wider than the ingest rule.
@@ -105,8 +110,9 @@ func (c Config) Validate() error {
 
 // Start migrates River's schema, registers the workers, schedules the periodic
 // ingestion and sweep jobs, and starts the client. The returned client should
-// be Stopped on shutdown. Ingestion runs once on start so a fresh deployment
-// populates the feed promptly.
+// be Stopped on shutdown. The immediate ingest pass on start is opt-in via
+// Config.RunOnStart; the API backfills at boot only when the feed is below the
+// launch target.
 func Start(ctx context.Context, pool *pgxpool.Pool, runner *ingest.Runner, store *ingest.PgxStore, cfg Config) (*river.Client[pgx.Tx], error) {
 	cfg = cfg.withDefaults()
 	if err := cfg.Validate(); err != nil {
@@ -133,7 +139,7 @@ func Start(ctx context.Context, pool *pgxpool.Pool, runner *ingest.Runner, store
 			river.NewPeriodicJob(
 				river.PeriodicInterval(cfg.IngestInterval),
 				func() (river.JobArgs, *river.InsertOpts) { return IngestArgs{}, nil },
-				&river.PeriodicJobOpts{RunOnStart: true},
+				&river.PeriodicJobOpts{RunOnStart: cfg.RunOnStart},
 			),
 			river.NewPeriodicJob(
 				river.PeriodicInterval(cfg.SweepInterval),

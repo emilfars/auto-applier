@@ -87,7 +87,7 @@ func TestStartIngestQueueStartsWithNoSources(t *testing.T) {
 
 	var started bool
 	client := &testQueueClient{}
-	stop, err := startIngestQueueWith(
+	stop, _, err := startIngestQueueWith(
 		&pgxpool.Pool{},
 		ingest.NewPgxStore(&pgxpool.Pool{}),
 		func(_ context.Context, _ *pgxpool.Pool, runner *ingest.Runner, _ *ingest.PgxStore, cfg queue.Config) (queueClient, error) {
@@ -117,16 +117,19 @@ func TestStartIngestQueueStartsWithNoSources(t *testing.T) {
 }
 
 func TestStartIngestQueueNoPostgresIsNoop(t *testing.T) {
-	stop, err := startIngestQueue(nil, nil)
+	stop, runner, err := startIngestQueue(nil, nil)
 	if err != nil {
 		t.Fatalf("start queue: %v", err)
+	}
+	if runner != nil {
+		t.Fatal("expected no runner without Postgres")
 	}
 	stop()
 }
 
 func TestStartIngestQueuePropagatesStartError(t *testing.T) {
 	wantErr := errors.New("river unavailable")
-	_, err := startIngestQueueWith(
+	_, _, err := startIngestQueueWith(
 		&pgxpool.Pool{},
 		ingest.NewPgxStore(&pgxpool.Pool{}),
 		func(_ context.Context, _ *pgxpool.Pool, _ *ingest.Runner, _ *ingest.PgxStore, _ queue.Config) (queueClient, error) {

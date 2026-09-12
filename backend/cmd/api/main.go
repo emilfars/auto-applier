@@ -22,6 +22,7 @@ import (
 	"github.com/auto-applier/backend/internal/db"
 	"github.com/auto-applier/backend/internal/feed"
 	"github.com/auto-applier/backend/internal/ingest"
+	"github.com/auto-applier/backend/internal/ingestctl"
 	"github.com/auto-applier/backend/internal/m5"
 	"github.com/auto-applier/backend/internal/profile"
 	"github.com/auto-applier/backend/internal/queue"
@@ -92,11 +93,28 @@ func main() {
 	defer stopAlerts()
 
 	// Background ingestion + staleness sweep via River (Postgres only).
-	stopQueue, err := startIngestQueue(pool, pgxJobStore)
+	stopQueue, ingestRunner, err := startIngestQueue(pool, pgxJobStore)
 	if err != nil {
 		log.Fatalf("queue startup: %v", err)
 	}
 	defer stopQueue()
+
+	// Backfill at boot only when the feed is below the launch target, and expose
+	// an authenticated on-demand trigger. A healthy deployment must not re-fetch
+	// every source on every restart.
+	backfillTarget := intEnv("INGEST_BACKFILL_TARGET", seed.DefaultCount)
+	ingestCtl := ingestctl.New(jobCounter, backfillTarget, func(ctx context.Context) {
+		if ingestRunner == nil {
+			return
+		}
+		rep := ingestRunner.RunOnce(ctx)
+		log.Printf("ingest: %d new listing(s) across %d source(s)", rep.TotalCreated(), len(rep.Sources))
+	}, durEnv("INGEST_TRIGGER_MIN_INTERVAL", time.Minute))
+	if started, backfillErr := ingestCtl.StartBackfill(context.Background()); backfillErr != nil {
+		log.Printf("startup backfill check: %v", backfillErr)
+	} else if started {
+		log.Printf("startup backfill started (active real listings below %d)", backfillTarget)
+	}
 
 	srv := &http.Server{
 		Addr: addr,
@@ -115,6 +133,7 @@ func main() {
 			api.Mount{Pattern: "/applications/", Handler: authSvc.RequireVerified(m5Svc.Routes())},
 			api.Mount{Pattern: "/snippets", Handler: authSvc.RequireVerified(m5Svc.Routes())},
 			api.Mount{Pattern: "/snippets/", Handler: authSvc.RequireVerified(m5Svc.Routes())},
+			api.Mount{Pattern: "/ingest/", Handler: ingestCtl.Handler(os.Getenv("INGEST_TRIGGER_TOKEN"))},
 		), api.SecurityConfig{
 			EnforceHTTPS:        boolEnv("ENFORCE_HTTPS", false),
 			TrustForwardedProto: trustedProxyHops > 0,
@@ -229,7 +248,7 @@ type queueClient interface {
 
 type queueStarter func(context.Context, *pgxpool.Pool, *ingest.Runner, *ingest.PgxStore, queue.Config) (queueClient, error)
 
-func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) (func(), error) {
+func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) (func(), *ingest.Runner, error) {
 	return startIngestQueueWith(pool, store, func(
 		ctx context.Context,
 		pool *pgxpool.Pool,
@@ -241,10 +260,10 @@ func startIngestQueue(pool *pgxpool.Pool, store *ingest.PgxStore) (func(), error
 	})
 }
 
-func startIngestQueueWith(pool *pgxpool.Pool, store *ingest.PgxStore, start queueStarter) (func(), error) {
+func startIngestQueueWith(pool *pgxpool.Pool, store *ingest.PgxStore, start queueStarter) (func(), *ingest.Runner, error) {
 	noop := func() {}
 	if pool == nil || store == nil {
-		return noop, nil
+		return noop, nil, nil
 	}
 	reg := ingest.BuildRegistry(ingest.SourceConfig{
 		KalibrrLimit: intEnv("KALIBRR_LIMIT", seed.DefaultCount),
@@ -262,11 +281,11 @@ func startIngestQueueWith(pool *pgxpool.Pool, store *ingest.PgxStore, start queu
 	runner := ingest.NewRunner(reg, store, time.Now, 0, 0)
 	cfg, err := ingestQueueConfig()
 	if err != nil {
-		return noop, fmt.Errorf("queue configuration: %w", err)
+		return noop, nil, fmt.Errorf("queue configuration: %w", err)
 	}
 	client, err := start(context.Background(), pool, runner, store, cfg)
 	if err != nil {
-		return noop, fmt.Errorf("queue start: %w", err)
+		return noop, nil, fmt.Errorf("queue start: %w", err)
 	}
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -274,7 +293,7 @@ func startIngestQueueWith(pool *pgxpool.Pool, store *ingest.PgxStore, start queu
 		if err := client.Stop(ctx); err != nil {
 			log.Printf("river stop: %v", err)
 		}
-	}, nil
+	}, runner, nil
 }
 
 func ingestQueueConfig() (queue.Config, error) {

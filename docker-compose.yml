@@ -39,6 +39,7 @@ services:
       S3_BUCKET: cv-files
       S3_USE_TLS: "false"
       TRUSTED_PROXY_HOPS: "1"
+      INGEST_INTERVAL: "6h"
       DATABASE_URL: postgres://autoapplier:autoapplier@db:5432/autoapplier?sslmode=disable
     depends_on:
       db:

@@ -86,7 +86,7 @@ must be fixed before the milestone is marked done or dependent work begins.
 ## Tech stack
 - **Backend:** Go (net/http or chi/gin), `pgx` for Postgres, job queue: **River** (Postgres-backed) for scrape + parse, `colly`/`chromedp` for scrapers.
 - **DB / storage:** Postgres (users, profiles, jobs, applications) + Postgres full-text search (defer OpenSearch until latency demands) + S3-compatible object storage for CV files (encrypted at rest).
-- **Frontend:** React + TypeScript (Vite), TanStack Query, Tailwind, i18n (id-ID + en, IDR default).
+- **Frontend:** React + TypeScript (Vite), Mantine v7 (with PostCSS `postcss-preset-mantine`), i18n (id-ID + en, IDR default).
 - **Extension:** Chrome MV3 + TypeScript.
 - **Shared fill logic:** `packages/fill-mappings` — versioned per-portal field maps + tests, consumed by extension now and Android WebView later.
 - **Mobile (fast-follow):** Kotlin/Android WebView reusing `fill-mappings`.
@@ -162,7 +162,7 @@ The plan is ordered so that **each milestone is independently shippable and demo
 > **End of MVP.** At this point the product delivers its promise end-to-end on desktop.
 
 ## Milestone 4.5 — Web UI modernization + brand theme (pre-M5)
-**Goal:** the web app looks like a branded product, not a prototype: Tailwind-based UI with a palette derived from the brand's previous static site.
+**Goal:** the web app looks like a branded product, not a prototype: a component-library UI with a palette derived from the brand's previous static site.
 
 **Brand source of truth:** screenshots of the previous static site ("Ofrim")
 belong in `design/brand/`. `design/brand/palette.md` is the **authoritative,
@@ -171,7 +171,7 @@ text-extractable token list** — the palette has been sampled and filled in
 `palette.md`, not the images.
 
 ### Scope
-1. **Adopt Tailwind CSS** (per the approved tech stack above; replaces the hand-rolled `styles.css`). Use CSS-custom-property design tokens bridged into Tailwind theme config so colors are never hardcoded in components.
+1. **Adopt Mantine v7** (superseding the original Tailwind plan; `postcss-preset-mantine` only). Brand colors stay as CSS-custom-property design tokens defined in `web/src/styles.css` so colors are never hardcoded in components. (2026-08-22 build-out: Mantine components replaced the utility-class layer; wiring the `--brand-*` tokens into Mantine's theme is a follow-up.)
 2. **Brand palette tokens** from `design/brand/palette.md`: primary, secondary/accent, neutrals (bg/surface/border/text/muted), semantic success/warning/danger. Define dark (default, refined from current slate look) and light variants via `data-theme` attribute; persist the user's choice.
 3. **Layout modernization:** sticky header with nav + language switcher; feed as a responsive card grid with a filters sidebar on desktop (stacked on mobile); skeleton loaders for feed/profile fetches; consistent button/input/chip styling; visible focus states.
 4. **Constraint — behavior frozen:** no route/API/logic changes; all existing web tests must keep passing (update selectors only where classes changed). i18n keys untouched; both locales keep parity.
@@ -200,6 +200,21 @@ text-extractable token list** — the palette has been sampled and filled in
 - MOB-3 CV attach from device storage.
 - MOB-4 shared mapping layer (a portal fix ships to both desktop + mobile).
 - Sequenced **after** desktop mappings are proven.
+
+## Milestone 7 — Sourcing expansion via ATS board discovery (post-MVP)
+- **Status: not started.** Deferred until after the desktop and Android milestones.
+- **Goal:** grow ingestion well beyond the small curated `backend/internal/ingest/atscompanies/*.json` catalog and add the high-value ATS adapters, without diluting the Jabodetabek-first feed.
+- **Method — external projects are references, not dependencies** (all but one are Python; this repo stays Go + its tests, and adapters are re-implemented against the existing `Source` interface):
+  - `kalil0321/ats-scrapers` (MIT) — Workday, SmartRecruiters, SuccessFactors, iCIMS, Personio request/response shapes and company inventories.
+  - `strelov1/freehire` (MIT, Go) — Go source-adapter and board-catalog patterns; also exposes a keyless public jobs API worth evaluating as one Tier-1 aggregator source.
+  - `mherzog4/job-boards` (MIT) — Wayback CDX + urlscan slug discovery, `HEAD` validation, per-host connection pooling, ETag conditional requests, and the "only an unfiltered full run may mark a listing closed" staleness rule.
+  - `Feashliaa/job-board-aggregator` (MIT code / CC-BY-NC data) — discovery-pipeline reference only; its company datasets must **not** be used commercially.
+- **Scope:**
+  1. Go `cmd/discover-boards` tool (Wayback CDX + `HEAD` validation) that grows `atscompanies/*.json` from a handful to thousands of validated slugs, biased toward Indonesian hirers.
+  2. New Go adapters for Workday and SmartRecruiters (the highest-value gaps), following the existing `Source` interface, tier policy, and per-source circuit breakers.
+  3. Operational hardening for public-board harvesting: per-host connection pooling and ETag conditional requests.
+- **Out of scope:** login-walled Tier 3 sources (Indeed/LinkedIn/Glassdoor), and non-commercial datasets. The Tier 1/2-only locked decision is unchanged.
+- **Guardrail:** this milestone strengthens supply; it must not be used to fill the feed with irrelevant global volume to clear the 5,000-listing gate.
 
 ## Later (P2 / Phase 2, indicative)
 - CV-7 regenerate downloadable CV from profile.

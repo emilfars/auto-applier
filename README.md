@@ -68,6 +68,10 @@ Environment variables (all optional for local dev):
 | `ATS_PUBLIC_ENABLED` | Enable curated public Greenhouse/Lever/Workable/Ashby boards (default `true`). |
 | `REMOTE_SOURCES_ENABLED` | Enable Remotive, Jobicy, and RemoteOK (default `true`). |
 | `REMOTE_LIMIT` | Maximum listings per remote source per run (default 100). |
+| `INGEST_INTERVAL` | Recurring ingestion interval (default `6h`). |
+| `INGEST_BACKFILL_TARGET` | Startup backfill fires while active real listings are below this (default 5000). |
+| `INGEST_TRIGGER_TOKEN` | Secret enabling `POST /ingest/run`; unset disables the trigger entirely. |
+| `INGEST_TRIGGER_MIN_INTERVAL` | Minimum gap between on-demand triggers (default 1m). |
 | `ALERT_INTERVAL` | Saved-filter email alert interval (default 6h; disabled without SMTP). |
 | `CV_PARSER_URL` | Hosted résumé-parse API (unset → parsing returns 503). |
 | `CV_ENCRYPTION_KEY` | 64 hex characters used to encrypt CV bytes before object storage. |
@@ -82,6 +86,22 @@ Environment variables (all optional for local dev):
 | `SMTP_FROM` | Sender address; required when `SMTP_ADDR` is set. |
 | `AUTH_DEV_EXPOSE_TOKENS` | Return verification/reset tokens in API responses for local demos only. |
 | `AUTH_DEV_ALLOW_IN_MEMORY_REGISTRATION` | Local browser E2E only: allow registration without the 5,000-real-listing gate when dev tokens are enabled. |
+
+## Ingestion
+
+With `DATABASE_URL` set, a River scheduler re-ingests the enabled sources every
+`INGEST_INTERVAL` (default 6h) and sweeps stale listings hourly. On startup the
+API backfills only when the active real-listing count is below
+`INGEST_BACKFILL_TARGET` (default 5000), so a healthy deployment does not
+re-fetch every source on every restart.
+
+One ingestion pass can also be triggered on demand when `INGEST_TRIGGER_TOKEN`
+is set:
+```bash
+curl -fsS -X POST http://localhost:8080/ingest/run \
+  -H "Authorization: Bearer $INGEST_TRIGGER_TOKEN"
+# 202 started · 401 bad token · 409 a run is already in progress · 503 trigger disabled
+```
 
 ## Verification gate
 
