@@ -40,6 +40,10 @@ services:
       S3_USE_TLS: "false"
       TRUSTED_PROXY_HOPS: "1"
       INGEST_INTERVAL: "6h"
+      # Local dev only. The production override forces AUTH_DEV_EXPOSE_TOKENS=false,
+      # and AUTH_DEV_ALLOW_IN_MEMORY_REGISTRATION is inert once DATABASE_URL is set.
+      AUTH_DEV_EXPOSE_TOKENS: "true"
+      AUTH_DEV_ALLOW_IN_MEMORY_REGISTRATION: "true"
       DATABASE_URL: postgres://autoapplier:autoapplier@db:5432/autoapplier?sslmode=disable
     depends_on:
       db:
