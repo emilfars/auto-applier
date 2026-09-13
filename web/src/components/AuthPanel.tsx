@@ -148,7 +148,7 @@ export function AuthPanel({ locale }: { locale: Locale }) {
         ))}
       </Group>
 
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} noValidate>
         <Stack gap="sm">
           <TextInput
             label={t(locale, "auth.email")}

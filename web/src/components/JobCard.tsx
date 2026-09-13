@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Badge, Button, Card, Group, Stack, Text } from "@mantine/core";
+import { Badge, Button, Card, Group, Paper, Stack, Text } from "@mantine/core";
 import { IconExternalLink, IconWand, IconTrash, IconCheck } from "@tabler/icons-react";
 import { t, type Locale, type TranslationKey } from "../i18n";
 import { hasStatedSalary, type JobCard as Job } from "../api/feed";
@@ -173,9 +173,22 @@ export function JobCard({
           {t(locale, "feed.openFill.note")}
         </Text>
         {notice && (
-          <Alert color={noticeColor} variant="light" py={8} role="status" data-testid="job-fill-notice" data-status={notice}>
+          <Paper
+            role="status"
+            aria-live="polite"
+            radius="md"
+            py={8}
+            px="md"
+            data-testid="job-fill-notice"
+            data-status={notice}
+            style={{
+              background: `var(--mantine-color-${noticeColor}-light)`,
+              color: `var(--mantine-color-${noticeColor}-light-color)`,
+              fontSize: "var(--mantine-font-size-sm)",
+            }}
+          >
             {t(locale, noticeKey[notice])}
-          </Alert>
+          </Paper>
         )}
       </Stack>
     </Card>

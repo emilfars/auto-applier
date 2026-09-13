@@ -121,6 +121,7 @@ Test-type conventions:
 | AC-CV-5 | CV-5 | User can keep multiple CV versions and select a primary version | CV version repo/API | ✅ |
 | AC-CV-6 | CV-6 | Profile completeness returns a score and missing-field prompts | profile unit/API | ✅ |
 | AC-AUTH-5 | AUTH-5 | Account deletion removes PII; data export returns complete user data (UU PDP) | integration | ✅ |
+| AC-AUTH-5b | AUTH-5 | Signed-in web UI exposes account export (downloads a JSON copy of the data) and delete (email-typed confirmation), and clears the session after erasure | browser E2E (`scripts/browser-e2e.mjs`: real export download parsed + post-delete unauthenticated `/auth/me`) + `AccountPanel.test.tsx` | ✅ |
 | AC-MOB-4 | MOB-4 | Android WebView consumes the **same** `fill-mappings` package (no forked copy) | build/dep test: android references shared package version | ⬜ |
 
 ## 7. Non-functional acceptance

@@ -14,6 +14,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -452,6 +453,12 @@ async function run() {
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-popup-blocking",
+        // Keep the active web page rendering at full rate; Mantine mounts
+        // overlays (the delete modal) on the next animation frame, and a
+        // backgrounded headless target throttles requestAnimationFrame.
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
         "--ignore-certificate-errors",
         `--remote-debugging-port=${debugPort}`,
         `--user-data-dir=${join(STATE, "chrome-profile")}`,
@@ -791,6 +798,143 @@ async function run() {
       `AC-APP-1/1b/2/5 PASS: ${numerator}/${expectedFixtureFields.length} fixture fields, ` +
         `${result.summary.uncertain} uncertain, ${result.summary.empty} empty, worker restarted`,
     );
+
+    // AC-AUTH-5 / UU PDP: signed-in account data-rights UI. Export a complete
+    // copy of the user's data (real download preferred), then erase the account.
+    await web.send("Page.navigate", { url: `https://localhost:${webPort}/` });
+    await web.send("Page.bringToFront");
+    await waitFor(() => web.evaluate(() => document.readyState === "complete"), "account page load");
+    await waitFor(
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="auth-signedin"]'))),
+      "signed-in web UI for account flows",
+    );
+    await waitFor(
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="account-export"]'))),
+      "account data-rights panel",
+    );
+
+    const downloadDir = join(STATE, "downloads");
+    mkdirSync(downloadDir, { recursive: true });
+    await browser.send("Browser.setDownloadBehavior", {
+      behavior: "allow",
+      downloadPath: downloadDir,
+      eventsEnabled: true,
+    });
+    await web.evaluate(() =>
+      document.querySelector('[data-testid="account-export"]')?.click(),
+    );
+
+    const readExport = () => {
+      for (const name of readdirSync(downloadDir).filter((entry) => entry.endsWith(".json"))) {
+        const path = join(downloadDir, name);
+        try {
+          return { name, parsed: JSON.parse(readFileSync(path, "utf8")) };
+        } catch {
+          // partial write; retry on the next poll
+        }
+      }
+      return null;
+    };
+    let downloaded = null;
+    try {
+      downloaded = await waitFor(readExport, "account export download", 10_000);
+    } catch {
+      downloaded = null;
+    }
+
+    let exportMode;
+    if (downloaded) {
+      exportMode = "real download file";
+      if (downloaded.parsed.account?.email !== profile.email) {
+        fail(`account export email mismatch: ${downloaded.parsed.account?.email}`);
+      }
+      if (
+        !(downloaded.parsed.cv_files ?? []).some((file) => file.filename === "browser-e2e.pdf")
+      ) {
+        fail("account export did not list browser-e2e.pdf");
+      }
+    } else {
+      exportMode = "fallback (notice + fetch /account/export)";
+      await waitFor(
+        () => web.evaluate(() => Boolean(document.querySelector('[data-testid="account-notice"]'))),
+        "account export notice",
+        10_000,
+      );
+      const fallback = await web.evaluate(async () => {
+        const response = await fetch("/account/export", { credentials: "include" });
+        return { status: response.status, body: await response.json() };
+      });
+      if (fallback.status !== 200) fail(`fallback /account/export returned ${fallback.status}`);
+      if (fallback.body.account?.email !== profile.email) {
+        fail("fallback account export email mismatch");
+      }
+      if (!(fallback.body.cv_files ?? []).some((file) => file.filename === "browser-e2e.pdf")) {
+        fail("fallback account export did not list browser-e2e.pdf");
+      }
+    }
+    console.log(`AC-AUTH-5 export: asserted via ${exportMode}`);
+
+    await waitFor(
+      () =>
+        web.evaluate(() => {
+          const button = document.querySelector('[data-testid="account-delete-open"]');
+          return Boolean(button && !button.disabled);
+        }),
+      "enabled account delete open",
+    );
+    await web.evaluate(() =>
+      document.querySelector('[data-testid="account-delete-open"]')?.click(),
+    );
+    await waitFor(
+      () =>
+        web.evaluate(() => Boolean(document.querySelector('[data-testid="account-delete-email"]'))),
+      "account delete confirmation",
+    );
+    const disabledBefore = await web.evaluate(() => {
+      const button = document.querySelector('[data-testid="account-delete-confirm"]');
+      return Boolean(button && (button.disabled || button.hasAttribute("disabled")));
+    });
+    if (!disabledBefore) fail("account delete confirm was enabled before the email was typed");
+
+    const typed = await web.evaluate((email) => {
+      const input = document.querySelector('[data-testid="account-delete-email"]');
+      if (!(input instanceof HTMLInputElement)) throw new Error("delete email input missing");
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(input, email);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return input.value;
+    }, profile.email);
+    if (typed !== profile.email) fail("delete email input did not hold the profile email");
+    await waitFor(
+      () =>
+        web.evaluate(() => {
+          const button = document.querySelector('[data-testid="account-delete-confirm"]');
+          return Boolean(button && !button.disabled && !button.hasAttribute("disabled"));
+        }),
+      "enabled account delete confirm",
+    );
+    await web.evaluate(() =>
+      document.querySelector('[data-testid="account-delete-confirm"]')?.click(),
+    );
+
+    await waitFor(
+      () => web.evaluate(() => !document.querySelector('[data-testid="auth-signedin"]')),
+      "signed-out UI after account deletion",
+    );
+    const meStatus = await waitFor(
+      async () => {
+        const status = await web.evaluate(async () => {
+          const response = await fetch("/auth/me", { credentials: "include" });
+          return response.status;
+        });
+        return status !== 200 ? status : null;
+      },
+      "unauthenticated /auth/me after account deletion",
+    );
+    if (meStatus === 200) fail("account session survived deletion");
+
+    console.log("AC-AUTH-5 PASS: account export downloaded + account deleted/erased");
   } finally {
     source?.close();
     worker?.close();

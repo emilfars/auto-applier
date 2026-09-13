@@ -100,4 +100,16 @@ describe("JobCard Open & Fill notices", () => {
     await waitFor(() => expect(runOpenFill).toHaveBeenCalledOnce());
     expect(await screen.findByText(/Could not load jobs/i)).toBeTruthy();
   });
+
+  it("exposes the notice as a polite status live region", async () => {
+    const runOpenFill = vi.fn().mockResolvedValue({ status: "armed" });
+    render(wrap(<JobCard job={makeJob()} locale="en" canFill runOpenFill={runOpenFill} />));
+    fireEvent.click(screen.getByRole("button", { name: /open & fill/i }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice.getAttribute("role")).toBe("status");
+    expect(notice.getAttribute("aria-live")).toBe("polite");
+    expect(notice.getAttribute("data-status")).toBe("armed");
+    expect(notice.textContent).toMatch(/review the filled fields/i);
+  });
 });

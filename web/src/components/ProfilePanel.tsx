@@ -233,7 +233,7 @@ export function ProfilePanel({
 
   return (
     <Stack gap="md">
-      <form onSubmit={onSave} data-testid="profile-form">
+      <form onSubmit={onSave} noValidate data-testid="profile-form">
         <Grid gutter="md">
           <Grid.Col span={12}>
             <TextInput label={t(locale, "profile.fullName")} required data-testid="profile-full_name" {...form.getInputProps("full_name")} />

@@ -4,6 +4,7 @@ import {
   AppShell,
   Burger,
   Container,
+  Divider,
   Group,
   NavLink,
   Paper,
@@ -24,6 +25,7 @@ import {
 import { t, locales, DEFAULT_LOCALE, type Locale } from "./i18n";
 import { JobFeed } from "./components/JobFeed";
 import { AuthPanel } from "./components/AuthPanel";
+import { AccountPanel } from "./components/AccountPanel";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { CvPanel } from "./components/CvPanel";
 import { useSession } from "./auth/session";
@@ -134,6 +136,12 @@ export default function App() {
                 {t(locale, "auth.heading")}
               </Title>
               <AuthPanel locale={locale} />
+              {user && (
+                <>
+                  <Divider my="md" />
+                  <AccountPanel locale={locale} />
+                </>
+              )}
             </Paper>
 
             {user && (

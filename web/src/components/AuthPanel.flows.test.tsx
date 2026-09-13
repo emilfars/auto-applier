@@ -43,7 +43,7 @@ describe("AuthPanel flows", () => {
     session.user = null;
   });
 
-  it("blocks signup until consent is given", () => {
+  it("blocks signup until consent is given", async () => {
     render(wrap(<AuthPanel locale="en" />));
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     fillCredentials();
@@ -51,6 +51,7 @@ describe("AuthPanel flows", () => {
 
     expect(authApi.register).not.toHaveBeenCalled();
     expect((screen.getByRole("checkbox") as HTMLInputElement).required).toBe(true);
+    expect(await screen.findByText("Consent required")).toBeTruthy();
   });
 
   it("registers with consent, prefills the emailed token, and verifies", async () => {
