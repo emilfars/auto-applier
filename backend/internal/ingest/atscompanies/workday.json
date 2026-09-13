@@ -1,0 +1,9 @@
+[
+  {"host": "aia.wd3.myworkdayjobs.com", "tenant": "aia", "site": "external", "company": "AIA"},
+  {"host": "tiketdotcom.wd3.myworkdayjobs.com", "tenant": "tiketdotcom", "site": "Tiket_Careers", "company": "tiket.com"},
+  {"host": "binus.wd3.myworkdayjobs.com", "tenant": "binus", "site": "lifeatbinus", "company": "BINUS"},
+  {"host": "kalbe.wd102.myworkdayjobs.com", "tenant": "kalbe", "site": "External", "company": "Kalbe"},
+  {"host": "cgg.wd103.myworkdayjobs.com", "tenant": "cgg", "site": "viridiencareers", "company": "CGG"},
+  {"host": "mmsgroup.wd102.myworkdayjobs.com", "tenant": "mmsgroup", "site": "biteracareers", "company": "Bitera Data Center"},
+  {"host": "erm.wd3.myworkdayjobs.com", "tenant": "erm", "site": "ERM_Careers", "company": "ERM"}
+]

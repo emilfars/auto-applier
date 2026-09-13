@@ -82,6 +82,10 @@ Test-type conventions:
 | AC-SCR-8 | plan (2026-08-21) | ATS public-board harvester ingests normalized jobs from a curated slug list per ATS (Greenhouse/Lever/Workable/Ashby); a dead slug fails its source only (circuit breaker), never the run | unit + fixture-server integration per ATS shape | ✅ |
 | AC-SCR-9 | plan (2026-08-21) | Remote-only board sources (Remotive/Jobicy/RemoteOK) ingest worldwide-remote listings with location normalized to "Remote"; unstated salary dropped, never estimated | unit + fixture-server integration | ✅ |
 | AC-SCR-10 | plan (2026-08-21) | Jooble is not scheduled on the recurring ingest interval (backfill-only); recurring registry excludes it unless an explicit backfill flag/env is set | unit on registry/schedule construction | ✅ |
+| AC-SCR-11 | plan M7 | Workday public CXS source (paginated POST) normalizes postings and is registered per curated board; a dead board fails only its own source (circuit breaker) | unit + fixture-server integration in `internal/ingest` | ✅ |
+| AC-SCR-12 | plan M7 | SmartRecruiters public postings API source normalizes location, employment type, and the public job URL; a dead board is isolated | unit + fixture-server integration | ✅ |
+| AC-SCR-13 | plan M7 | Public-board harvesting pools per-host connections and sends ETag/Last-Modified conditional requests; a 304 replays the last listing set so live listings are still re-touched and never expire via the 48h sweep | unit: transport-pool config + 304 cache replay | ✅ |
+| AC-SCR-14 | plan M7 | `cmd/discover-boards` grows `atscompanies/*.json` via Wayback CDX discovery + public-API validation, deduplicating and merging deterministically; dry-run by default | unit + httptest in `internal/discover` | ✅ |
 
 ## 4. Extension Autofill (M4 — core value)
 | Test ID | ID | Criteria | Verification | Status |

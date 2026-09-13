@@ -5,7 +5,7 @@
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
 **Last updated:** 2026-09-13
-**Current phase:** **MVP hardening + M5/M5.5 complete.** M0-M5 runtime behavior, M4.5 web modernization, the native Chrome MV3 Open & Fill E2E, and the M5.5 CV parser service are complete. Registration remains closed until Postgres contains at least 5,000 active real listings; the browser fixture is not a launch-seed substitute.
+**Current phase:** **MVP hardening + M5/M5.5/M7 complete.** M0-M5 runtime behavior, M4.5 web modernization, the native Chrome MV3 Open & Fill E2E, the M5.5 CV parser service, and the M7 sourcing expansion are complete. M6 (Android) and the 5,000-real-listing launch gate remain; registration stays closed below the threshold.
 **Verify gate:** M5 targeted backend checks plus the M5.5 parser service pass. This session ran the backend gate with a portable Go 1.27.1: `go build ./...`, `go vet ./...`, and `go test -count=1 -p 1 ./...` are all green (`internal/parser` included). The earlier full `TEST_DATABASE_URL=... ./scripts/verify.sh` ran 21 checks and was blocked only by pre-existing `backend/internal/ingest/atssource_test.go` formatting and the existing Chrome MV3 E2E; Android is absent/skipped. The gate requires `TEST_DATABASE_URL`, Docker, and an extension-capable Chrome binary (`CHROME_BIN`); none of those are installed in the current Windows environment, and git's `core.autocrlf=true` makes `gofmt -l` flag CRLF line endings on the whole checkout (a local artifact; committed files are LF). An opt-in live engine check exists: `RUN_PARSER_ACCURACY=1 OPENROUTER_API_KEY=... go test ./internal/parser -run AC_CV_2`.
 
 ---
@@ -33,8 +33,8 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | M4.5 Web UI modernization | Mantine v7, brand tokens, dark/light themes | ✅ | Responsive feed/sidebar and account screens use Mantine v7 components with brand-token CSS variables in `styles.css`; theme preference persists; loading skeletons, focus states, contrast, and existing web behavior are covered. (Token-to-Mantine theme mapping is a follow-up; the Tailwind utility layer was superseded 2026-08-22 but its config/dependency removal is still pending.) |
 | M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ✅ | Salary estimates and requirement tags are trust-labeled; personalized match/state feed fields, saved-filter alert loop, tracker, snippets, CV primary versions, completeness prompts, and account erasure integration are shipped. |
 | M5.5 CV parser service | CV-2 gap | ✅ | Service implemented in `backend/internal/parser` + `backend/cmd/parser` (+ `Dockerfile.parser`): envelope server, PDF/DOCX text extraction, OpenRouter JSON-schema engine holding `OPENROUTER_API_KEY`, Bearer auth, PII-safe errors. `cv.HostedParser` round-trips against it in tests; live ≥90% accuracy check is opt-in (`RUN_PARSER_ACCURACY=1`). |
-| M6 Android fast-follow | MOB-1..4 | ⬜ | After desktop mappings proven |
-| M7 Sourcing expansion | board discovery, Workday/SmartRecruiters, ETag/pooling | ⬜ | Reference-only use of external repos; improves supply and ATS coverage. `plan.md` has the full scope. |
+| M6 Android fast-follow | MOB-1..4 | ⬜ | After desktop mappings proven; Android SDK/toolchain not present in the current environment |
+| M7 Sourcing expansion | board discovery, Workday/SmartRecruiters, ETag/pooling | ✅ | Workday + SmartRecruiters Tier-2 adapters, curated catalogs, per-host connection pooling, ETag conditional fetch that replays its cache (re-touch preserved), and `cmd/discover-boards` (Wayback CDX + public-API validation, dry-run by default). |
 
 ## 3. Component readiness
 | Component | Path | Exists | verify.sh checks | State |
@@ -45,6 +45,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | Extension (MV3) | `/extension` | yes | lint, typecheck, test, build | Engine, durable arm, dynamic injection, submit guard, review, CV, telemetry, unit/happy-dom/mocked Chrome tests, and native browser MV3 E2E are green. |
 | M5 seeker features | `/backend/internal/m5`, `/web/src/components/EnhancementsPanel.tsx` | yes | backend + web checks | estimates, tags, matching, saved filters/alerts, job state, tracker, snippets, CV versions, completeness, and erasure integration |
 | CV parser service (M5.5) | `/backend/internal/parser`, `/backend/cmd/parser` | yes | backend build/vet/gofmt/test | envelope server + PDF/DOCX extraction + OpenRouter engine; `cv.HostedParser` round-trip verified |
+| Sourcing expansion (M7) | `/backend/internal/ingest`, `/backend/internal/discover`, `/backend/cmd/discover-boards` | yes | backend build/vet/gofmt/test | Workday/SmartRecruiters adapters, catalogs, pooling + ETag, board discovery |
 | Android | `/android` | no | gradle assembleDebug | not scaffolded |
 
 ## 4. Repo artifacts present
@@ -64,8 +65,9 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - CV data always user-confirmed before first apply.
 
 ## 6. Now / Next / Blocked
-- **Now:** M0-M5 runtime, native browser MV3 Open & Fill verification, M4.5 web UI modernization, and the M5.5 CV parser service are complete.
-- **Next:** seed/verify at least 5,000 active real listings before opening registration.
+- **Now:** M0-M5 runtime, native browser MV3 Open & Fill verification, M4.5 web UI modernization, the M5.5 CV parser service, and the M7 sourcing expansion are complete.
+- **Next:** seed/verify at least 5,000 active real listings before opening registration; run `cmd/discover-boards -write` to grow the board catalogs when network access is available.
+- **Remaining milestone:** M6 (Android fast-follow) — needs an Android SDK/Gradle toolchain and is sequenced after desktop mappings (proven).
 - **Held (by decision, not blocking MVP):** AC-FEED-1p 4G, AC-NFR-SCALE, and real Google OAuth credentials. Sources Glints/Jobstreet/Indeed remain excluded from static ingestion (WAF/anti-bot/ToS).
 - **Blocked:** launch readiness still requires at least 5,000 active real listings in Postgres. Synthetic browser fixtures never open registration.
 
@@ -84,6 +86,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-09-13** — [DONE] M7 sourcing expansion. Added the Workday CXS adapter (`workdaysource.go`, paginated POST, curated `atscompanies/workday.json` with seven verified Indonesian-coverage boards) and the SmartRecruiters adapter (`smartrecruiterssource.go`, paginated public API, `atscompanies/smartrecruiters.json`), both Tier 2 and registered per board so a dead slug trips only its own circuit breaker. Added `NewPooledHTTPClient` (per-host idle pooling) as the registry default, and a shared `conditionalStore` that sends ETag/Last-Modified and, on 304, replays the cached listings so the runner still re-touches every live row (the 48h sweep cannot expire them — no "skip known listings" shortcut). Added `internal/discover` + `cmd/discover-boards` (Wayback CDX discovery, public-API validation, deterministic merge, dry-run by default) with httptest coverage. ACCEPTANCE rows AC-SCR-11..14. Verified: `go build/vet` and full `go test -p 1 ./...` green with portable Go 1.27.1 (21 packages).
 - **2026-09-13** — [DONE] M5.5 CV parser service. Added `backend/internal/parser` (envelope server, DOCX via stdlib zip/XML, PDF via `github.com/ledongthuc/pdf`, OpenRouter JSON-schema engine, constant-time Bearer auth, PII-safe errors that never echo documents/provider bodies) and `backend/cmd/parser` plus `backend/Dockerfile.parser`. The real `cv.HostedParser` round-trips against the service in tests (AC-CV-2b); the live ≥90% accuracy check against the id/en labeled résumés is opt-in via `RUN_PARSER_ACCURACY=1`. Documented `CV_PARSER_URL` (must include `/parse`, HTTPS or loopback), `CV_PARSER_API_KEY`, and the parser's own `OPENROUTER_*`/`PARSER_*` env in README. Note: implemented as a Go port of the `orasik/resume-parser` (MIT) approach because the environment has no Python runtime; the OpenRouter engine contract and envelope are unchanged. Verified: `go build/vet/gofmt` and `go test ./internal/parser` green with portable Go 1.27.1; full `go test -p 1 ./...` green. Also fixed a latent bug in `internal/ingestctl`'s single-flight test (a re-triggered run closed the same channel twice), which panicked under Go 1.27.
 - **2026-09-13** — [DECISION] CV parser (M5.5): use **`orasik/resume-parser` (MIT) with an OpenRouter model**, self-hosted on **AWS** as a separate service; the adapter holds `OPENROUTER_API_KEY` and exposes the project's envelope. Affinda rejected (not open source; paid for production). A local OpenAI-compatible model remains a drop-in alternative. Added `AGENTS.md` as the coding-agent handoff entry point.
 - **2026-09-13** — [PLAN] Added **Milestone 5.5 — CV parser service** to `plan.md` and the milestone table here. Records the fixed envelope in `internal/cv/hosted.go`, the `orasik/resume-parser` (MIT, LLM-based, self-hostable) vs `affinda/resume-parser` (offline, commercial, not open source) choice, and a recommendation to start with the MIT parser on a locally hosted model. Milestone 7 also added to the table.

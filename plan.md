@@ -222,7 +222,14 @@ text-extractable token list** — the palette has been sampled and filled in
 - Sequenced **after** desktop mappings are proven.
 
 ## Milestone 7 — Sourcing expansion via ATS board discovery (post-MVP)
-- **Status: not started.** Deferred until after the desktop and Android milestones.
+- **Status: complete (2026-09-13).** Adapters and tooling landed:
+  `internal/ingest/workdaysource.go` (paginated CXS POST) and
+  `smartrecruiterssource.go` (paginated public API), curated
+  `atscompanies/{workday,smartrecruiters}.json`, `NewPooledHTTPClient`
+  (per-host idle pooling), a shared ETag/Last-Modified conditional fetch that
+  replays its cache on 304 (re-touch preserved), and `cmd/discover-boards`
+  (Wayback CDX + public-API validation, dry-run by default). M6 remains
+  deferred until an Android toolchain is available.
 - **Goal:** grow ingestion well beyond the small curated `backend/internal/ingest/atscompanies/*.json` catalog and add the high-value ATS adapters, without diluting the Jabodetabek-first feed.
 - **Method — external projects are references, not dependencies** (all but one are Python; this repo stays Go + its tests, and adapters are re-implemented against the existing `Source` interface):
   - `kalil0321/ats-scrapers` (MIT) — Workday, SmartRecruiters, SuccessFactors, iCIMS, Personio request/response shapes and company inventories.

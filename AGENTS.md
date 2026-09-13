@@ -34,8 +34,12 @@ Update `PROGRESS.md` and `ACCEPTANCE.md` at the end of every working session.
   (HTTPS or loopback, include `/parse`) points the API at it; without it
   `/cv/{id}/parse` returns 503. Engine approach ported from `orasik/resume-parser`
   (MIT) since the repo has no Python runtime.
-- **M6 (planned):** Android fast-follow. **M7 (planned):** ATS board discovery
-  and Workday/SmartRecruiters adapters.
+- **M7 complete.** Sourcing expansion: Workday + SmartRecruiters Tier-2
+  adapters (`internal/ingest`), curated `atscompanies/*.json` catalogs, per-host
+  connection pooling + ETag conditional fetch (304 replays its cache so live
+  rows are still re-touched), and `cmd/discover-boards` (Wayback CDX + public-API
+  validation, dry-run by default).
+- **M6 (planned):** Android fast-follow; needs an Android SDK/Gradle toolchain.
 - Ingestion runs on a River scheduler (`INGEST_INTERVAL`, default 6h) and now
   backfills at startup only when the feed is below target; a token-gated
   `POST /ingest/run` triggers a pass on demand (`internal/ingestctl`).

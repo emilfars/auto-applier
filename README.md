@@ -103,6 +103,25 @@ curl -fsS -X POST http://localhost:8080/ingest/run \
 # 202 started · 401 bad token · 409 a run is already in progress · 503 trigger disabled
 ```
 
+### Public board catalogs & discovery
+
+Greenhouse, Lever, Workable, Ashby, Workday, and SmartRecruiters boards are
+harvested from curated slug catalogs in `backend/internal/ingest/atscompanies/`
+(one JSON file per ATS; Workday entries carry `host`/`tenant`/`site`). The
+harvester uses a per-host connection pool and ETag conditional requests; a 304
+replays the last listing set so live rows are still re-upserted and never expire
+via the 48h sweep. Each board is its own Tier-2 source, so a dead slug trips only
+its own circuit breaker.
+
+Grow the catalogs from the Wayback CDX index, validating each candidate against
+its public API before it is added:
+```bash
+go -C backend run ./cmd/discover-boards                 # dry run, all platforms
+go -C backend run ./cmd/discover-boards -platforms workday -write
+```
+Discovery is biased toward Indonesian hirers (the feed still drops any listing
+that is neither Jabodetabek nor remote).
+
 ## CV parsing
 
 `POST /cv/{id}/parse` is served by the client in `backend/internal/cv/hosted.go`,

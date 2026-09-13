@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -44,14 +45,37 @@ type SourceConfig struct {
 	CareerjetLimit int
 	// ATSEnabled enables one public source per company slug in the curated
 	// catalog. ATSSlugs overrides the catalog for the listed platform, which is
-	// useful for fixture tests and controlled deployments.
+	// useful for fixture tests and controlled deployments. WorkdayCompanies and
+	// SmartRecruitersCompanies override the workday/smartrecruiters catalogs the
+	// same way.
 	ATSEnabled bool
 	ATSSlugs   map[ATSPlatform][]string
+	// WorkdayCompanies overrides the embedded Workday catalog when non-nil.
+	WorkdayCompanies []WorkdayCompany
+	// SmartRecruitersCompanies overrides the SmartRecruiters catalog when non-nil.
+	SmartRecruitersCompanies []SmartRecruitersCompany
 	// RemoteEnabled enables the keyless Remotive, Jobicy, and RemoteOK sources.
 	RemoteEnabled bool
 	RemoteLimit   int
-	// HTTPClient is shared by all sources; nil uses a default with a timeout.
+	// HTTPClient is shared by all sources; nil uses a pooled default.
 	HTTPClient *http.Client
+}
+
+// NewPooledHTTPClient returns a shared client tuned for harvesting many small
+// JSON boards: bounded per-host idle connections (keep-alive reuse instead of a
+// TCP+TLS handshake per request), a global idle cap, and an overall timeout.
+func NewPooledHTTPClient() *http.Client {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   4,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	return &http.Client{Transport: transport, Timeout: 20 * time.Second}
 }
 
 // BuildRegistry assembles enabled real sources. Keyed sources degrade when
@@ -61,7 +85,7 @@ type SourceConfig struct {
 func BuildRegistry(cfg SourceConfig) *Registry {
 	client := cfg.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 20 * time.Second}
+		client = NewPooledHTTPClient()
 	}
 	reg := NewRegistry()
 
@@ -84,7 +108,7 @@ func BuildRegistry(cfg SourceConfig) *Registry {
 			log.Printf("ingest: register careerjet: %v", err)
 		}
 	}
-	if cfg.ATSEnabled || len(cfg.ATSSlugs) > 0 {
+	if cfg.ATSEnabled || len(cfg.ATSSlugs) > 0 || cfg.WorkdayCompanies != nil || cfg.SmartRecruitersCompanies != nil {
 		for _, platform := range []ATSPlatform{ATSGreenhouse, ATSLever, ATSWorkable, ATSAshby} {
 			entries := configuredATSCompanies(platform, cfg.ATSSlugs)
 			for _, entry := range entries {
@@ -92,6 +116,18 @@ func BuildRegistry(cfg SourceConfig) *Registry {
 				if err := reg.Register(source); err != nil {
 					log.Printf("ingest: register %s/%s: %v", platform, entry.Slug, err)
 				}
+			}
+		}
+		for _, entry := range configuredWorkdayCompanies(cfg.WorkdayCompanies) {
+			source := NewWorkdaySource(entry, client)
+			if err := reg.Register(source); err != nil {
+				log.Printf("ingest: register workday/%s: %v", entry.Site, err)
+			}
+		}
+		for _, entry := range configuredSmartRecruitersCompanies(cfg.SmartRecruitersCompanies) {
+			source := NewSmartRecruitersSource(entry, client)
+			if err := reg.Register(source); err != nil {
+				log.Printf("ingest: register smartrecruiters/%s: %v", entry.Slug, err)
 			}
 		}
 	}
@@ -132,4 +168,60 @@ func configuredATSCompanies(platform ATSPlatform, overrides map[ATSPlatform][]st
 		return nil
 	}
 	return entries
+}
+
+// configuredWorkdayCompanies returns the override list when provided, else the
+// embedded catalog. Invalid entries (missing host/tenant/site) are dropped so a
+// typo cannot register a source that can never fetch.
+func configuredWorkdayCompanies(overrides []WorkdayCompany) []WorkdayCompany {
+	entries := overrides
+	if entries == nil {
+		if err := readATSCatalog("workday", &entries); err != nil {
+			log.Printf("ingest: read ATS catalog workday.json: %v", err)
+			return nil
+		}
+	}
+	out := make([]WorkdayCompany, 0, len(entries))
+	for _, entry := range entries {
+		entry.Host = strings.TrimSpace(entry.Host)
+		entry.Tenant = strings.TrimSpace(entry.Tenant)
+		entry.Site = strings.TrimSpace(entry.Site)
+		if entry.Host == "" || entry.Tenant == "" || entry.Site == "" {
+			log.Printf("ingest: skipping invalid Workday catalog entry %+v", entry)
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// configuredSmartRecruitersCompanies returns the override list when provided,
+// else the embedded catalog.
+func configuredSmartRecruitersCompanies(overrides []SmartRecruitersCompany) []SmartRecruitersCompany {
+	entries := overrides
+	if entries == nil {
+		if err := readATSCatalog("smartrecruiters", &entries); err != nil {
+			log.Printf("ingest: read ATS catalog smartrecruiters.json: %v", err)
+			return nil
+		}
+	}
+	out := make([]SmartRecruitersCompany, 0, len(entries))
+	for _, entry := range entries {
+		entry.Slug = strings.TrimSpace(entry.Slug)
+		if entry.Slug == "" {
+			log.Printf("ingest: skipping invalid SmartRecruiters catalog entry %+v", entry)
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func readATSCatalog(name string, v any) error {
+	path := "atscompanies/" + name + ".json"
+	data, err := atsCompanyFiles.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
 }

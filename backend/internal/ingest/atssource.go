@@ -33,6 +33,7 @@ type ATSSource struct {
 	company  string
 	endpoint string
 	client   *http.Client
+	cache    conditionalStore
 }
 
 // NewATSSource creates a production public-board source for one company slug.
@@ -103,33 +104,16 @@ func (a *ATSSource) Fetch(ctx context.Context) ([]RawJob, error) {
 	if a.endpoint == "" {
 		return nil, fmt.Errorf("ingest: %s board endpoint is empty", a.ID())
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("ingest: build request for %s: %w", a.ID(), err)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "AutoApplier/1.0 (+https://autoapplier.id)")
-	resp, err := a.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ingest: fetch %s: %w", a.ID(), err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ingest: %s returned status %d", a.ID(), resp.StatusCode)
-	}
-
-	var payload json.RawMessage
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, fmt.Errorf("ingest: decode %s: %w", a.ID(), err)
-	}
-	jobs, err := a.decode(payload)
-	if err != nil {
-		return nil, err
-	}
-	return jobs, nil
+	return a.cache.fetch(ctx, a.client, a.ID(), func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.endpoint, nil)
+		if err != nil {
+			return nil, err
+		}
+		return req, nil
+	}, a.decode)
 }
 
-func (a *ATSSource) decode(payload json.RawMessage) ([]RawJob, error) {
+func (a *ATSSource) decode(payload []byte) ([]RawJob, error) {
 	switch a.platform {
 	case ATSGreenhouse:
 		var response greenhouseResponse
