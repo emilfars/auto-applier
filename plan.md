@@ -59,9 +59,9 @@ implementation; every source must degrade gracefully when its key is unset.
 
 ## Current implementation checkpoint (2026-08-21)
 
-M0-M5, the M3 sourcing extensions (AC-SCR-7..10), and M4.5 web modernization
-are complete. The native Chrome MV3 Open & Fill browser gate is green. Launch
-still has one operational blocker:
+M0-M5, M5.5 (CV parser service), the M3 sourcing extensions (AC-SCR-7..10), and
+M4.5 web modernization are complete. The native Chrome MV3 Open & Fill browser
+gate is green. Launch still has one operational blocker:
 
 | Blocker | Current state |
 |---|---|
@@ -195,7 +195,12 @@ text-extractable token list** — the palette has been sampled and filled in
 - AUTH-5 account deletion + data export (UU PDP).
 
 ## Milestone 5.5 — CV parser service (close the M2 parsing gap)
-- **Status: not started.**
+- **Status: complete (2026-09-13).** Implemented in `backend/internal/parser`
+  (envelope server, PDF/DOCX text extraction, OpenRouter JSON-schema engine,
+  Bearer auth) + `backend/cmd/parser` + `backend/Dockerfile.parser`. The real
+  `cv.HostedParser` client round-trips against the service in tests; the live
+  engine accuracy check is opt-in (`RUN_PARSER_ACCURACY=1`) and the deterministic
+  mapping accuracy remains enforced in `internal/cv`.
 - **Why:** M2 ships the hosted-parser *client* (`backend/internal/cv/hosted.go`) and the profile-apply flow, but no parser service exists. With `CV_PARSER_URL` unset, `POST /cv/{id}/parse` returns 503, so the "upload CV → parsed profile" promise (CV-2) is unmet.
 - **Goal:** a deployable parser service that accepts the project's documented envelope and returns the normalized shape so CV-2 works end to end.
 - **Interface (fixed by `hosted.go`):** `POST` JSON `{filename, content_type, document_base64}` with optional `Authorization: Bearer <CV_PARSER_API_KEY>`; response `{data:{name,email,phone,education[],work_history[],skills[]}}`. HTTPS required except loopback; the envelope means any engine needs a thin adapter.

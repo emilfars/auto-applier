@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+# Build the M5.5 CV parser service (backend/cmd/parser). It holds
+# OPENROUTER_API_KEY and is deployed separately from the API.
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o /out/parser ./cmd/parser
+
+FROM gcr.io/distroless/static-debian12
+COPY --from=build /out/parser /parser
+EXPOSE 8090
+USER nonroot:nonroot
+ENTRYPOINT ["/parser"]

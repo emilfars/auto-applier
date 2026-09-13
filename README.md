@@ -109,12 +109,40 @@ curl -fsS -X POST http://localhost:8080/ingest/run \
 which posts `{filename, content_type, document_base64}` to `CV_PARSER_URL` and
 expects `{data:{name,email,phone,education[],work_history[],skills[]}}`. The
 endpoint returns 503 until `CV_PARSER_URL` points at a running parser service.
-Any engine needs a thin adapter that speaks this envelope.
 
-The chosen engine (M5.5, `plan.md`) is `orasik/resume-parser` (MIT) driven by an
+The chosen engine (`plan.md` M5.5) is `orasik/resume-parser` (MIT) driven by an
 **OpenRouter** model, deployed on **AWS** as a separate service that holds
-`OPENROUTER_API_KEY`. Set `CV_PARSER_URL` (HTTPS, or loopback) and
-`CV_PARSER_API_KEY` on the API. Never log CV contents or PII.
+`OPENROUTER_API_KEY`. The adapter lives in `backend/internal/parser` and is a Go
+re-implementation of that engine's approach (text extraction → JSON-schema LLM
+call); the API never sees the model key. Set `CV_PARSER_URL` to the service's
+`/parse` endpoint (HTTPS, or loopback) and `CV_PARSER_API_KEY` on the API; set
+the service's own env (below). Never log CV contents or PII.
+
+Run the parser locally (the API can then use
+`CV_PARSER_URL=http://localhost:8090/parse`):
+```bash
+OPENROUTER_API_KEY=... go -C backend run ./cmd/parser   # serves :8090
+```
+or as a container:
+```bash
+docker build -f backend/Dockerfile.parser -t auto-applier-parser ./backend
+docker run --rm -p 8090:8090 -e OPENROUTER_API_KEY=... auto-applier-parser
+```
+
+Parser service environment variables:
+| Var | Purpose |
+|---|---|
+| `OPENROUTER_API_KEY` | Required. OpenRouter key; only this service holds it. |
+| `OPENROUTER_MODEL` | Primary model (default `google/gemini-flash-1.5-8b`). |
+| `OPENROUTER_MODELS` | Optional comma-separated fallback list; overrides `OPENROUTER_MODEL`. |
+| `OPENROUTER_BASE_URL` | Provider base URL (default `https://openrouter.ai/api/v1`); must be HTTPS or loopback. |
+| `CV_PARSER_API_KEY` | Optional shared secret; when set, callers must send `Authorization: Bearer <key>`. |
+| `PARSER_ADDR` | Listen address (default `:8090`). |
+| `PARSER_MAX_BYTES` | Max decoded document size (default 10 MiB). |
+
+Résumé text is sent to OpenRouter for structuring and is covered by the existing
+signup consent; the mandatory confirm-before-apply gate is unchanged.
+
 
 ## Verification gate
 

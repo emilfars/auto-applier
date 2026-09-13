@@ -58,6 +58,7 @@ Test-type conventions:
 | AC-CV-1 | CV-1 | Accept PDF/DOCX ≤5MB; reject other types and >5MB | integration: matrix of uploads → 201 / 415 / 413 | ✅ |
 | AC-CV-1b | CV-1 | Stored CV object is encrypted at rest (ciphertext != plaintext bytes) | integration: read raw object store, assert not equal to source | ✅ |
 | AC-CV-2 | CV-2 | Parse populates contact/education/work/skills for a fixture CV with ≥90% field accuracy | unit/integration against labeled fixtures (id + en) | ✅ |
+| AC-CV-2b | CV-2 (M5.5) | Parser service speaks the `{filename,content_type,document_base64}` envelope, extracts PDF/DOCX text, and structures it via an OpenRouter model back into `{data:...}`; the real `cv.HostedParser` client consumes it end to end | Go tests in `backend/internal/parser`: envelope round-trip with `cv.HostedParser`, PDF/DOCX extraction, Bearer auth, status mapping; live engine accuracy is opt-in (`RUN_PARSER_ACCURACY=1`) | ✅ |
 | AC-CV-3 | CV-3 | All parsed fields are editable and persist | integration: PATCH profile → GET reflects change + web UI coverage | ✅ |
 | AC-CV-4 | CV-4 | Added-info fields (expected salary, notice period, work auth, relocation, preferred locations, employment type) persist and validate | integration | ✅ |
 | AC-CV-5 | CV — | **Confirm-before-apply gate:** incomplete profiles cannot be confirmed; profile has `confirmed=false` until user confirms; fill flow refuses to arm while unconfirmed | integration: incomplete confirmation rejected + extension unit: arming blocked when `confirmed=false` | ✅ |

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -86,10 +87,11 @@ func TestStartBackfillNilCounterIsNoop_AC(t *testing.T) {
 func TestTriggerIsSingleFlight_AC(t *testing.T) {
 	release := make(chan struct{})
 	started := make(chan struct{})
+	var startOnce sync.Once
 	var runs int32
 	ctl := New(nil, 5000, func(context.Context) {
 		atomic.AddInt32(&runs, 1)
-		close(started)
+		startOnce.Do(func() { close(started) })
 		<-release
 	}, 0)
 

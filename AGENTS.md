@@ -28,11 +28,12 @@ Update `PROGRESS.md` and `ACCEPTANCE.md` at the end of every working session.
   superseded; dead Tailwind config/dependency removal is still pending).
 - **Launch blocker:** registration stays closed until Postgres holds **≥5,000
   active real listings** (`internal/seed`.DefaultCount). Synthetic listings never count.
-- **M5.5 (not started):** implement the CV parser service. Decision recorded in
-  `plan.md` — `orasik/resume-parser` (MIT) with an **OpenRouter** model, deployed
-  on **AWS** as a separate service; the adapter holds `OPENROUTER_API_KEY` and
-  exposes the envelope in `internal/cv/hosted.go`. Without `CV_PARSER_URL`,
-  `/cv/{id}/parse` returns 503.
+- **M5.5 complete.** CV parser service in `internal/parser` + `cmd/parser`:
+  envelope server (`hosted.go` contract), PDF/DOCX text extraction, OpenRouter
+  JSON-schema engine holding `OPENROUTER_API_KEY`, Bearer auth. `CV_PARSER_URL`
+  (HTTPS or loopback, include `/parse`) points the API at it; without it
+  `/cv/{id}/parse` returns 503. Engine approach ported from `orasik/resume-parser`
+  (MIT) since the repo has no Python runtime.
 - **M6 (planned):** Android fast-follow. **M7 (planned):** ATS board discovery
   and Workday/SmartRecruiters adapters.
 - Ingestion runs on a River scheduler (`INGEST_INTERVAL`, default 6h) and now
