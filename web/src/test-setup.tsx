@@ -20,3 +20,11 @@ Object.defineProperty(window, "ResizeObserver", {
     disconnect() {}
   },
 });
+
+// jsdom does not implement scrollIntoView, which Mantine's Combobox/Select
+// calls when an option list opens. A no-op keeps those interactions from
+// raising unhandled exceptions during tests.
+Object.defineProperty(Element.prototype, "scrollIntoView", {
+  writable: true,
+  value: () => {},
+});

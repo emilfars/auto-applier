@@ -19,10 +19,11 @@ import {
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { extname, join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { once } from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const ROOT = resolve(new URL("..", import.meta.url).pathname);
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const STATE = join(ROOT, `.browser-e2e-state-${process.pid}`);
 const EXTENSION = join(ROOT, "extension");
 const WEB_DIST = join(ROOT, "web", "dist");
@@ -66,6 +67,8 @@ function command(name, args, options = {}) {
   const result = spawnSync(name, args, {
     cwd: ROOT,
     stdio: "inherit",
+    // .cmd/.bat shims (npm on Windows) and PATH lookups need a shell there.
+    shell: process.platform === "win32",
     ...options,
   });
   if (result.status !== 0) fail(`${name} ${args.join(" ")} failed`);
@@ -74,6 +77,7 @@ function command(name, args, options = {}) {
 function findChrome() {
   const candidates = [
     process.env.CHROME_BIN,
+    join(ROOT, ".cft", "chrome-win64", "chrome.exe"),
     join(ROOT, ".cft", "chrome-linux64", "chrome"),
     "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
     join(ROOT, ".cft", "chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
@@ -217,7 +221,7 @@ async function connectPage(debugPort, predicate) {
 }
 
 function startBackend(apiPort, sourceURL) {
-  const binary = join(STATE, "api");
+  const binary = join(STATE, process.platform === "win32" ? "api.exe" : "api");
   command("go", ["build", "-o", binary, "./cmd/api"], { cwd: join(ROOT, "backend") });
   const child = spawn(binary, [], {
     cwd: ROOT,
@@ -524,96 +528,118 @@ async function run() {
     await web.send("Page.reload", { ignoreCache: true });
     await waitFor(() => web.evaluate(() => document.readyState === "complete"), "web session reload");
     await waitFor(
-      () => web.evaluate(() => Boolean(document.querySelector(".auth--signedin"))),
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="auth-signedin"]'))),
       "signed-in web UI",
     );
     await waitFor(
-      () => web.evaluate(() => Boolean(document.querySelector(".profile__form"))),
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="profile-form"]'))),
       "profile form",
     );
 
     await setFileInput(web, PDF_PATH);
     await waitFor(
-      () => web.evaluate(() => !document.querySelector(".cv__upload button")?.disabled),
+      () => web.evaluate(() => !document.querySelector('[data-testid="cv-upload-button"]')?.disabled),
       "CV upload button",
     );
-    await web.evaluate(() => document.querySelector(".cv__upload button")?.click());
+    await web.evaluate(() => document.querySelector('[data-testid="cv-upload-button"]')?.click());
     await waitFor(
-      () => web.evaluate(() => Boolean(document.querySelector(".cv__item"))),
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="cv-item"]'))),
       "uploaded CV in web UI",
     );
     const cvName = await web.evaluate(
-      () => document.querySelector(".cv__item")?.textContent ?? "",
+      () => document.querySelector('[data-testid="cv-item"]')?.textContent ?? "",
     );
     if (!cvName.includes("browser-e2e.pdf")) fail("web UI did not show uploaded CV name");
 
-    const profileSaved = await web.evaluate((values) => {
-      const labels = [...document.querySelectorAll(".profile__form label")];
-      const controls = labels.map((label) => label.querySelector("input, textarea, select"));
-      const setValue = (index, value) => {
-        const control = controls[index];
+    const profileSaved = await web.evaluate(async (values) => {
+      const field = (key) => {
+        const control = document.querySelector(`[data-testid="profile-${key}"]`);
+        if (!control) throw new Error(`profile control ${key} missing`);
+        return control;
+      };
+      const setValue = (key, value) => {
+        const control = field(key);
         if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement ||
-              control instanceof HTMLSelectElement)) throw new Error(`profile control ${index} missing`);
-        const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(control), "value")?.set;
+              control instanceof HTMLSelectElement)) throw new Error(`profile control ${key} invalid`);
+        const prototype = control instanceof HTMLTextAreaElement
+          ? HTMLTextAreaElement.prototype
+          : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
         setter?.call(control, value);
         control.dispatchEvent(new Event("input", { bubbles: true }));
         control.dispatchEvent(new Event("change", { bubbles: true }));
       };
-      setValue(0, values.full_name);
-      setValue(1, values.email);
-      setValue(2, values.phone);
-      setValue(3, values.linkedin_url);
-      setValue(4, values.github_url);
-      setValue(5, "");
-      setValue(6, "Jakarta");
-      setValue(7, "Jl. Sudirman 1");
-      setValue(8, "Backend engineer building reliable systems.");
-      setValue(9, "Nusantara Digital");
-      setValue(10, "Senior Engineer");
-      setValue(11, "Computer Science");
-      setValue(12, "authorized");
-      setValue(13, values.expected_salary);
-      setValue(14, values.notice_period);
-      setValue(15, "full_time");
-      const relocation = controls[16];
+      const setSelect = async (key, label) => {
+        const control = field(key);
+        control.click();
+        const deadline = Date.now() + 5_000;
+        while (Date.now() < deadline) {
+          const option = [...document.querySelectorAll('[role="option"]')].find(
+            (node) => node.textContent?.trim() === label && node.getClientRects().length > 0,
+          );
+          if (option) {
+            option.click();
+            return;
+          }
+          await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+        }
+        throw new Error(`option "${label}" for ${key} was not found`);
+      };
+      setValue("full_name", values.full_name);
+      setValue("email", values.email);
+      setValue("phone", values.phone);
+      setValue("linkedin_url", values.linkedin_url);
+      setValue("github_url", values.github_url);
+      setValue("portfolio_url", "");
+      setValue("city", "Jakarta");
+      setValue("address", "Jl. Sudirman 1");
+      setValue("summary", "Backend engineer building reliable systems.");
+      setValue("current_employer", "Nusantara Digital");
+      setValue("current_title", "Senior Engineer");
+      setValue("highest_education", "Computer Science");
+      setValue("work_authorization", "authorized");
+      setValue("expected_salary", values.expected_salary);
+      setValue("notice_period_days", values.notice_period);
+      await setSelect("employment_type", "full time");
+      const relocation = field("open_to_relocation");
       if (!(relocation instanceof HTMLInputElement)) throw new Error("relocation control missing");
-      relocation.checked = true;
-      relocation.dispatchEvent(new Event("change", { bubbles: true }));
-      setValue(17, JSON.stringify([{
+      relocation.click();
+      setValue("education", JSON.stringify([{
         institution: "Universitas Indonesia",
         degree: "S.Kom",
         field: "Computer Science",
         start_year: "2015",
         end_year: "2019",
       }]));
-      setValue(18, JSON.stringify([{
+      setValue("work_history", JSON.stringify([{
         company: "Nusantara Digital",
         title: "Senior Engineer",
         start_date: "2020-01",
         end_date: "",
       }]));
-      setValue(19, "Go, TypeScript, PostgreSQL");
-      setValue(20, "Jakarta, Depok");
-      document.querySelector(".profile__form button[type=submit]")?.click();
+      setValue("skills", "Go, TypeScript, PostgreSQL");
+      setValue("preferred_locations", "Jakarta, Depok");
+      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+      document.querySelector('[data-testid="profile-form"] button[type=submit]')?.click();
       return true;
     }, profile);
     if (!profileSaved) fail("profile controls did not save");
     await waitFor(
       () =>
         web.evaluate(() =>
-          [...document.querySelectorAll(".profile .panel__status")].some((node) =>
+          [...document.querySelectorAll('[data-testid="profile-status"]')].some((node) =>
             /saved|disimpan/i.test(node.textContent ?? ""),
           ),
         ),
       "profile save",
     );
     await waitFor(
-      () => web.evaluate(() => Boolean(document.querySelector(".profile__confirm button"))),
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="profile-confirm"]'))),
       "profile confirm button",
     );
-    await web.evaluate(() => document.querySelector(".profile__confirm button")?.click());
+    await web.evaluate(() => document.querySelector('[data-testid="profile-confirm"]')?.click());
     await waitFor(
-      () => web.evaluate(() => Boolean(document.querySelector(".badge--confirmed"))),
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="profile-confirmed-badge"]'))),
       "confirmed profile",
     );
 
@@ -630,21 +656,25 @@ async function run() {
     if (snapshot.body.profile.full_name !== profile.full_name) fail("snapshot profile mismatch");
 
     await waitFor(
-      () => web.evaluate(() => Boolean(document.querySelector(".job-card__fill:not([disabled])"))),
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="job-fill-button"]:not([disabled])'))),
       "enabled Open & Fill button",
     );
-    await web.evaluate(() => document.querySelector(".job-card__fill:not([disabled])")?.click());
+    await web.evaluate(() => document.querySelector('[data-testid="job-fill-button"]:not([disabled])')?.click());
     try {
       await waitFor(
-        () => web.evaluate(() => Boolean(document.querySelector(".job-card__fill-notice--armed"))),
+        () =>
+          web.evaluate(() =>
+            Boolean(document.querySelector('[data-testid="job-fill-notice"][data-status="armed"]')),
+          ),
         "Open & Fill bridge response",
       );
     } catch (error) {
       console.error(
         await web.evaluate(() => ({
-          notices: [...document.querySelectorAll(".job-card__fill-notice")].map((node) => node.textContent),
+          notices: [...document.querySelectorAll('[data-testid="job-fill-notice"]')].map((node) => node.textContent),
           chromeRuntime: Boolean(globalThis.chrome?.runtime),
-          extensionId: document.querySelector(".job-card__fill-notice")?.className ?? "",
+          statuses: [...document.querySelectorAll('[data-testid="job-fill-notice"]')]
+            .map((node) => node.getAttribute("data-status")),
         })),
       );
       throw error;

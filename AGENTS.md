@@ -53,9 +53,14 @@ Update `PROGRESS.md` and `ACCEPTANCE.md` at the end of every working session.
 - Web/extension/fill-mappings: `npm run lint && npm run typecheck && npm test && npm run build`.
 - Local stack: `docker compose up --build` (Postgres + MinIO + API + web).
 - Local Postgres without Docker: `eval "$(./scripts/dev-db.sh --export)"`.
-- **Current environment caveat:** the Go toolchain is not installed on the
-  machine that last edited this repo, so the gate has not been run for the most
-  recent changes. Install Go before trusting the backend build.
+- Browser E2E: `node scripts/browser-e2e.mjs` (cross-platform; needs `CHROME_BIN`
+  or a Chrome for Testing/Chromium at `.cft/` — gitignored — plus `go`/`openssl`
+  on PATH). It boots the API in-memory and uses a local ATS fixture, so no
+  third-party network is needed.
+- **Environment caveat:** Docker/Postgres are not installed here, so the
+  deployment and `TEST_DATABASE_URL` checks are skipped. Backend, web, and
+  browser checks pass with a portable Go 1.27.1 toolchain; on a Windows checkout
+  `gofmt -l` flags CRLF line endings (local artifact; committed files are LF).
 
 ## Config quick reference
 

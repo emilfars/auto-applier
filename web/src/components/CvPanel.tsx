@@ -100,6 +100,7 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
             leftSection={<IconUpload size={16} />}
             loading={busy}
             disabled={!selected}
+            data-testid="cv-upload-button"
           >
             {busy ? t(locale, "cv.uploading") : t(locale, "cv.upload")}
           </Button>
@@ -119,7 +120,7 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
       ) : (
         <Stack gap="xs">
           {files.map((f) => (
-            <Paper key={f.id} withBorder p="sm" radius="md">
+            <Paper key={f.id} withBorder p="sm" radius="md" data-testid="cv-item">
               <Group justify="space-between" wrap="wrap" gap="xs">
                 <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
                   <Text size="sm" fw={500} truncate>

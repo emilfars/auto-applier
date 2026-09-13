@@ -136,7 +136,7 @@ export function JobCard({
 
       <Stack gap="xs" mt="auto" pt="sm">
         <Group gap="xs" wrap="wrap">
-          <Button size="xs" leftSection={<IconWand size={14} />} loading={busy} onClick={onOpenFill}>
+          <Button size="xs" leftSection={<IconWand size={14} />} loading={busy} onClick={onOpenFill} data-testid="job-fill-button">
             {t(locale, "feed.openFill")}
           </Button>
           <Button
@@ -173,7 +173,7 @@ export function JobCard({
           {t(locale, "feed.openFill.note")}
         </Text>
         {notice && (
-          <Alert color={noticeColor} variant="light" py={8} role="status">
+          <Alert color={noticeColor} variant="light" py={8} role="status" data-testid="job-fill-notice" data-status={notice}>
             {t(locale, noticeKey[notice])}
           </Alert>
         )}

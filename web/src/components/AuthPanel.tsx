@@ -63,11 +63,11 @@ export function AuthPanel({ locale }: { locale: Locale }) {
 
   if (user) {
     return (
-      <Group justify="space-between" wrap="wrap">
+      <Group justify="space-between" wrap="wrap" data-testid="auth-signedin">
         <Text size="sm" c="dimmed">
           {t(locale, "auth.signedInAs")} <Text span fw={700} c="bright">{user.email}</Text>
         </Text>
-        <Button variant="default" onClick={() => void signOut()}>
+        <Button variant="default" onClick={() => void signOut()} data-testid="auth-signout">
           {t(locale, "auth.signout")}
         </Button>
       </Group>

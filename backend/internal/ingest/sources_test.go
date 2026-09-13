@@ -51,6 +51,21 @@ func TestBuildRegistryIncludesM3SupplementsWhenEnabled(t *testing.T) {
 	}
 }
 
+// AC-SCR-7: keyed sources degrade when their credential is unset, so an
+// unconfigured deployment still builds a valid (empty) registry rather than
+// registering a source that can never authenticate.
+func TestBuildRegistryDegradesCareerjetWhenUnset(t *testing.T) {
+	without := BuildRegistry(SourceConfig{HTTPClient: &http.Client{}})
+	if ids := sourceIDs(without.Sources()); contains(ids, "careerjet") {
+		t.Fatalf("careerjet registered without an affidavit: %v", ids)
+	}
+
+	with := BuildRegistry(SourceConfig{CareerjetAffid: "careerjet-affid", HTTPClient: &http.Client{}})
+	if ids := sourceIDs(with.Sources()); !contains(ids, "careerjet") {
+		t.Fatalf("careerjet missing with an affidavit: %v", ids)
+	}
+}
+
 // AC-SCR-11/12: Workday and SmartRecruiters boards wired via overrides are
 // registered as Tier 2 sources next to the existing ATS harvesters.
 func TestBuildRegistryIncludesWorkdayAndSmartRecruiters(t *testing.T) {

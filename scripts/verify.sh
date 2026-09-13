@@ -50,6 +50,7 @@ browser_bin() {
   local candidate
   for candidate in \
     "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
+    "${ROOT_DIR}/.cft/chrome-win64/chrome.exe" \
     "${ROOT_DIR}/.cft/chrome-linux64/chrome" \
     "${ROOT_DIR}/.cft/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
     "${ROOT_DIR}/.cft/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \

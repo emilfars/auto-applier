@@ -233,51 +233,52 @@ export function ProfilePanel({
 
   return (
     <Stack gap="md">
-      <form onSubmit={onSave}>
+      <form onSubmit={onSave} data-testid="profile-form">
         <Grid gutter="md">
           <Grid.Col span={12}>
-            <TextInput label={t(locale, "profile.fullName")} required {...form.getInputProps("full_name")} />
+            <TextInput label={t(locale, "profile.fullName")} required data-testid="profile-full_name" {...form.getInputProps("full_name")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.email")} required type="email" {...form.getInputProps("email")} />
+            <TextInput label={t(locale, "profile.email")} required type="email" data-testid="profile-email" {...form.getInputProps("email")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.phone")} required {...form.getInputProps("phone")} />
+            <TextInput label={t(locale, "profile.phone")} required data-testid="profile-phone" {...form.getInputProps("phone")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.linkedin")} type="url" {...form.getInputProps("linkedin_url")} />
+            <TextInput label={t(locale, "profile.linkedin")} type="url" data-testid="profile-linkedin_url" {...form.getInputProps("linkedin_url")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.github")} type="url" {...form.getInputProps("github_url")} />
+            <TextInput label={t(locale, "profile.github")} type="url" data-testid="profile-github_url" {...form.getInputProps("github_url")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.portfolio")} type="url" {...form.getInputProps("portfolio_url")} />
+            <TextInput label={t(locale, "profile.portfolio")} type="url" data-testid="profile-portfolio_url" {...form.getInputProps("portfolio_url")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.city")} {...form.getInputProps("city")} />
+            <TextInput label={t(locale, "profile.city")} data-testid="profile-city" {...form.getInputProps("city")} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <TextInput label={t(locale, "profile.address")} {...form.getInputProps("address")} />
+            <TextInput label={t(locale, "profile.address")} data-testid="profile-address" {...form.getInputProps("address")} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <Textarea label={t(locale, "profile.summary")} rows={4} {...form.getInputProps("summary")} />
+            <Textarea label={t(locale, "profile.summary")} rows={4} data-testid="profile-summary" {...form.getInputProps("summary")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.currentEmployer")} {...form.getInputProps("current_employer")} />
+            <TextInput label={t(locale, "profile.currentEmployer")} data-testid="profile-current_employer" {...form.getInputProps("current_employer")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.currentTitle")} {...form.getInputProps("current_title")} />
+            <TextInput label={t(locale, "profile.currentTitle")} data-testid="profile-current_title" {...form.getInputProps("current_title")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.highestEducation")} {...form.getInputProps("highest_education")} />
+            <TextInput label={t(locale, "profile.highestEducation")} data-testid="profile-highest_education" {...form.getInputProps("highest_education")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.workAuth")} required {...form.getInputProps("work_authorization")} />
+            <TextInput label={t(locale, "profile.workAuth")} required data-testid="profile-work_authorization" {...form.getInputProps("work_authorization")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>
             <NumberInput
               label={t(locale, "profile.expectedSalary")}
               min={0}
+              data-testid="profile-expected_salary"
               value={form.values.expected_salary ? Number(form.values.expected_salary) : undefined}
               onChange={(v) => form.setFieldValue("expected_salary", v ? String(v) : "")}
               placeholder="IDR"
@@ -289,6 +290,7 @@ export function ProfilePanel({
               label={t(locale, "profile.noticePeriod")}
               min={0}
               max={365}
+              data-testid="profile-notice_period_days"
               value={form.values.notice_period_days ? Number(form.values.notice_period_days) : undefined}
               onChange={(v) => form.setFieldValue("notice_period_days", v ? String(v) : "")}
               hideControls
@@ -298,28 +300,29 @@ export function ProfilePanel({
             <Select
               label={t(locale, "profile.employmentType")}
               required
+              data-testid="profile-employment_type"
               data={EMPLOYMENT_TYPES.map((et) => ({ value: et, label: et.replace("_", " ") }))}
               {...form.getInputProps("employment_type")}
             />
           </Grid.Col>
           <Grid.Col span={12}>
-            <Checkbox label={t(locale, "profile.relocation")} {...form.getInputProps("open_to_relocation", { type: "checkbox" })} />
+            <Checkbox label={t(locale, "profile.relocation")} data-testid="profile-open_to_relocation" {...form.getInputProps("open_to_relocation", { type: "checkbox" })} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <JsonInput label={t(locale, "profile.education")} formatOnBlur autosize minRows={6} {...form.getInputProps("education")} />
+            <JsonInput label={t(locale, "profile.education")} formatOnBlur autosize minRows={6} data-testid="profile-education" {...form.getInputProps("education")} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <JsonInput label={t(locale, "profile.workHistory")} formatOnBlur autosize minRows={6} {...form.getInputProps("work_history")} />
+            <JsonInput label={t(locale, "profile.workHistory")} formatOnBlur autosize minRows={6} data-testid="profile-work_history" {...form.getInputProps("work_history")} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <TextInput label={t(locale, "profile.skills")} required {...form.getInputProps("skills")} />
+            <TextInput label={t(locale, "profile.skills")} required data-testid="profile-skills" {...form.getInputProps("skills")} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <TextInput label={t(locale, "profile.preferredLocations")} required {...form.getInputProps("preferred_locations")} />
+            <TextInput label={t(locale, "profile.preferredLocations")} required data-testid="profile-preferred_locations" {...form.getInputProps("preferred_locations")} />
           </Grid.Col>
           <Grid.Col span={12}>
             <Group>
-              <Button type="submit" loading={busy}>{t(locale, "profile.save")}</Button>
+              <Button type="submit" loading={busy} data-testid="profile-save">{t(locale, "profile.save")}</Button>
             </Group>
           </Grid.Col>
         </Grid>
@@ -327,22 +330,22 @@ export function ProfilePanel({
 
       <Stack gap="xs" pt="md" style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}>
         {confirmed ? (
-          <Group gap="xs">
-            <Badge color="teal" size="lg" circle>✓</Badge>
+          <Group gap="xs" data-testid="profile-confirmed">
+            <Badge color="teal" size="lg" circle data-testid="profile-confirmed-badge">✓</Badge>
             <Text size="sm" fw={600} c="teal">{t(locale, "profile.confirmed")}</Text>
           </Group>
         ) : (
           <>
             <Text size="sm" c="dimmed">{t(locale, "profile.confirmNote")}</Text>
-            <Button variant="default" loading={busy} onClick={onConfirm} style={{ alignSelf: "flex-start" }}>
+            <Button variant="default" loading={busy} onClick={onConfirm} data-testid="profile-confirm" style={{ alignSelf: "flex-start" }}>
               {t(locale, "profile.confirm")}
             </Button>
           </>
         )}
       </Stack>
 
-      {error && <Alert color="red" role="alert">{error}</Alert>}
-      {notice && <Alert color="teal">{notice}</Alert>}
+      {error && <Alert color="red" role="alert" data-testid="profile-status">{error}</Alert>}
+      {notice && <Alert color="teal" data-testid="profile-status">{notice}</Alert>}
     </Stack>
   );
 }
