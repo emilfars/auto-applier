@@ -36,7 +36,8 @@ export function ThemeToggle({ locale = "en" }: { locale?: Locale }) {
   // to the local state implementation so tests remain stable.
   let mantineScheme: ReturnType<typeof useMantineColorScheme> | null = null;
   try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+    // Resolving the hook inside a try keeps ThemeToggle usable outside a
+    // MantineProvider (isolated tests); the fallback below covers that case.
     mantineScheme = useMantineColorScheme();
   } catch {
     mantineScheme = null;
@@ -48,7 +49,7 @@ export function ThemeToggle({ locale = "en" }: { locale?: Locale }) {
     if (mantineScheme && mantineScheme.colorScheme !== theme) {
       mantineScheme.setColorScheme(theme);
     }
-  }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   // If we're inside MantineProvider, delegate toggle to its setter so
   // notifications, modals, etc. all track the same scheme.

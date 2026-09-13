@@ -12,6 +12,10 @@
   --brand-success: #34d399;
   --brand-warning: #fbbf24;
   --brand-danger: #f87171;
+  --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  --brand-success-soft: color-mix(in srgb, var(--brand-success) 15%, transparent);
+  --brand-warning-soft: color-mix(in srgb, var(--brand-warning) 15%, transparent);
+  --brand-danger-soft: color-mix(in srgb, var(--brand-danger) 15%, transparent);
 }
 
 [data-mantine-color-scheme="light"] {

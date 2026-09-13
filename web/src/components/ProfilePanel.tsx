@@ -169,7 +169,8 @@ export function ProfilePanel({
       onConfirmedChange?.(p.confirmed);
       setLoaded(true);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Keyed on onConfirmedChange only: Mantine form methods are stable, so
+    // including them would recreate the callback on every render.
     [onConfirmedChange],
   );
 

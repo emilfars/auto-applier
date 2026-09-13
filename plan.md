@@ -171,7 +171,7 @@ text-extractable token list** — the palette has been sampled and filled in
 `palette.md`, not the images.
 
 ### Scope
-1. **Adopt Mantine v7** (superseding the original Tailwind plan; `postcss-preset-mantine` only). Brand colors stay as CSS-custom-property design tokens defined in `web/src/styles.css` so colors are never hardcoded in components. (2026-08-22 build-out: Mantine components replaced the utility-class layer; wiring the `--brand-*` tokens into Mantine's theme is a follow-up.)
+1. **Adopt Mantine v7** (superseding the original Tailwind plan; `postcss-preset-mantine` only). Brand colors stay as CSS-custom-property design tokens defined in `web/src/styles.css` so colors are never hardcoded in components. (2026-08-22 build-out: Mantine components replaced the utility-class layer; 2026-09-13: the `--brand-*` tokens are wired into Mantine's theme via a CSS-variables resolver in `web/src/mantine-theme.ts`, and the dead Tailwind config/dependencies are removed.)
 2. **Brand palette tokens** from `design/brand/palette.md`: primary, secondary/accent, neutrals (bg/surface/border/text/muted), semantic success/warning/danger. Define dark (default, refined from current slate look) and light variants via `data-theme` attribute; persist the user's choice.
 3. **Layout modernization:** sticky header with nav + language switcher; feed as a responsive card grid with a filters sidebar on desktop (stacked on mobile); skeleton loaders for feed/profile fetches; consistent button/input/chip styling; visible focus states.
 4. **Constraint — behavior frozen:** no route/API/logic changes; all existing web tests must keep passing (update selectors only where classes changed). i18n keys untouched; both locales keep parity.

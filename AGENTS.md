@@ -24,8 +24,9 @@ Update `PROGRESS.md` and `ACCEPTANCE.md` at the end of every working session.
 
 ## Current state (2026-09-13)
 
-- **M0–M5 complete.** Web UI runs on **Mantine v7** (the earlier Tailwind plan was
-  superseded; dead Tailwind config/dependency removal is still pending).
+- **M0–M5 complete.** Web UI runs on **Mantine v7**; the superseded Tailwind
+  config/dependencies are removed, and the `--brand-*` design tokens drive
+  Mantine's consumed CSS variables (`web/src/mantine-theme.ts`).
 - **Launch blocker:** registration stays closed until Postgres holds **≥5,000
   active real listings** (`internal/seed`.DefaultCount). Synthetic listings never count.
 - **M5.5 complete.** CV parser service in `internal/parser` + `cmd/parser`:
