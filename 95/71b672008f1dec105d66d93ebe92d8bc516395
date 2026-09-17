@@ -1,0 +1,29 @@
+ACCEPTANCE.md
+  s_e54812ad183683::t_45efd17d7472a6 80-81
+.github/copilot-instructions.md
+  s_e54812ad183683::t_a34a0885b0de24 51-52,54-55,57,64-69
+AGENTS.md
+  s_e54812ad183683::t_7c7b6935d67f46 25-31
+PROGRESS.md
+  s_e54812ad183683::t_e1add70f672457 68-69,72
+  s_e54812ad183683::t_02281ea0d3c58b 89
+  s_e54812ad183683::t_1c3f0cd742a0b7 7
+plan.md
+  s_e54812ad183683::t_7dd277eb50a7fa 60,62-64,66,68-71,73-79,81-84,86-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "9571b672008f1dec105d66d93ebe92d8bc516395",
+  "prompts": {},
+  "sessions": {
+    "s_e54812ad183683": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2df9e687-1f7a-48a5-85ad-d3b681c4b381",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
