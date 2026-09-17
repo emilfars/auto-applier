@@ -77,7 +77,8 @@ Test-type conventions:
 | AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | concurrent HTTP/Postgres perf test over 50,000 rows asserting p95 threshold | ✅ |
 | AC-FEED-3 | FEED-3 | Free-text search matches on title + company | integration | ✅ |
 | AC-FEED-1p | NFR | Feed p95 < 2s on simulated 4G profile | perf test (may run in CI perf stage, not per-commit) | ⬜ |
-| AC-SEED-1 | plan | Seed job present that loads ≥5,000 active real listings before signup opens; synthetic listings never count | Postgres integration: fixture-source ingestion reaches 5,000 non-synthetic rows; registration gate remains closed for synthetic/below-threshold data | ✅ |
+| AC-SEED-1-mech | plan | Seed/gate **mechanism**: fixture-source ingestion reaches 5,000 non-synthetic rows; registration gate stays closed for synthetic/below-threshold data | Postgres integration test | ✅ |
+| AC-SEED-1-live | plan | **Launch gate:** ≥5,000 active real (non-synthetic) listings persisted in **production** Postgres before signup opens | Operational — run live ingestion, verify prod row count; not a unit/fixture test (see `plan.md` → Launch Readiness) | ⬜ |
 | AC-SCR-7 | plan (2026-08-21) | Careerjet Tier-1 source ingests Indonesian listings when `CAREERJET_AFFID` is set; degrades to unregistered when unset; salary carried only when stated (no estimates) | unit + fixture-server integration mirroring `jooblesource_test.go` | ✅ |
 | AC-SCR-8 | plan (2026-08-21) | ATS public-board harvester ingests normalized jobs from a curated slug list per ATS (Greenhouse/Lever/Workable/Ashby); a dead slug fails its source only (circuit breaker), never the run | unit + fixture-server integration per ATS shape | ✅ |
 | AC-SCR-9 | plan (2026-08-21) | Remote-only board sources (Remotive/Jobicy/RemoteOK) ingest worldwide-remote listings with location normalized to "Remote"; unstated salary dropped, never estimated | unit + fixture-server integration | ✅ |

@@ -48,24 +48,25 @@ instead of weakening checks.
 
 ## Autonomous agentic loop
 
-These model preferences apply only to this repository's autonomous loop:
+Model-agnostic. Two roles — an **orchestrator/reviewer** and a **bounded
+implementer** — which may be one agent or two. No specific model is required.
 
-- Orchestration and review: `gpt-5.6-sol`, effort `medium`.
-- Bounded implementation: `gpt-5.6-luna`, effort `xhigh`.
-
-1. Sol selects one ready, unmet criterion from the four project documents.
-2. Luna makes the smallest complete change and its relevant tests without
+1. Orchestrator selects one ready, unmet criterion from the four project documents.
+2. Implementer makes the smallest complete change and its relevant tests without
    expanding scope.
-3. Sol reviews the complete diff and callers before commit: scope, locked
+3. Orchestrator reviews the complete diff and callers before commit: scope, locked
    decisions, failure paths, security/privacy, and whether tests exercise
    production behavior rather than only mocks.
 4. Fix findings, run the verification gate, update `PROGRESS.md` and
    `ACCEPTANCE.md`, commit, and repeat.
 
 Do not run a full repository review every loop. Before marking a milestone done,
-Sol performs one end-to-end review across browser/runtime, API, database,
-deployment, data lifecycle, security/privacy, recovery, and acceptance
-thresholds. Fix findings before dependent work begins.
+run one end-to-end review across browser/runtime, API, database, deployment, data
+lifecycle, security/privacy, recovery, and acceptance thresholds. A milestone
+closes only on a **full green `./scripts/verify.sh` with no skipped required
+check** (Docker + Postgres + extension-capable Chrome present) — a partial gate
+is not completion (see `plan.md` → Launch Readiness). Fix findings before
+dependent work begins.
 
 After that review passes and the milestone is committed, end the autonomous
 session. Start the next milestone in a fresh session and rebuild context from

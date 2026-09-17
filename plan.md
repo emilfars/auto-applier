@@ -57,31 +57,36 @@ tracked under `AC-SCR-7..10` in ACCEPTANCE.md. They are not part of M4.5
 (`CAREERJET_AFFID`, Jooble key) are supplied by the owner after
 implementation; every source must degrade gracefully when its key is unset.
 
-## Current implementation checkpoint (2026-08-21)
+## Current state
 
-M0-M5, M5.5 (CV parser service), the M3 sourcing extensions (AC-SCR-7..10), and
-M4.5 web modernization are complete. The native Chrome MV3 Open & Fill browser
-gate is green. Launch still has one operational blocker:
+Live state — milestone/component status, the verify-gate result, and the
+Now/Next/Blocked list — is in `PROGRESS.md` (single source of truth). Do not
+duplicate status here or in `AGENTS.md`; update `PROGRESS.md` and link to it.
 
-| Blocker | Current state |
-|---|---|
-| Web → extension data path | Closed. The confirmed profile/CV snapshot is transferred through the web-page bridge into tab-scoped `chrome.storage.session`, with CV bytes in IndexedDB. |
-| Live listing threshold | Registration remains closed until Postgres contains at least 5,000 active real listings; synthetic fixtures never count. |
+## Launch Readiness
 
-Before declaring MVP complete, seed at least 5,000 active real listings in Postgres and keep registration closed below that threshold. The browser-level Open & Fill test now uses the real web profile/CV path; Docker/API/S3 smoke and non-skipping Postgres verification are enforced by `./scripts/verify.sh`.
+A milestone marked ✅ means **code complete and gate-verified**. It does **not**
+mean live. Launch depends on the operational gates below, none of which are
+satisfied by a passing unit or fixture test. Track each here and in
+`PROGRESS.md`; never mark a launch gate done on a mock.
+
+| Gate | Meaning | State | What it needs |
+|---|---|---|---|
+| Full gate green | One `./scripts/verify.sh` with **no skipped required check** — Docker + Postgres (`TEST_DATABASE_URL`) + extension-capable Chrome all present | ❌ not yet | Last full 21-check run was M3 (2026-08-15). M5/M5.5/M7 landed against partial gates and must be re-validated under a complete environment. |
+| Live seed ≥5,000 | 5,000 active real (non-synthetic) listings in **production** Postgres; registration stays closed below this | ❌ not yet | Run live ingestion / `cmd/discover-boards -write` against real sources. The fixture test (`AC-SEED-1-mech`) passing is not this. |
+| Parser deployed | CV parser service on AWS over HTTPS with a real `OPENROUTER_API_KEY`; `CV_PARSER_URL` + `CV_PARSER_API_KEY` wired into the API | ❌ not yet | No IaC/deploy exists; `docker-compose.production.yml` is unused. |
+| Prod secrets wired | Real credentials in the deployed environment: `S3_*` + `CV_ENCRYPTION_KEY`, `SMTP_*`, Google OAuth client, `CAREERJET_AFFID`, Jooble key | ❌ not yet | Owner-supplied; several sources degrade gracefully when unset, but launch needs them. |
+| Deferred NFRs | AC-FEED-1p (feed p95 < 2s on 4G) and AC-NFR-SCALE (50k listings, no feed regression) measured | ⏸ held by decision | Perf stage, not per-commit; re-open before public launch. |
+
+**Rule:** MVP is not "complete" until every gate above is green. Flip each in
+`PROGRESS.md`'s Now/Next/Blocked as it clears.
 
 ## Agentic loop protocol
 
-This project loop uses `gpt-5.6-sol` at `medium` effort for orchestration and
-code review, and `gpt-5.6-luna` at `xhigh` effort for bounded implementation.
-The preference is project-local and does not apply to other repositories or
-ordinary interactive sessions.
-
-Each implementation loop gets a quick Sol review of the complete diff,
-callers, scope, failure paths, security/privacy boundaries, and test relevance.
-A full end-to-end Sol review runs only at milestone completion, using real
-browser, API, database, deployment, and data-lifecycle boundaries. Findings
-must be fixed before the milestone is marked done or dependent work begins.
+The autonomous coding-loop protocol — role split, per-loop review scope,
+milestone end-to-end review, and the rule that a milestone closes only on a full
+green gate — is canonical in `.github/copilot-instructions.md` → "Autonomous
+agentic loop". It is model-agnostic; no specific model is required.
 
 ## Tech stack
 - **Backend:** Go (net/http or chi/gin), `pgx` for Postgres, job queue: **River** (Postgres-backed) for scrape + parse, `colly`/`chromedp` for scrapers.

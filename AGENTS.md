@@ -22,28 +22,13 @@ Directive and an architectural boundary, not a toggle.
 
 Update `PROGRESS.md` and `ACCEPTANCE.md` at the end of every working session.
 
-## Current state (2026-09-13)
+## Current state
 
-- **M0–M5 complete.** Web UI runs on **Mantine v7**; the superseded Tailwind
-  config/dependencies are removed, and the `--brand-*` design tokens drive
-  Mantine's consumed CSS variables (`web/src/mantine-theme.ts`).
-- **Launch blocker:** registration stays closed until Postgres holds **≥5,000
-  active real listings** (`internal/seed`.DefaultCount). Synthetic listings never count.
-- **M5.5 complete.** CV parser service in `internal/parser` + `cmd/parser`:
-  envelope server (`hosted.go` contract), PDF/DOCX text extraction, OpenRouter
-  JSON-schema engine holding `OPENROUTER_API_KEY`, Bearer auth. `CV_PARSER_URL`
-  (HTTPS or loopback, include `/parse`) points the API at it; without it
-  `/cv/{id}/parse` returns 503. Engine approach ported from `orasik/resume-parser`
-  (MIT) since the repo has no Python runtime.
-- **M7 complete.** Sourcing expansion: Workday + SmartRecruiters Tier-2
-  adapters (`internal/ingest`), curated `atscompanies/*.json` catalogs, per-host
-  connection pooling + ETag conditional fetch (304 replays its cache so live
-  rows are still re-touched), and `cmd/discover-boards` (Wayback CDX + public-API
-  validation, dry-run by default).
-- **M6 (planned):** Android fast-follow; needs an Android SDK/Gradle toolchain.
-- Ingestion runs on a River scheduler (`INGEST_INTERVAL`, default 6h) and now
-  backfills at startup only when the feed is below target; a token-gated
-  `POST /ingest/run` triggers a pass on demand (`internal/ingestctl`).
+See `PROGRESS.md` (single source of truth) for milestone/component status, the
+verify-gate result, and Now/Next/Blocked. The operational gates between
+code-complete and live — full green gate, live 5,000-listing seed, AWS parser
+deploy, prod secrets — are in `plan.md` → Launch Readiness. Do not duplicate
+status across documents.
 
 ## Build and verify
 
