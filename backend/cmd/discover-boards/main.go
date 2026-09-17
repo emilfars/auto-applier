@@ -19,6 +19,7 @@ func main() {
 	limit := flag.Int("limit", 200, "max CDX results per URL pattern")
 	outDir := flag.String("out", "internal/ingest/atscompanies", "catalog output directory")
 	write := flag.Bool("write", false, "persist validated candidates to the catalogs")
+	allowGlobal := flag.Bool("allow-global", false, "keep boards with no Indonesian-location signal (default: drop them)")
 	timeout := flag.Duration("timeout", 10*time.Minute, "overall run timeout")
 	flag.Parse()
 
@@ -31,10 +32,11 @@ func main() {
 	defer cancel()
 
 	report, err := discover.Run(ctx, discover.Config{
-		Platforms: platforms,
-		Limit:     *limit,
-		OutDir:    *outDir,
-		Write:     *write,
+		Platforms:   platforms,
+		Limit:       *limit,
+		OutDir:      *outDir,
+		Write:       *write,
+		AllowGlobal: *allowGlobal,
 	})
 	if err != nil {
 		log.Fatal(err)

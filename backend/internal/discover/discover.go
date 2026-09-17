@@ -159,12 +159,22 @@ func (d *Discoverer) FetchCDX(ctx context.Context, pattern string, limit int) ([
 	return out, nil
 }
 
+const maxValidationBody = 256 << 10
+
 // Validate reports whether a candidate board exists by calling its public API.
 // A 200 response is required; a dead slug returns 404.
 func (d *Discoverer) Validate(ctx context.Context, c Candidate) bool {
+	exists, _ := d.probe(ctx, c)
+	return exists
+}
+
+// probe calls a candidate's public API once and reports whether the board
+// exists (200) and whether the sampled response mentions an Indonesian
+// location — the relevance signal for the M7 Jabodetabek-first guardrail.
+func (d *Discoverer) probe(ctx context.Context, c Candidate) (exists, relevant bool) {
 	method, endpoint, body, ok := validationSpec(c)
 	if !ok {
-		return false
+		return false, false
 	}
 	var reader io.Reader
 	if body != nil {
@@ -172,7 +182,7 @@ func (d *Discoverer) Validate(ctx context.Context, c Candidate) bool {
 	}
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
 	if err != nil {
-		return false
+		return false, false
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "AutoApplier/1.0 (+https://autoapplier.id)")
@@ -181,11 +191,38 @@ func (d *Discoverer) Validate(ctx context.Context, c Candidate) bool {
 	}
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return false
+		return false, false
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
-	return resp.StatusCode == http.StatusOK
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, maxValidationBody))
+	if resp.StatusCode != http.StatusOK {
+		return false, false
+	}
+	return true, hasIndonesiaSignal(data)
+}
+
+// indonesiaSignals are lowercase location tokens that mark a board as serving
+// Indonesia (Jabodetabek-first, plus the country name for any Indonesian city).
+var indonesiaSignals = []string{
+	"indonesia", "jakarta", "jabodetabek", "bekasi", "tangerang", "depok", "bogor",
+}
+
+// hasIndonesiaSignal reports whether a sampled API response mentions an
+// Indonesian location.
+//
+// ponytail: naive case-insensitive substring scan over the raw response, not a
+// per-platform location parse. Ceiling: a board is kept if any sampled posting
+// mentions Indonesia, and a non-location mention (e.g. a company description)
+// can pass — catalog diffs are human-reviewed before commit. Upgrade to parsing
+// each platform's location field if false positives become a problem.
+func hasIndonesiaSignal(body []byte) bool {
+	lower := bytes.ToLower(body)
+	for _, s := range indonesiaSignals {
+		if bytes.Contains(lower, []byte(s)) {
+			return true
+		}
+	}
+	return false
 }
 
 func validationSpec(c Candidate) (method, endpoint string, body []byte, ok bool) {
@@ -214,14 +251,14 @@ func validationSpec(c Candidate) (method, endpoint string, body []byte, ok bool)
 		if c.Slug == "" {
 			return "", "", nil, false
 		}
-		return http.MethodGet, "https://api.smartrecruiters.com/v1/companies/" + url.PathEscape(c.Slug) + "/postings?limit=1", nil, true
+		return http.MethodGet, "https://api.smartrecruiters.com/v1/companies/" + url.PathEscape(c.Slug) + "/postings?limit=100", nil, true
 	case Workday:
 		if c.Host == "" || c.Tenant == "" || c.Site == "" {
 			return "", "", nil, false
 		}
 		payload, _ := json.Marshal(map[string]any{
 			"appliedFacets": map[string]any{},
-			"limit":         1,
+			"limit":         20,
 			"offset":        0,
 			"searchText":    "",
 		})
@@ -269,7 +306,7 @@ func ExtractCandidate(p Platform, raw string) (Candidate, bool) {
 	case SmartRecruiters:
 		return slugBoard("jobs.smartrecruiters.com")
 	case Workday:
-		if !strings.HasSuffix(host, ".myworkdayjobs.com") {
+		if !strings.HasSuffix(host, ".myworkdayjobs.com") || isSandboxWorkdayHost(host) {
 			return Candidate{}, false
 		}
 		tenant := strings.SplitN(host, ".", 2)[0]
@@ -288,6 +325,17 @@ func ExtractCandidate(p Platform, raw string) (Candidate, bool) {
 	default:
 		return Candidate{}, false
 	}
+}
+
+// isSandboxWorkdayHost reports whether a Workday host is a non-production
+// (implementation/sandbox) tenant, e.g. tenant.impl-wd12.myworkdayjobs.com.
+// Production hosts use a bare data-center label (wd1, wd3, wd102, ...).
+func isSandboxWorkdayHost(host string) bool {
+	labels := strings.Split(host, ".")
+	if len(labels) < 2 {
+		return false
+	}
+	return strings.HasPrefix(labels[1], "impl")
 }
 
 func pathSegments(path string) []string {
@@ -374,12 +422,13 @@ func candidateEntry(c Candidate) map[string]string {
 
 // Config configures a discovery run.
 type Config struct {
-	Platforms []Platform
-	Limit     int
-	OutDir    string
-	Write     bool
-	Client    *http.Client
-	CDXBase   string // override for tests
+	Platforms   []Platform
+	Limit       int
+	OutDir      string
+	Write       bool
+	AllowGlobal bool // keep boards with no Indonesian-location signal (default: drop them)
+	Client      *http.Client
+	CDXBase     string // override for tests
 }
 
 // PlatformReport summarizes one platform.
@@ -444,7 +493,7 @@ func Run(ctx context.Context, cfg Config) (Report, error) {
 			}
 		}
 
-		valid := d.validateAll(ctx, candidates)
+		valid := d.validateAll(ctx, candidates, !cfg.AllowGlobal)
 		pr.Validated = len(valid)
 		merged, added := MergeEntries(p, existing, valid)
 		pr.Added = added
@@ -459,7 +508,7 @@ func Run(ctx context.Context, cfg Config) (Report, error) {
 	return report, nil
 }
 
-func (d *Discoverer) validateAll(ctx context.Context, candidates []Candidate) []Candidate {
+func (d *Discoverer) validateAll(ctx context.Context, candidates []Candidate, requireRelevant bool) []Candidate {
 	const workers = 8
 	ok := make([]bool, len(candidates))
 	var wg sync.WaitGroup
@@ -470,7 +519,8 @@ func (d *Discoverer) validateAll(ctx context.Context, candidates []Candidate) []
 		go func(i int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			ok[i] = d.Validate(ctx, candidates[i])
+			exists, relevant := d.probe(ctx, candidates[i])
+			ok[i] = exists && (!requireRelevant || relevant)
 		}(i)
 	}
 	wg.Wait()

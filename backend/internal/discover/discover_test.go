@@ -51,6 +51,7 @@ func TestExtractCandidate(t *testing.T) {
 		{Greenhouse, "https://example.com/xendit", Candidate{}, false},
 		{Greenhouse, "not a url", Candidate{}, false},
 		{Workday, "https://example.com/en-US/x", Candidate{}, false},
+		{Workday, "https://alignmenthealthcare5.impl-wd12.myworkdayjobs.com/ahc_external", Candidate{}, false},
 	}
 	for _, tc := range tests {
 		got, ok := ExtractCandidate(tc.platform, tc.raw)
@@ -122,6 +123,57 @@ func TestValidateUsesPublicAPI(t *testing.T) {
 	}
 }
 
+func TestRunFiltersByIndonesiaRelevance(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/cdx"):
+			_, _ = w.Write([]byte(`[["original"],["https://boards.greenhouse.io/jkt"],["https://boards.greenhouse.io/usa"]]`))
+		case strings.Contains(r.URL.Path, "/boards/jkt/"):
+			_, _ = w.Write([]byte(`{"jobs":[{"location":{"name":"Jakarta, Indonesia"}}]}`))
+		case strings.Contains(r.URL.Path, "/boards/usa/"):
+			_, _ = w.Write([]byte(`{"jobs":[{"location":{"name":"New York, USA"}}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	run := func(allowGlobal bool) []string {
+		dir := t.TempDir()
+		if _, err := Run(context.Background(), Config{
+			Platforms:   []Platform{Greenhouse},
+			Limit:       100,
+			OutDir:      dir,
+			Write:       true,
+			AllowGlobal: allowGlobal,
+			Client:      rewriteClient(t, srv),
+			CDXBase:     srv.URL + "/cdx",
+		}); err != nil {
+			t.Fatalf("run: %v", err)
+		}
+		data, err := os.ReadFile(filepath.Join(dir, "greenhouse.json"))
+		if err != nil {
+			t.Fatalf("read catalog: %v", err)
+		}
+		var entries []map[string]string
+		if err := json.Unmarshal(data, &entries); err != nil {
+			t.Fatalf("decode catalog: %v", err)
+		}
+		var slugs []string
+		for _, e := range entries {
+			slugs = append(slugs, e["slug"])
+		}
+		return slugs
+	}
+
+	if got := run(false); !reflect.DeepEqual(got, []string{"jkt"}) {
+		t.Fatalf("default run slugs=%v, want [jkt] (US board dropped)", got)
+	}
+	if got := run(true); !reflect.DeepEqual(got, []string{"jkt", "usa"}) {
+		t.Fatalf("allow-global run slugs=%v, want [jkt usa]", got)
+	}
+}
+
 func TestMergeEntriesDeduplicatesAndSorts(t *testing.T) {
 	existing := []map[string]string{
 		{"slug": "b", "company": "B"},
@@ -151,7 +203,7 @@ func TestRunMergesValidatedCandidates(t *testing.T) {
 		case strings.Contains(r.URL.Path, "/cdx"):
 			_, _ = w.Write([]byte(`[["original"],["https://boards.greenhouse.io/good"],["https://boards.greenhouse.io/dead"],["https://boards.greenhouse.io/good"]]`))
 		case strings.Contains(r.URL.Path, "/boards/good/"):
-			_, _ = w.Write([]byte(`{"jobs":[]}`))
+			_, _ = w.Write([]byte(`{"jobs":[{"location":{"name":"Jakarta, Indonesia"}}]}`))
 		default:
 			http.NotFound(w, r)
 		}
