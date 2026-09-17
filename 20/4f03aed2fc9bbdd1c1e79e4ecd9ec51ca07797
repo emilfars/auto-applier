@@ -1,0 +1,35 @@
+backend/internal/discover/discover_test.go
+  s_e54812ad183683::t_29b000e4b83fb2 126-176
+  s_e54812ad183683::t_a67cc834282774 206
+  s_e54812ad183683::t_022cfb749e3722 54
+backend/internal/discover/discover.go
+  s_e54812ad183683::t_7d6c494e0c2d47 162-163,167-174,177,185,194,197-225
+  s_e54812ad183683::t_977619f03e2885 511,522-523
+  s_e54812ad183683::t_0e6fba68eef92b 309
+  s_e54812ad183683::t_4d08462f24e1ee 496
+  s_e54812ad183683::t_580c48084bc560 425-431
+  s_e54812ad183683::t_c29d8277ded509 261
+  s_e54812ad183683::t_2893406c7bf4e4 330-340
+  s_e54812ad183683::t_b31ff1be9219c3 254
+PROGRESS.md
+  s_e54812ad183683::t_a5ff5d6954a1d7 89
+backend/cmd/discover-boards/main.go
+  s_e54812ad183683::t_7a8b0dda7cde07 22
+  s_e54812ad183683::t_d6b1b6e4e0a829 35-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "204f03aed2fc9bbdd1c1e79e4ecd9ec51ca07797",
+  "prompts": {},
+  "sessions": {
+    "s_e54812ad183683": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2df9e687-1f7a-48a5-85ad-d3b681c4b381",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
