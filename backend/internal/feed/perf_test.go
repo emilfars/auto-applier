@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"sort"
 	"sync"
 	"testing"
@@ -19,6 +20,12 @@ import (
 
 // AC-FEED-2b: the real Postgres-backed HTTP feed stays below 500ms at p95.
 func TestFeedHTTPP95Under500msOn50kPostgresRows(t *testing.T) {
+	// AC-FEED-2b is an environment-sensitive perf assertion; per the plan's
+	// "perf-stage, not per-commit" decision it runs only when RUN_PERF=1, so a
+	// shared/underpowered CI runner does not fail the per-commit gate.
+	if os.Getenv("RUN_PERF") != "1" {
+		t.Skip("perf gate: set RUN_PERF=1 to run the 50k p95 check")
+	}
 	store, pool := newFeedPgxStore(t)
 	ctx := context.Background()
 	base := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
