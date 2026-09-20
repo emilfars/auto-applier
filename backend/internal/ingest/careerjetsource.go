@@ -75,7 +75,10 @@ func (c *CareerjetSource) Fetch(ctx context.Context) ([]RawJob, error) {
 
 	jobs := make([]RawJob, 0, min(c.limit, careerjetPageSize))
 	pageSize := min(c.limit, careerjetPageSize)
-	for page := 1; len(jobs) < c.limit && page <= 10; page++ {
+	// Fetch up to the run's target; the loop still stops early when the API's
+	// result set is exhausted (empty/short page, or page >= body.Pages below).
+	maxPages := (c.limit + pageSize - 1) / pageSize
+	for page := 1; len(jobs) < c.limit && page <= maxPages; page++ {
 		body, err := c.fetchPage(ctx, page, pageSize)
 		if err != nil {
 			return nil, err

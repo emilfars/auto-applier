@@ -81,6 +81,14 @@ satisfied by a passing unit or fixture test. Track each here and in
 **Rule:** MVP is not "complete" until every gate above is green. Flip each in
 `PROGRESS.md`'s Now/Next/Blocked as it clears.
 
+### Launch decisions (locked 2026-09-20)
+
+| Topic | Decision |
+|---|---|
+| Production infra | **Full AWS stack** — RDS (Postgres), EC2, S3, and the parser service all on AWS. Supersedes "no cloud DB yet." Owner provisions and supplies `DATABASE_URL` (RDS, `sslmode=require`); `cmd/seed -real` applies migrations on connect. |
+| Gap-closer source | **Careerjet** (Tier 1, Indonesian coverage, quota-free/recurring-safe). Owner supplies `CAREERJET_AFFID`. Jooble backfill and ATS-catalog growth (Wayback) held for now. |
+| Measured baseline (2026-09-20) | Keyless sources yield **~1,188** active real listings (Kalibrr ~797 exhausted for the broad query, remote boards ~215, ATS ~165, Workday ~71, SmartRecruiters ~25) — 24% of the 5,000 gate. Careerjet is required; its real Indonesian volume is unknown until `CAREERJET_AFFID` is supplied, so a re-measure decides whether Jooble/ATS growth is still needed. |
+
 ## Agentic loop protocol
 
 The autonomous coding-loop protocol — role split, per-loop review scope,

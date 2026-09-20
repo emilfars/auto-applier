@@ -2,9 +2,11 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -120,5 +122,40 @@ func TestCareerjetSourceRequiresAffiliateID(t *testing.T) {
 	source := NewCareerjetSource("", nil)
 	if _, err := source.Fetch(context.Background()); err == nil {
 		t.Fatal("expected missing affiliate id error")
+	}
+}
+
+// Fetch pages up to the run target instead of the old hard 10-page (1,000)
+// cap; the server advertises many pages so only the target bounds the loop.
+func TestCareerjetSourcePaginatesBeyondTenPages(t *testing.T) {
+	const target = 1500
+	var id int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+		if pageSize <= 0 {
+			pageSize = 1
+		}
+		var b strings.Builder
+		b.WriteString(`{"type":"JOBS","hits":100000,"pages":100000,"jobs":[`)
+		for i := 0; i < pageSize; i++ {
+			id++
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			fmt.Fprintf(&b, `{"title":"Role %d","company":"PT X","locations":"Jakarta, Indonesia","date":"Mon, 01 Jun 2026 10:00:00 GMT","url":"https://jobs.example.test/careerjet/%d"}`, id, id)
+		}
+		b.WriteString(`]}`)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(b.String()))
+	}))
+	t.Cleanup(srv.Close)
+
+	source := NewCareerjetSourceWithURLAndLimit("careerjet", srv.URL, "test-affid", target, srv.Client())
+	jobs, err := source.Fetch(context.Background())
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if len(jobs) != target {
+		t.Fatalf("fetched %d jobs, want %d (old 10-page cap would stop at 1000)", len(jobs), target)
 	}
 }
