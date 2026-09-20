@@ -1,0 +1,49 @@
+name: Perf
+
+# Perf stage — runs the heavy 50k p95 feed check (AC-FEED-2b) that the
+# per-commit Verify gate skips (RUN_PERF unset). Manual + weekly, not per-push.
+on:
+  workflow_dispatch:
+    inputs:
+      budget_ms:
+        description: "p95 budget in ms (shared runners are slower than prod)"
+        required: false
+        default: "2000"
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: autoapplier
+          POSTGRES_PASSWORD: autoapplier
+          POSTGRES_DB: autoapplier
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autoapplier -d autoapplier"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - name: Run feed p95 perf check
+        env:
+          TEST_DATABASE_URL: postgres://autoapplier:autoapplier@127.0.0.1:5432/autoapplier?sslmode=disable
+          RUN_PERF: "1"
+          # ponytail: shared GitHub runners measure ~1.1s vs the 500ms prod NFR;
+          # this budget gates gross regressions here, prod-class hardware asserts 500ms.
+          FEED_P95_BUDGET_MS: ${{ github.event.inputs.budget_ms || '2000' }}
+        run: |
+          cd backend
+          go test -count=1 -run TestFeedHTTPP95Under500msOn50kPostgresRows ./internal/feed -v
