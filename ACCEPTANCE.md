@@ -74,7 +74,7 @@ Test-type conventions:
 | AC-SCR-4 | SCR-4 | Listing removed/expired at source is marked stale within 48h window logic | unit + runtime queue configuration, including mandatory sweep startup and max override validation | ✅ |
 | AC-FEED-1 | FEED-1 | Feed returns paginated cards; pay shows **stated only**, labeled; no estimated values at MVP | integration + unit: response contains no `estimated` pay field | ✅ |
 | AC-FEED-2 | FEED-2 | Filters (pay, location incl. remote, skills, YoE, employment type, posted date, source) return correct subset | integration: seeded dataset → filtered counts match expected | ✅ |
-| AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | concurrent HTTP/Postgres perf test over 50,000 rows asserting p95 threshold | ✅ |
+| AC-FEED-2b | FEED-2 | Filter query p95 < 500ms on 50k-listing seed | concurrent HTTP/Postgres perf test over 50,000 rows asserting p95 threshold. Perf-stage, not per-commit: skipped unless `RUN_PERF=1`; run by the `Perf` workflow (weekly + manual). Prod NFR is 500ms (default budget); the CI job sets a looser `FEED_P95_BUDGET_MS` for shared runners. | ✅ |
 | AC-FEED-3 | FEED-3 | Free-text search matches on title + company | integration | ✅ |
 | AC-FEED-1p | NFR | Feed p95 < 2s on simulated 4G profile | perf test (may run in CI perf stage, not per-commit) | ⬜ |
 | AC-SEED-1-mech | plan | Seed/gate **mechanism**: fixture-source ingestion reaches 5,000 non-synthetic rows; registration gate stays closed for synthetic/below-threshold data | Postgres integration test | ✅ |

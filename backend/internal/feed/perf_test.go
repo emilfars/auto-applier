@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -118,10 +119,23 @@ func TestFeedHTTPP95Under500msOn50kPostgresRows(t *testing.T) {
 	}
 	sort.Slice(samples, func(i, j int) bool { return samples[i] < samples[j] })
 	p95 := samples[len(samples)*95/100]
-	t.Logf("AC-FEED-2b: %d concurrent HTTP samples in %v; p95=%v", requests, time.Since(start), p95)
-	if p95 >= 500*time.Millisecond {
-		t.Fatalf("feed HTTP/Postgres p95 = %v, want < 500ms", p95)
+	budget := perfP95Budget()
+	t.Logf("AC-FEED-2b: %d concurrent HTTP samples in %v; p95=%v (budget %v)", requests, time.Since(start), p95, budget)
+	if p95 >= budget {
+		t.Fatalf("feed HTTP/Postgres p95 = %v, want < %v", p95, budget)
 	}
+}
+
+// perfP95Budget is the p95 ceiling for the feed perf gate. It defaults to the
+// 500ms production NFR; the CI perf stage relaxes it via FEED_P95_BUDGET_MS to
+// account for shared runners while still catching gross regressions.
+func perfP95Budget() time.Duration {
+	if ms := os.Getenv("FEED_P95_BUDGET_MS"); ms != "" {
+		if v, err := strconv.Atoi(ms); err == nil && v > 0 {
+			return time.Duration(v) * time.Millisecond
+		}
+	}
+	return 500 * time.Millisecond
 }
 
 func perfQueries(base time.Time) []string {
