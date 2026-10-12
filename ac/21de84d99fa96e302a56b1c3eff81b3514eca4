@@ -1,0 +1,27 @@
+web/src/components/JobCard.tsx
+  s_cfeddd1935d5d3::t_032fa7f5f15b02 5,55,79,84-85,172-176
+web/src/components/JobCard.flows.test.tsx
+  s_cfeddd1935d5d3::t_8ad4db6ab809cb 115-126
+web/src/components/EnhancementsPanel.test.tsx
+  s_cfeddd1935d5d3::t_8ad4db6ab809cb 193-207
+PROGRESS.md
+  s_cfeddd1935d5d3::t_d25b56bac012e0 161
+web/src/components/EnhancementsPanel.tsx
+  s_cfeddd1935d5d3::t_032fa7f5f15b02 55,115-117,124-125,131-133,141-142,196,283
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ac21de84d99fa96e302a56b1c3eff81b3514eca4",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
