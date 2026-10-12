@@ -1,0 +1,34 @@
+plan-revamp.md
+  s_6494ab648b37f1::t_9db1c9afc338d2 1-2,6-40,42-45,48-69,73,77,86,92,95-98,103-108,110-129,132-141,155-169,171-195,198-200,203-207,210-223,226-228,230-236,238-245,247,256,258-262,264,266-285,290-322,324
+  s_6494ab648b37f1::t_22509daffb6705 3-5,41,46-47,70-72,74-76,78-85,87-91,93-94,99-102,109,130-131,142-154,170,196-197,201-202,208-209,224-225,229,237,246,248-255,257,263,265,286-289,323,325-337
+plan.md
+  s_cfeddd1935d5d3::t_6f98a1b2da82e3 259-265
+ACCEPTANCE.md
+  s_cfeddd1935d5d3::t_a32b76621d02d8 136-153
+PROGRESS.md
+  s_cfeddd1935d5d3::t_250c88c6c09603 7,37,75-92,108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "1095f2b76cce1eb6ff228133c2b87aa69ef3f7a7",
+  "prompts": {},
+  "sessions": {
+    "s_6494ab648b37f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6403af58-0011-4c40-87ce-9224bc02057d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    },
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
