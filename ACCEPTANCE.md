@@ -145,10 +145,10 @@ Test-type conventions:
 | AC-REV-JOURNEY | E-JOURNEY | register → verify → upload CV → confirm profile → filter feed → Open & Fill → review works in a real browser; zero console errors; no system submit | scripted browser run on the local stack |✅ R1 (re-run in R6) |
 | AC-REV-SIMPLE | E-SIMPLE | Non-test LOC below the R0 baseline; dead-code findings zero or justified | LOC count, `deadcode`, `knip` |✅ R2 |
 | AC-REV-BEHAVE | E-BEHAVE | No test lost without a listed code deletion | test names before/after |✅ R2 |
-| AC-REV-SLOP | E-SLOP | Every screen passes the antislop Delivery Gate | PASS/FAIL report per screen under `anti-slop/` | ⬜ |
-| AC-REV-A11Y | E-A11Y | Contrast ≥4.5:1 body / 3:1 large in both themes; Lighthouse accessibility ≥95; journey completes by keyboard | contrast check, Lighthouse, keyboard run | ⬜ |
-| AC-REV-STATE | E-STATE | Screen × theme × width × state × locale matrix has no missing cell, overflow or clipped text | screenshot matrix | ⬜ |
-| AC-REV-PERF | E-PERF | Lighthouse performance ≥90; JS bundle ≤ baseline +10%; 50k p95 within the locked NFR | Lighthouse on the production build, bundle size, `RUN_PERF=1` | ⬜ |
+| AC-REV-SLOP | E-SLOP | Every screen passes the antislop Delivery Gate | PASS/FAIL report per screen under `anti-slop/` | ✅ R4 |
+| AC-REV-A11Y | E-A11Y | Contrast ≥4.5:1 body / 3:1 large in both themes; Lighthouse accessibility ≥95; journey completes by keyboard | contrast check, Lighthouse, keyboard run | ✅ R4 (keyboard run excludes file choice) |
+| AC-REV-STATE | E-STATE | Screen × theme × width × state × locale matrix has no missing cell, overflow or clipped text | screenshot matrix | ✅ R4 (252 captured, 36 N/A) |
+| AC-REV-PERF | E-PERF | Lighthouse performance ≥90; JS bundle ≤ baseline +10%; 50k p95 within the locked NFR | Lighthouse on the production build, bundle size, `RUN_PERF=1` | 🟡 Lighthouse 99 and bundle ✅; 50k p95 603–656 ms locally vs 500 ms ❌ (pre-existing) |
 | AC-REV-PROD | E-PROD | Production-grade checklist (`plan-revamp.md` section 7) all PASS | checklist with evidence per line | ⬜ |
 
 ---

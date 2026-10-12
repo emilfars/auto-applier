@@ -58,6 +58,15 @@ body {
   outline-color: var(--brand-link);
 }
 
+/* Mantine marks a focused input with a border color change only; add a ring. */
+.mantine-Input-input:focus,
+.mantine-Input-input:focus-within,
+.mantine-Checkbox-input:focus-visible,
+.mantine-SegmentedControl-input:focus-visible + .mantine-SegmentedControl-label {
+  outline: 2px solid var(--brand-link);
+  outline-offset: 2px;
+}
+
 ::selection {
   background: var(--brand-primary-soft);
 }
