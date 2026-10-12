@@ -100,7 +100,7 @@ Plan: `plan-revamp.md`. Evals: `ACCEPTANCE.md` section 8.
 | Unused TS (`knip`) | web 3 exports + 4 types · extension 2 exports + 4 types (3 "unused files" are esbuild entries, false positives) · fill-mappings 0 |
 | Duplication (`jscpd`, ≥8 lines, non-test) | 22 clones |
 | Lighthouse (production build, signed-out, mobile preset) | performance 70 · accessibility 90 · best-practices 96 · LCP 4.8 s · TBT 20 ms · CLS 0.083. Accessibility fails: `button-name`, `color-contrast` |
-| Screenshot matrix (288 cells) | See the R0 close line in the Log |
+| Screenshot matrix (288 cells, main build) | 132 captured · 36 not applicable · 120 missing (signed-in screens blank, F0) · 0 page overflow · 0 clipped |
 
 ### R0 findings
 
@@ -157,6 +157,7 @@ Candidate areas from the plan that were examined and produced no accepted findin
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-10-12** — [M8/R0] Addendum: baseline screenshot matrix on the `main` build: 288 cells, 132 captured, 36 not applicable, 120 missing (every signed-in screen goes blank once the M5 lists load, finding F0), 0 page overflow, 0 clipped. `scripts/ui-matrix.mjs` fixed to get there: serves `web/dist` itself with an API proxy, closes contexts on failure, bounds waits, adds `--serve`, `MATRIX_SCREENS`, `MATRIX_DIST`. Tooling only. Evals: GATE ✅ (previous loop, no product change) COV n/a SCOPE ✅ FROZEN ✅.
 - **2026-10-12** — [M8/R2] R2-2 (S2): moved the test-only `isJSONArray` from `profile/service.go` into `parsedcv_test.go`. `seed.Generator.Jobs` stays: `feed/perf_test.go` uses it across packages (justified dead-code finding). Diff +0/−5 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (deletion) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R2] R2-1 (S1): deleted six ingest constructors that nothing reaches, tests included (`NewATSSource`, `NewGreenhouseSource`, `NewLeverSource`, `NewWorkableSource`, `NewAshbySource`, `NewCareerjetSourceWithURL`); proof: Serena reference check, `deadcode -test ./...` now empty, gate. No test removed. Diff +4/−28 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (deletion) SCOPE ✅ FROZEN ✅. Review findings: 1 (orphaned doc comments, fixed). Attempts: 1.
 - **2026-10-12** — [M8/R1] Phase close, tag `m8-R1-done`. E-JOURNEY ✅: `node scripts/browser-e2e.mjs` passes register (API) → verify → CV upload → profile save and confirm → feed filter → Open & Fill → review states → no submit → account export and delete, with 0 console errors or warnings. E-FUNC ❌ partial: every PRD requirement maps to an `AC-*` test, but AUTH-2 (P0) is proven by a mock alone and has no production provider (D1, locked decision); APP-3 portal maps are proven on saved fixture DOMs, not live portals; MOB-1..4 are unbuilt (M6, non-goal). Remaining items deferred (D10), so the phase closes. Loop health: 4 loops, first-pass gate rate 4/4 (R1-4 needed a second E2E run before the gate), reverted 0, stop events 0, review findings 1.

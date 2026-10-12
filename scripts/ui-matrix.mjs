@@ -31,6 +31,7 @@ const THEMES = ["dark", "light"];
 const WIDTHS = [360, 768, 1280];
 const LOCALES = ["id-ID", "en"];
 const STATES = ["loading", "empty", "error", "populated"];
+const WAIT_MS = Number(process.env.MATRIX_WAIT_MS ?? 5_000);
 const EMPTY_FEED = { jobs: [], total: 0, limit: 24, offset: 0 };
 // api: GET paths whose response defines the screen's state. act: interaction
 // that produces the error state on screens whose error only follows an action.
@@ -151,66 +152,72 @@ async function capture(browser, base, storage, screen, theme, width, locale, sta
     storageState: screen.signedIn ? storage[state === "empty" ? "empty" : "populated"] : undefined,
     reducedMotion: "reduce",
   });
-  await context.addInitScript((t) => window.localStorage.setItem("auto-applier-theme", t), theme);
-  const page = await context.newPage();
+  let layout;
+  let file;
   const consoleErrors = [];
-  page.on("console", (m) => {
-    if (m.type() === "error" || m.type() === "warning") consoleErrors.push(m.text());
-  });
-  page.on("pageerror", (e) => consoleErrors.push(String(e)));
+  try {
+    await context.addInitScript((t) => window.localStorage.setItem("auto-applier-theme", t), theme);
+    const page = await context.newPage();
+    page.setDefaultTimeout(Math.max(WAIT_MS, 5_000));
+    page.on("console", (m) => {
+      if (m.type() === "error" || m.type() === "warning") consoleErrors.push(m.text());
+    });
+    page.on("pageerror", (e) => consoleErrors.push(String(e)));
 
-  if (state === "loading") await page.route(() => true, (route) => (isAPI(route.request(), screen.api) ? undefined : route.continue()));
-  if (state === "error" && !screen.errorAct) {
-    await page.route(() => true, (route) =>
-      isAPI(route.request(), screen.api) ? route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"internal error"}' }) : route.continue(),
-    );
-  }
-  if (state === "empty" && screen.emptyBody) {
-    await page.route(() => true, (route) =>
-      isAPI(route.request(), screen.api) ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(screen.emptyBody) }) : route.continue(),
-    );
-  }
-
-  await page.goto(base, { waitUntil: "domcontentloaded" });
-  if (locale !== "id-ID") {
-    await page.getByLabel(/^(language|bahasa)$/i).first().click();
-    await page.getByRole("option", { name: locale, exact: true }).click();
-  }
-  const target = page.locator(screen.selector).first();
-  await target.waitFor({ state: "visible", timeout: 5_000 }).catch((error) => {
-    throw new Error(consoleErrors.length ? `screen did not render: ${consoleErrors[0].split("\n")[0]}` : String(error));
-  });
-  if (state === "error" && screen.errorAct === "badLogin") {
-    await target.locator('input[type="email"]').fill("nobody@example.test");
-    await target.locator('input[type="password"]').fill("wrong-password-1");
-    await target.locator('button[type="submit"]').first().click();
-    await target.getByRole("alert").first().waitFor({ timeout: 10_000 });
-  }
-  if (state === "error" && screen.errorAct === "badExport") {
-    await page.route("**/account/export", (route) => route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"internal error"}' }));
-    await target.locator('[data-testid="account-export"]').click();
-    await target.getByRole("alert").first().waitFor({ timeout: 10_000 });
-  }
-  await page.waitForTimeout(state === "loading" ? 400 : 900);
-  await target.scrollIntoViewIfNeeded();
-
-  const layout = await page.evaluate((selector) => {
-    const root = document.querySelector(selector);
-    const clipped = [];
-    for (const el of root.querySelectorAll("*")) {
-      if (!el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
-      const style = getComputedStyle(el);
-      const intended = style.textOverflow === "ellipsis" || style.webkitLineClamp !== "none";
-      if (!intended && style.overflowX !== "visible" && el.scrollWidth > el.clientWidth + 1) clipped.push(el.textContent.trim().slice(0, 40));
-      const box = el.getBoundingClientRect();
-      if (box.width > 0 && box.right > window.innerWidth + 1) clipped.push(`offscreen: ${el.textContent.trim().slice(0, 40)}`);
+    if (state === "loading") await page.route(() => true, (route) => (isAPI(route.request(), screen.api) ? undefined : route.continue()));
+    if (state === "error" && !screen.errorAct) {
+      await page.route(() => true, (route) =>
+        isAPI(route.request(), screen.api) ? route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"internal error"}' }) : route.continue(),
+      );
     }
-    return { pageOverflow: document.documentElement.scrollWidth > window.innerWidth, clipped };
-  }, screen.selector);
+    if (state === "empty" && screen.emptyBody) {
+      await page.route(() => true, (route) =>
+        isAPI(route.request(), screen.api) ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(screen.emptyBody) }) : route.continue(),
+      );
+    }
 
-  const file = `${screen.id}__${theme}__${width}__${state}__${locale}.png`;
-  await target.screenshot({ path: join(OUT, file) });
-  await context.close();
+    await page.goto(base, { waitUntil: "domcontentloaded" });
+    if (locale !== "id-ID") {
+      await page.getByLabel(/^(language|bahasa)$/i).first().click();
+      await page.getByRole("option", { name: locale, exact: true }).click();
+    }
+    const target = page.locator(screen.selector).first();
+    await target.waitFor({ state: "visible", timeout: WAIT_MS }).catch((error) => {
+      throw new Error(consoleErrors.length ? `screen did not render: ${consoleErrors[0].split("\n")[0]}` : String(error));
+    });
+    if (state === "error" && screen.errorAct === "badLogin") {
+      await target.locator('input[type="email"]').fill("nobody@example.test");
+      await target.locator('input[type="password"]').fill("wrong-password-1");
+      await target.locator('button[type="submit"]').first().click();
+      await target.getByRole("alert").first().waitFor({ timeout: 10_000 });
+    }
+    if (state === "error" && screen.errorAct === "badExport") {
+      await page.route("**/account/export", (route) => route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"internal error"}' }));
+      await target.locator('[data-testid="account-export"]').click();
+      await target.getByRole("alert").first().waitFor({ timeout: 10_000 });
+    }
+    await page.waitForTimeout(state === "loading" ? 400 : 900);
+    await target.scrollIntoViewIfNeeded();
+
+    layout = await page.evaluate((selector) => {
+      const root = document.querySelector(selector);
+      const clipped = [];
+      for (const el of root.querySelectorAll("*")) {
+        if (!el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+        const style = getComputedStyle(el);
+        const intended = style.textOverflow === "ellipsis" || style.webkitLineClamp !== "none";
+        if (!intended && style.overflowX !== "visible" && el.scrollWidth > el.clientWidth + 1) clipped.push(el.textContent.trim().slice(0, 40));
+        const box = el.getBoundingClientRect();
+        if (box.width > 0 && box.right > window.innerWidth + 1) clipped.push(`offscreen: ${el.textContent.trim().slice(0, 40)}`);
+      }
+      return { pageOverflow: document.documentElement.scrollWidth > window.innerWidth, clipped };
+    }, screen.selector);
+
+    file = `${screen.id}__${theme}__${width}__${state}__${locale}.png`;
+    await target.screenshot({ path: join(OUT, file) });
+  } finally {
+    await context.close();
+  }
   const expected = state === "error" || state === "loading" ? /Failed to load resource|status of (401|500)/ : /status of 401/;
   return { file, ...layout, consoleErrors: consoleErrors.filter((e) => !expected.test(e)) };
 }
