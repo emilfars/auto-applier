@@ -1,0 +1,30 @@
+web/src/components/ProfilePanel.tsx
+  s_cfeddd1935d5d3::t_0951e437eef763 7,11,19-20,27,30,47-48,72-73,88-95,110-111,122-180,208-209,376,379
+web/src/i18n/locales/en.json
+  s_cfeddd1935d5d3::t_0951e437eef763 132-147
+web/src/i18n/locales/id.json
+  s_cfeddd1935d5d3::t_0951e437eef763 132-147
+scripts/browser-e2e.mjs
+  s_cfeddd1935d5d3::t_71e6775ab45e5b 624-634
+PROGRESS.md
+  s_cfeddd1935d5d3::t_be1f9dc50af43d 161
+web/src/components/ProfilePanel.test.tsx
+  s_cfeddd1935d5d3::t_71e6775ab45e5b 60-63,72-75,84-85,105-122
+  s_cfeddd1935d5d3::t_d63a87d1aba5d6 123-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "7e16d81d69fb3740bde1b633f1b86a1c4e6dd4d1",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
