@@ -3,7 +3,7 @@
  * of any `chrome` reference so they unit-test without a browser.
  */
 import type { ProfileData } from "@auto-applier/fill-mappings";
-import type { ArmingStore, ArmedEntry, FillSnapshot } from "./arming.js";
+import type { FillSnapshot } from "./arming.js";
 import type { FillCorrectionEvent } from "./telemetry.js";
 
 /** Web app → extension: open the source page and arm autofill on it. */
@@ -161,33 +161,6 @@ export function asFillCorrection(msg: unknown): FillCorrectionMessage | null {
     return null;
   }
   return { type: "fillCorrection", event: event as FillCorrectionEvent };
-}
-
-/** Opens a tab at the given URL (injected so handlers stay chrome-free). */
-export type OpenTab = (url: string) => void;
-
-/** Handle a pure Open & Fill request. */
-export function handleOpenAndFill(
-  store: ArmingStore,
-  msg: OpenAndFillMessage,
-  openTab: OpenTab,
-  now: number = Date.now(),
-): OpenAndFillResult {
-  store.arm(msg.url, now, undefined, msg.snapshot);
-  openTab(msg.url);
-  return { armed: true };
-}
-
-/** Handle an IsArmed query: consume the arm (single-use) and report it. */
-export function handleIsArmed(
-  store: ArmingStore,
-  msg: IsArmedMessage,
-  now: number = Date.now(),
-): IsArmedResult {
-  const entry: ArmedEntry | null = store.consumeEntry(msg.url, now);
-  return entry?.snapshot
-    ? { armed: true, snapshot: entry.snapshot }
-    : { armed: entry !== null };
 }
 
 /** Type-only assertion that snapshots always carry the canonical profile type. */

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   ARM_EXPIRY_ALARM,
-  ArmingStore,
   installArmExpiryAlarmListener,
   normalizeUrl,
   SessionArmingStore,
@@ -24,59 +23,6 @@ describe("normalizeUrl", () => {
     const a = normalizeUrl("https://boards.greenhouse.io/acme/jobs/9");
     const b = normalizeUrl("https://boards.greenhouse.io/acme/jobs/9?src=feed");
     expect(a).toBe(b);
-  });
-});
-
-describe("ArmingStore", () => {
-  it("arms a URL and consumes it exactly once", () => {
-    const s = new ArmingStore();
-    s.arm("https://jobs.lever.co/acme/1", 1000);
-    expect(s.consume("https://jobs.lever.co/acme/1", 1500)).toBe(true);
-    // Second consume returns false (single-use).
-    expect(s.consume("https://jobs.lever.co/acme/1", 1600)).toBe(false);
-  });
-
-  it("does not consume an unrelated URL", () => {
-    const s = new ArmingStore();
-    s.arm("https://jobs.lever.co/acme/1", 1000);
-    expect(s.consume("https://jobs.lever.co/other/2", 1500)).toBe(false);
-  });
-
-  it("treats an expired arm as absent", () => {
-    const s = new ArmingStore(60_000);
-    s.arm("https://x.io/a", 1000);
-    expect(s.consume("https://x.io/a", 1000 + 60_001)).toBe(false);
-  });
-
-  it("sweeps expired entries", () => {
-    const s = new ArmingStore(1000);
-    s.arm("https://x.io/a", 0);
-    s.arm("https://x.io/b", 0);
-    expect(s.size()).toBe(2);
-    s.sweep(2000);
-    expect(s.size()).toBe(0);
-  });
-
-  it("binds an arm to its created tab", () => {
-    const s = new ArmingStore();
-    s.arm("https://x.io/a", 0, 7);
-    expect(s.consume("https://x.io/a", 1, 8)).toBe(false);
-    expect(s.consume("https://x.io/a", 1, 7)).toBe(true);
-  });
-
-  it("keeps same-URL arms independent across tabs", () => {
-    const s = new ArmingStore();
-    s.arm("https://x.io/a", 0, 7);
-    s.arm("https://x.io/a", 0, 8);
-    expect(s.consume("https://x.io/a", 1, 7)).toBe(true);
-    expect(s.consume("https://x.io/a", 1, 8)).toBe(true);
-  });
-
-  it("does not consume a same-tab arm for the wrong URL", () => {
-    const s = new ArmingStore();
-    s.arm("https://x.io/a", 0, 7);
-    expect(s.consume("https://x.io/other", 1, 7)).toBe(false);
-    expect(s.consume("https://x.io/a", 1, 7)).toBe(true);
   });
 });
 

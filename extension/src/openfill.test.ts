@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { Window } from "happy-dom";
 import type { ProfileData } from "@auto-applier/fill-mappings";
-import { ArmingStore } from "./arming.js";
+import { SessionArmingStore, type BinaryPayloadStore, type SessionStorageLike } from "./arming.js";
 import {
   asIsArmed,
   asOpenAndFill,
-  handleIsArmed,
-  handleOpenAndFill,
   type IsArmedMessage,
   type IsArmedResult,
 } from "./messaging.js";
@@ -27,25 +25,53 @@ const leverForm = `
     <input name="resume" type="file" />
   </form>`;
 
+const TAB_ID = 1;
+
 /**
- * A tiny in-memory stand-in for the chrome message bus: the background holds an
- * ArmingStore; the web app and content script talk to it through the pure
- * handlers, exactly as background.ts wires them to chrome.
+ * Stand-in for the chrome message bus around the production SessionArmingStore:
+ * arm on the web app's request, consume once from the content script, the same
+ * calls background.ts makes with chrome.storage.session behind them.
  */
 function makeBackground() {
-  const store = new ArmingStore();
+  const state: Record<string, unknown> = {};
+  const storage: SessionStorageLike = {
+    get: async (key) => (key in state ? { [key]: state[key] } : {}),
+    set: async (items) => {
+      Object.assign(state, items);
+    },
+    remove: async (key) => {
+      delete state[key];
+    },
+  };
+  const payloads = new Map<string, Uint8Array>();
+  const binary: BinaryPayloadStore = {
+    put: async (bytes) => {
+      const id = `payload-${payloads.size}`;
+      payloads.set(id, bytes.slice());
+      return id;
+    },
+    get: async (id) => payloads.get(id) ?? null,
+    delete: async (id) => {
+      payloads.delete(id);
+    },
+    sweep: async () => undefined,
+  };
+  const store = new SessionArmingStore(storage, undefined, binary);
   const openedTabs: string[] = [];
 
-  const fromWebApp = (message: unknown) => {
+  const fromWebApp = async (message: unknown) => {
     const req = asOpenAndFill(message);
     if (!req) throw new Error("bad openAndFill");
-    return handleOpenAndFill(store, req, (url) => openedTabs.push(url));
+    await store.arm(req.url, Date.now(), TAB_ID, req.snapshot);
+    openedTabs.push(req.url);
+    return { armed: true };
   };
 
   const fromContent = async (msg: IsArmedMessage): Promise<IsArmedResult> => {
     const req = asIsArmed(msg);
     if (!req) throw new Error("bad isArmed");
-    return handleIsArmed(store, req);
+    const entry = await store.consume(req.url, Date.now(), TAB_ID);
+    return entry?.snapshot ? { armed: true, snapshot: entry.snapshot } : { armed: entry !== null };
   };
 
   return { store, openedTabs, fromWebApp, fromContent };
@@ -57,7 +83,7 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
     const sourceUrl = "https://jobs.lever.co/acme/1/apply";
 
     // 1) Feed "Open & Fill" → background arms + opens the source page.
-    const armed = bg.fromWebApp({ type: "openAndFill", url: sourceUrl });
+    const armed = await bg.fromWebApp({ type: "openAndFill", url: sourceUrl });
     expect(armed).toEqual({ armed: true });
     expect(bg.openedTabs).toEqual([sourceUrl]);
 
@@ -107,7 +133,7 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
   it("arm is single-use: a reload does not re-fill", async () => {
     const bg = makeBackground();
     const url = "https://jobs.lever.co/acme/1/apply";
-    bg.fromWebApp({ type: "openAndFill", url });
+    await bg.fromWebApp({ type: "openAndFill", url });
 
     const load = async () => {
       const win = new Window({ url });
@@ -132,7 +158,7 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
   it("does not fill when the profile is unconfirmed (AC-CV-5 defense in depth)", async () => {
     const bg = makeBackground();
     const url = "https://jobs.lever.co/acme/1/apply";
-    bg.fromWebApp({ type: "openAndFill", url });
+    await bg.fromWebApp({ type: "openAndFill", url });
 
     const win = new Window({ url });
     win.document.body.innerHTML = leverForm;
@@ -152,7 +178,7 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
   it("transfers the confirmed profile and uploaded CV bytes through the one-shot arm", async () => {
     const bg = makeBackground();
     const url = "https://jobs.lever.co/acme/1/apply";
-    bg.fromWebApp({
+    await bg.fromWebApp({
       type: "openAndFill",
       url,
       snapshot: {
@@ -180,7 +206,7 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
   it("wires privacy-safe correction telemetry through runContentFill", async () => {
     const bg = makeBackground();
     const url = "https://jobs.lever.co/acme/1/apply";
-    bg.fromWebApp({ type: "openAndFill", url });
+    await bg.fromWebApp({ type: "openAndFill", url });
     const win = new Window({ url });
     win.document.body.innerHTML = leverForm;
     const doc = win.document as unknown as Document;
