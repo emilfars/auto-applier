@@ -41,17 +41,9 @@ export async function requestOpenAndFill(
   url: string,
   deps: OpenFillDeps,
 ): Promise<OpenFillResult> {
-  try {
-    const canArm = await deps.arm();
-    if (!canArm) return { status: "needProfile" };
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 401) return { status: "needLogin" };
-    if (err instanceof ApiError && err.status === 403) return { status: "needProfile" };
-    return { status: "error" };
-  }
-
   let snapshot: FillSnapshot;
   try {
+    if (!(await deps.arm())) return { status: "needProfile" };
     snapshot = await deps.snapshot();
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { status: "needLogin" };
@@ -90,91 +82,61 @@ const WEB_BRIDGE_SOURCE = "auto-applier-web";
 const WEB_BRIDGE_RESPONSE = "openAndFillResult";
 const CLEAR_STATE_RESPONSE = "clearStateResult";
 
-function sendViaPageBridge(
-  url: string,
-  snapshot: FillSnapshot,
-): Promise<boolean | null> {
-  if (typeof window === "undefined") return Promise.resolve(null);
+/**
+ * Post one request to the extension's page content-script bridge and wait for
+ * its answer. `read` returns undefined for a message that is not the answer;
+ * `fallback` resolves when nothing answers in time.
+ */
+function pageBridge<T>(
+  request: Record<string, unknown>,
+  responseType: string,
+  read: (data: Record<string, unknown>) => T | undefined,
+  fallback: T,
+): Promise<T> {
+  if (typeof window === "undefined") return Promise.resolve(fallback);
   const requestId = `${Date.now()}-${Math.random()}`;
   const origin = window.location.origin;
   return new Promise((resolve) => {
-    const finish = (value: boolean | null) => {
+    const finish = (value: T) => {
       window.clearTimeout(timeout);
       window.removeEventListener("message", onMessage);
       resolve(value);
     };
     const onMessage = (event: MessageEvent<unknown>) => {
       if (event.source !== window || event.origin !== origin) return;
-      const data = event.data as {
-        source?: unknown;
-        type?: unknown;
-        requestId?: unknown;
-        armed?: unknown;
-      };
+      const data = event.data as Record<string, unknown> | null;
       if (
         data?.source !== WEB_BRIDGE_SOURCE ||
-        data.type !== WEB_BRIDGE_RESPONSE ||
+        data.type !== responseType ||
         data.requestId !== requestId
       ) {
         return;
       }
-
-      finish(typeof data.armed === "boolean" ? data.armed : false);
+      const value = read(data);
+      if (value !== undefined) finish(value);
     };
-    const timeout = window.setTimeout(() => finish(null), 3_000);
+    const timeout = window.setTimeout(() => finish(fallback), 3_000);
     window.addEventListener("message", onMessage);
-    window.postMessage(
-      {
-        source: WEB_BRIDGE_SOURCE,
-        type: "openAndFill",
-        requestId,
-        url,
-        snapshot: toExtensionSnapshot(snapshot),
-      },
-      origin,
-    );
+    window.postMessage({ source: WEB_BRIDGE_SOURCE, ...request, requestId }, origin);
   });
 }
 
+function sendViaPageBridge(url: string, snapshot: FillSnapshot): Promise<boolean | null> {
+  return pageBridge<boolean | null>(
+    { type: "openAndFill", url, snapshot: toExtensionSnapshot(snapshot) },
+    WEB_BRIDGE_RESPONSE,
+    (data) => (typeof data.armed === "boolean" ? data.armed : false),
+    null,
+  );
+}
+
 function clearViaPageBridge(): Promise<boolean> {
-  if (typeof window === "undefined") return Promise.resolve(false);
-  const requestId = `${Date.now()}-${Math.random()}`;
-  const origin = window.location.origin;
-  return new Promise((resolve) => {
-    const finish = (value: boolean) => {
-      window.clearTimeout(timeout);
-      window.removeEventListener("message", onMessage);
-      resolve(value);
-    };
-    const onMessage = (event: MessageEvent<unknown>) => {
-      if (event.source !== window || event.origin !== origin) return;
-      const data = event.data as {
-        source?: unknown;
-        type?: unknown;
-        requestId?: unknown;
-        cleared?: unknown;
-      };
-      if (
-        data?.source !== WEB_BRIDGE_SOURCE ||
-        data.type !== CLEAR_STATE_RESPONSE ||
-        data.requestId !== requestId ||
-        typeof data.cleared !== "boolean"
-      ) {
-        return;
-      }
-      finish(data.cleared);
-    };
-    const timeout = window.setTimeout(() => finish(false), 3_000);
-    window.addEventListener("message", onMessage);
-    window.postMessage(
-      {
-        source: WEB_BRIDGE_SOURCE,
-        type: "clearState",
-        requestId,
-      },
-      origin,
-    );
-  });
+  return pageBridge(
+    { type: "clearState" },
+    CLEAR_STATE_RESPONSE,
+    (data) => (typeof data.cleared === "boolean" ? data.cleared : undefined),
+    false,
+  );
 }
 
 /**

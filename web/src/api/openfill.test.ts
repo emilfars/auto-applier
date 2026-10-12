@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { clearExtensionState, requestOpenAndFill } from "./openfill";
+import { clearExtensionState, requestOpenAndFill, sendToExtension } from "./openfill";
 import { ApiError } from "./http";
 import { getFillSnapshot, type FillSnapshot } from "./profile";
 
@@ -154,5 +154,71 @@ describe("requestOpenAndFill", () => {
       window.location.origin,
     );
     postMessage.mockRestore();
+  });
+  describe("sendToExtension through the page bridge", () => {
+    function answerWith(data: (requestId: string) => unknown) {
+      return vi.spyOn(window, "postMessage").mockImplementation((message) => {
+        const request = message as { requestId: string };
+        window.dispatchEvent(
+          new MessageEvent("message", { source: window, origin: window.location.origin, data: data(request.requestId) }),
+        );
+      });
+    }
+
+    it("resolves the armed flag from a matching response and posts the mapped snapshot", async () => {
+      const postMessage = answerWith((requestId) => ({
+        source: "auto-applier-web",
+        type: "openAndFillResult",
+        requestId,
+        armed: true,
+      }));
+
+      await expect(sendToExtension("https://x/job", snapshot)).resolves.toBe(true);
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "auto-applier-web",
+          type: "openAndFill",
+          url: "https://x/job",
+          snapshot: { profile: snapshot.profile, cv: null },
+        }),
+        window.location.origin,
+      );
+      postMessage.mockRestore();
+    });
+
+    it("treats a matching response without a boolean armed flag as not armed", async () => {
+      const postMessage = answerWith((requestId) => ({
+        source: "auto-applier-web",
+        type: "openAndFillResult",
+        requestId,
+      }));
+
+      await expect(sendToExtension("https://x/job", snapshot)).resolves.toBe(false);
+      postMessage.mockRestore();
+    });
+
+    it("resolves null when no extension answers within the timeout", async () => {
+      vi.useFakeTimers();
+      const postMessage = answerWith(() => ({ source: "someone-else" }));
+
+      const pending = sendToExtension("https://x/job", snapshot);
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      await expect(pending).resolves.toBeNull();
+      postMessage.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it("resolves false when clearing state gets no answer", async () => {
+      vi.useFakeTimers();
+      const postMessage = answerWith(() => ({ source: "someone-else" }));
+
+      const pending = clearExtensionState();
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      await expect(pending).resolves.toBe(false);
+      postMessage.mockRestore();
+      vi.useRealTimers();
+    });
   });
 });
