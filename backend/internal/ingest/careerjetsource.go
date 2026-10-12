@@ -39,13 +39,8 @@ func NewCareerjetSourceWithLimit(affid string, limit int, client *http.Client) *
 	return NewCareerjetSourceWithURLAndLimit("careerjet", careerjetSearchURL, affid, limit, client)
 }
 
-// NewCareerjetSourceWithURL builds a fixture-backed source. The explicit URL
-// keeps network behavior mockable without changing production configuration.
-func NewCareerjetSourceWithURL(id, baseURL, affid string, client *http.Client) *CareerjetSource {
-	return NewCareerjetSourceWithURLAndLimit(id, baseURL, affid, careerjetDefaultLimit, client)
-}
-
-// NewCareerjetSourceWithURLAndLimit builds a fixture-backed source with a cap.
+// NewCareerjetSourceWithURLAndLimit builds a source against an explicit URL with
+// a cap, which keeps network behavior mockable in tests.
 func NewCareerjetSourceWithURLAndLimit(id, baseURL, affid string, limit int, client *http.Client) *CareerjetSource {
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}

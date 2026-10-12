@@ -36,13 +36,8 @@ type ATSSource struct {
 	cache    conditionalStore
 }
 
-// NewATSSource creates a production public-board source for one company slug.
-func NewATSSource(platform ATSPlatform, slug string, client *http.Client) *ATSSource {
-	return NewATSSourceWithURL(platform, slug, "", atsEndpoint(platform, slug), client)
-}
-
-// NewATSSourceWithURL creates a fixture-backed source using an explicit API
-// endpoint. The endpoint is intentionally injectable for offline tests.
+// NewATSSourceWithURL creates a source for one company slug against an explicit
+// API endpoint; an empty company is derived from the slug.
 func NewATSSourceWithURL(platform ATSPlatform, slug, company, endpoint string, client *http.Client) *ATSSource {
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
@@ -59,32 +54,16 @@ func NewATSSourceWithURL(platform ATSPlatform, slug, company, endpoint string, c
 	}
 }
 
-func NewGreenhouseSource(slug string, client *http.Client) *ATSSource {
-	return NewATSSource(ATSGreenhouse, slug, client)
-}
-
 func NewGreenhouseSourceWithURL(slug, endpoint string, client *http.Client) *ATSSource {
 	return NewATSSourceWithURL(ATSGreenhouse, slug, "", endpoint, client)
-}
-
-func NewLeverSource(slug string, client *http.Client) *ATSSource {
-	return NewATSSource(ATSLever, slug, client)
 }
 
 func NewLeverSourceWithURL(slug, endpoint string, client *http.Client) *ATSSource {
 	return NewATSSourceWithURL(ATSLever, slug, "", endpoint, client)
 }
 
-func NewWorkableSource(slug string, client *http.Client) *ATSSource {
-	return NewATSSource(ATSWorkable, slug, client)
-}
-
 func NewWorkableSourceWithURL(slug, endpoint string, client *http.Client) *ATSSource {
 	return NewATSSourceWithURL(ATSWorkable, slug, "", endpoint, client)
-}
-
-func NewAshbySource(slug string, client *http.Client) *ATSSource {
-	return NewATSSource(ATSAshby, slug, client)
 }
 
 func NewAshbySourceWithURL(slug, endpoint string, client *http.Client) *ATSSource {
