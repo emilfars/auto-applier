@@ -1,0 +1,42 @@
+web/src/boot-shell.test.ts
+  s_cfeddd1935d5d3::t_52c6920b82c653 1-12
+web/src/styles.css
+  s_cfeddd1935d5d3::t_52c6920b82c653 140-167
+  s_cfeddd1935d5d3::t_63d76b825b3330 51
+web/index.html
+  s_cfeddd1935d5d3::t_52c6920b82c653 9,18,21-29
+  s_cfeddd1935d5d3::t_63d76b825b3330 10-17
+scripts/ui-matrix.mjs
+  s_cfeddd1935d5d3::t_20fa77a43c59b0 22,82-88
+web/nginx.conf
+  s_cfeddd1935d5d3::t_20fa77a43c59b0 12-16
+web/src/components/JobFeed.tsx
+  s_cfeddd1935d5d3::t_52c6920b82c653 77,203
+web/src/SignedInViews.tsx
+  s_cfeddd1935d5d3::t_52c6920b82c653 1-50
+web/src/App.test.tsx
+  s_cfeddd1935d5d3::t_52c6920b82c653 62
+  s_cfeddd1935d5d3::t_8558df900c45ff 57,66,69,107,110,127,130,132
+web/src/App.tsx
+  s_cfeddd1935d5d3::t_52c6920b82c653 1,11-13,40,107-115
+PROGRESS.md
+  s_cfeddd1935d5d3::t_abfe7e9d305bd3 161
+web/package-lock.json
+  s_cfeddd1935d5d3::t_1f6761b023334d 2663
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "da001c1833349b7413acf8715b9807bcc0161a62",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
