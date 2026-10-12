@@ -57,10 +57,10 @@ describe("ProfilePanel", () => {
 
     render(wrap(<ProfilePanel locale="en" />));
 
-    const education = await screen.findByLabelText(/Education \(JSON\)/);
-    const workHistory = screen.getByLabelText(/Work history \(JSON\)/);
-    expect((education as HTMLTextAreaElement).value).toContain('"institution": "UI"');
-    expect((workHistory as HTMLTextAreaElement).value).toContain('"company": "Acme"');
+    const institution = (await screen.findByLabelText("Institution")) as HTMLInputElement;
+    const company = screen.getByLabelText("Company") as HTMLInputElement;
+    expect(institution.value).toBe("UI");
+    expect(company.value).toBe("Acme");
 
     fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "new@example.com" } });
     fireEvent.change(screen.getByLabelText(/LinkedIn URL/), {
@@ -69,12 +69,10 @@ describe("ProfilePanel", () => {
     fireEvent.change(screen.getByLabelText(/Professional summary/), {
       target: { value: "New summary" },
     });
-    fireEvent.change(education, {
-      target: { value: '[{"institution":"ITB","degree":"S.T.","field":"","start_year":"","end_year":""}]' },
-    });
-    fireEvent.change(workHistory, {
-      target: { value: '[{"company":"New Co","title":"Lead","start_date":"","end_date":""}]' },
-    });
+    fireEvent.change(institution, { target: { value: "ITB" } });
+    fireEvent.change(company, { target: { value: "New Co" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add experience" }));
+    expect(screen.getAllByLabelText("Company")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() =>
@@ -83,8 +81,8 @@ describe("ProfilePanel", () => {
           email: "new@example.com",
           linkedin_url: "https://linkedin.com/in/new",
           summary: "New summary",
-          education: [expect.objectContaining({ institution: "ITB" })],
-          work_history: [expect.objectContaining({ company: "New Co" })],
+          education: [expect.objectContaining({ institution: "ITB", degree: "S.Kom" })],
+          work_history: [expect.objectContaining({ company: "New Co", title: "Engineer" })],
         }),
       ),
     );
@@ -102,6 +100,26 @@ describe("ProfilePanel", () => {
     expect(profileApi.patchProfile).toHaveBeenCalledOnce();
     expect(vi.mocked(profileApi.patchProfile).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(profileApi.confirmProfile).mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("adds and removes education rows without any JSON", async () => {
+    vi.mocked(profileApi.getProfile).mockResolvedValue({ ...profile, education: [] });
+    vi.mocked(profileApi.patchProfile).mockResolvedValue(profile);
+    render(wrap(<ProfilePanel locale="id-ID" />));
+
+    expect(await screen.findByText(/Belum ada pendidikan\./)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tambah pendidikan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tambah pendidikan" }));
+    fireEvent.change(screen.getAllByLabelText("Institusi")[0], { target: { value: "UGM" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hapus Pendidikan 2" }));
+    expect(screen.getAllByLabelText("Institusi")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Simpan perubahan" }));
+    await waitFor(() =>
+      expect(profileApi.patchProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ education: [expect.objectContaining({ institution: "UGM" })] }),
+      ),
     );
   });
 });

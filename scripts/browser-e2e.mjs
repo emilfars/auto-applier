@@ -621,19 +621,17 @@ async function run() {
       const relocation = field("open_to_relocation");
       if (!(relocation instanceof HTMLInputElement)) throw new Error("relocation control missing");
       relocation.click();
-      setValue("education", JSON.stringify([{
-        institution: "Universitas Indonesia",
-        degree: "S.Kom",
-        field: "Computer Science",
-        start_year: "2015",
-        end_year: "2019",
-      }]));
-      setValue("work_history", JSON.stringify([{
-        company: "Nusantara Digital",
-        title: "Senior Engineer",
-        start_date: "2020-01",
-        end_date: "",
-      }]));
+      field("education-add").click();
+      field("work_history-add").click();
+      await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+      setValue("education-0-institution", "Universitas Indonesia");
+      setValue("education-0-degree", "S.Kom");
+      setValue("education-0-field", "Computer Science");
+      setValue("education-0-start_year", "2015");
+      setValue("education-0-end_year", "2019");
+      setValue("work_history-0-company", "Nusantara Digital");
+      setValue("work_history-0-title", "Senior Engineer");
+      setValue("work_history-0-start_date", "2020-01");
       setValue("skills", "Go, TypeScript, PostgreSQL");
       setValue("preferred_locations", "Jakarta, Depok");
       await new Promise((resolveWait) => setTimeout(resolveWait, 50));

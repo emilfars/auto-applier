@@ -4,10 +4,11 @@ import {
   Badge,
   Button,
   Checkbox,
+  CloseButton,
   Grid,
   Group,
-  JsonInput,
   NumberInput,
+  Paper,
   Select,
   Skeleton,
   Stack,
@@ -15,16 +16,18 @@ import {
   TextInput,
   Textarea,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { t, type Locale } from "../i18n";
+import { useForm, type UseFormReturnType } from "@mantine/form";
+import { t, type Locale, type TranslationKey } from "../i18n";
 import { useSession } from "../auth/session";
 import {
   confirmProfile,
   getProfile,
   patchProfile,
   EMPLOYMENT_TYPES,
+  type EducationEntry,
   type Profile,
   type ProfilePatch,
+  type WorkEntry,
 } from "../api/profile";
 import { ApiError } from "../api/http";
 
@@ -41,8 +44,8 @@ interface FormState {
   current_employer: string;
   current_title: string;
   highest_education: string;
-  education: string;
-  work_history: string;
+  education: EducationEntry[];
+  work_history: WorkEntry[];
   expected_salary: string;
   notice_period_days: string;
   work_authorization: string;
@@ -66,8 +69,8 @@ function toForm(p: Profile): FormState {
     current_employer: p.current_employer,
     current_title: p.current_title,
     highest_education: p.highest_education,
-    education: JSON.stringify(p.education ?? [], null, 2),
-    work_history: JSON.stringify(p.work_history ?? [], null, 2),
+    education: p.education ?? [],
+    work_history: p.work_history ?? [],
     expected_salary: p.expected_salary != null ? String(p.expected_salary) : "",
     notice_period_days: p.notice_period_days != null ? String(p.notice_period_days) : "",
     work_authorization: p.work_authorization,
@@ -80,6 +83,14 @@ function toForm(p: Profile): FormState {
 
 function splitList(s: string): string[] {
   return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
+
+const EMPTY_EDUCATION: EducationEntry = { institution: "", degree: "", field: "", start_year: "", end_year: "" };
+const EMPTY_WORK: WorkEntry = { company: "", title: "", start_date: "", end_date: "" };
+
+/** Rows the user added but left completely blank are not sent. */
+function filled<T extends object>(rows: T[]): T[] {
+  return rows.filter((row) => Object.values(row).some((value) => String(value).trim() !== ""));
 }
 
 function toPatch(f: FormState): ProfilePatch {
@@ -96,8 +107,8 @@ function toPatch(f: FormState): ProfilePatch {
     current_employer: f.current_employer,
     current_title: f.current_title,
     highest_education: f.highest_education,
-    education: JSON.parse(f.education) as Profile["education"],
-    work_history: JSON.parse(f.work_history) as Profile["work_history"],
+    education: filled(f.education),
+    work_history: filled(f.work_history),
     work_authorization: f.work_authorization,
     employment_type: f.employment_type,
     open_to_relocation: f.open_to_relocation,
@@ -106,6 +117,65 @@ function toPatch(f: FormState): ProfilePatch {
     expected_salary: f.expected_salary.trim() ? Number(f.expected_salary) : null,
     notice_period_days: f.notice_period_days.trim() ? Number(f.notice_period_days) : null,
   };
+}
+
+/** Repeatable rows for education and work history: one labeled input per field. */
+function EntryList<N extends "education" | "work_history">({
+  form,
+  locale,
+  name,
+  blank,
+}: {
+  form: UseFormReturnType<FormState>;
+  locale: Locale;
+  name: N;
+  blank: FormState[N][number];
+}) {
+  const rows = form.values[name];
+  const heading = t(locale, name === "education" ? "profile.education" : "profile.workHistory");
+  return (
+    <Stack gap="xs" role="group" aria-label={heading}>
+      <Text fw={600}>{heading}</Text>
+      {rows.length === 0 && (
+        <Text size="sm" c="dimmed">
+          {t(locale, `profile.${name}.empty`)}
+        </Text>
+      )}
+      {rows.map((_, index) => (
+        <Paper key={index} withBorder p="sm" bg="var(--mantine-color-default)">
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" c="dimmed">
+              {heading} {index + 1}
+            </Text>
+            <CloseButton
+              size={44}
+              aria-label={t(locale, "profile.entry.remove", { item: heading, n: index + 1 })}
+              onClick={() => form.removeListItem(name, index)}
+            />
+          </Group>
+          <Grid gutter="sm">
+            {(Object.keys(blank) as Array<keyof typeof blank & string>).map((field) => (
+              <Grid.Col key={field} span={{ base: 12, sm: 6 }}>
+                <TextInput
+                  label={t(locale, `profile.${name}.${field}` as TranslationKey)}
+                  data-testid={`profile-${name}-${index}-${field}`}
+                  {...form.getInputProps(`${name}.${index}.${field}`)}
+                />
+              </Grid.Col>
+            ))}
+          </Grid>
+        </Paper>
+      ))}
+      <Button
+        variant="default"
+        onClick={() => form.insertListItem(name, { ...blank })}
+        data-testid={`profile-${name}-add`}
+        style={{ alignSelf: "flex-start" }}
+      >
+        {t(locale, `profile.${name}.add`)}
+      </Button>
+    </Stack>
+  );
 }
 
 export function ProfilePanel({
@@ -135,8 +205,8 @@ export function ProfilePanel({
       current_employer: "",
       current_title: "",
       highest_education: "",
-      education: "[]",
-      work_history: "[]",
+      education: [],
+      work_history: [],
       expected_salary: "",
       notice_period_days: "",
       work_authorization: "",
@@ -151,12 +221,6 @@ export function ProfilePanel({
       phone: (v) => (v.trim() ? null : "Required"),
       work_authorization: (v) => (v.trim() ? null : "Required"),
       employment_type: (v) => (v.trim() ? null : "Required"),
-      education: (v) => {
-        try { JSON.parse(v); return null; } catch { return "Invalid JSON"; }
-      },
-      work_history: (v) => {
-        try { JSON.parse(v); return null; } catch { return "Invalid JSON"; }
-      },
     },
   });
 
@@ -309,10 +373,10 @@ export function ProfilePanel({
             <Checkbox label={t(locale, "profile.relocation")} data-testid="profile-open_to_relocation" {...form.getInputProps("open_to_relocation", { type: "checkbox" })} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <JsonInput label={t(locale, "profile.education")} formatOnBlur autosize minRows={6} data-testid="profile-education" {...form.getInputProps("education")} />
+            <EntryList form={form} locale={locale} name="education" blank={EMPTY_EDUCATION} />
           </Grid.Col>
           <Grid.Col span={12}>
-            <JsonInput label={t(locale, "profile.workHistory")} formatOnBlur autosize minRows={6} data-testid="profile-work_history" {...form.getInputProps("work_history")} />
+            <EntryList form={form} locale={locale} name="work_history" blank={EMPTY_WORK} />
           </Grid.Col>
           <Grid.Col span={12}>
             <TextInput label={t(locale, "profile.skills")} required data-testid="profile-skills" {...form.getInputProps("skills")} />
