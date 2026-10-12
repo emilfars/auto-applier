@@ -121,9 +121,8 @@ describe("EnhancementsPanel", () => {
     vi.mocked(m5.confirmSubmitted).mockResolvedValue({ ...application, status: "submitted" });
     render(wrap(<EnhancementsPanel locale="en" />));
 
-    const select = await screen.findByRole("textbox", { name: "Engineer" });
-    fireEvent.click(select);
-    fireEvent.click(await screen.findByRole("option", { name: "submitted" }));
+    const select = await screen.findByRole("combobox", { name: "Status of application Engineer" });
+    fireEvent.change(select, { target: { value: "submitted" } });
 
     await waitFor(() => expect(m5.confirmSubmitted).toHaveBeenCalledWith("a1"));
     expect(m5.updateApplication).not.toHaveBeenCalled();
@@ -140,10 +139,39 @@ describe("EnhancementsPanel", () => {
     vi.mocked(m5.updateApplication).mockResolvedValue({ ...application, status: "interview" });
     render(wrap(<EnhancementsPanel locale="en" />));
 
-    const select = await screen.findByRole("textbox", { name: "Engineer" });
-    fireEvent.click(select);
-    fireEvent.click(await screen.findByRole("option", { name: "interview" }));
+    const select = await screen.findByRole("combobox", { name: "Status of application Engineer" });
+    fireEvent.change(select, { target: { value: "interview" } });
 
     await waitFor(() => expect(m5.updateApplication).toHaveBeenCalledWith("a1", "interview"));
+  });
+
+  it("says it is loading, then explains a failed load and retries", async () => {
+    vi.mocked(m5.listSnippets).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(wrap(<EnhancementsPanel locale="id-ID" />));
+    expect(screen.getByText("Memuat lamaran dan alat Anda…")).toBeTruthy();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Data lamaran Anda tidak bisa dimuat.");
+    expect(alert.textContent).toContain("Periksa koneksi Anda");
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByText("Lamaran yang Anda mulai akan muncul di sini.")).toBeTruthy();
+  });
+
+  it("names tracker statuses and missing profile fields in the user's language", async () => {
+    vi.mocked(m5.listApplications).mockResolvedValue([
+      { id: "a1", company: "Acme", job_title: "Engineer", status: "form_filled" },
+    ]);
+    render(wrap(<EnhancementsPanel locale="id-ID" />));
+
+    const select = (await screen.findByRole("combobox", { name: "Status lamaran Engineer" })) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.text)).toEqual([
+      "Formulir terisi",
+      "Terkirim (Anda konfirmasi)",
+      "Dilihat",
+      "Ditolak",
+      "Wawancara",
+    ]);
+    expect(screen.getByText("Masih diperlukan: telepon")).toBeTruthy();
   });
 });

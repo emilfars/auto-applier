@@ -7,8 +7,9 @@ import {
   Grid,
   Group,
   Paper,
+  NativeSelect,
   Progress,
-  Select,
+  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -32,8 +33,11 @@ import {
   type SavedFilter,
   type Snippet,
 } from "../api/m5";
-import { ApiError } from "../api/http";
-import { t, type Locale } from "../i18n";
+import { IconAlertCircle } from "@tabler/icons-react";
+import { t, type Locale, type TranslationKey } from "../i18n";
+import { errorMessage } from "../i18n/errors";
+
+const STATUSES: Application["status"][] = ["form_filled", "submitted", "viewed", "rejected", "interview"];
 
 export function EnhancementsPanel({ locale }: { locale: Locale }) {
   const { user } = useSession();
@@ -46,20 +50,64 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
   const [snippetName, setSnippetName] = useState("");
   const [snippetBody, setSnippetBody] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+    let current = true;
+    setLoad("loading");
     Promise.all([getCompleteness(), listSavedFilters(), listApplications(), listSnippets()])
       .then(([score, saved, tracked, reusable]) => {
+        if (!current) return;
         setCompleteness(score);
         setFilters(saved);
         setApplications(tracked);
         setSnippets(reusable);
+        setLoad("ready");
       })
-      .catch(() => setError(t(locale, "auth.error")));
-  }, [user, locale]);
+      .catch((err: unknown) => {
+        if (!current) return;
+        setError(errorMessage(locale, err));
+        setLoad("error");
+      });
+    return () => {
+      current = false;
+    };
+  }, [user, attempt]);
 
   if (!user) return null;
+  if (load === "loading") {
+    return (
+      <Stack gap="sm" aria-busy="true" aria-live="polite">
+        <Text size="sm" c="dimmed">
+          {t(locale, "m5.loading")}
+        </Text>
+        <Skeleton height={72} />
+        <Skeleton height={160} />
+      </Stack>
+    );
+  }
+  if (load === "error") {
+    return (
+      <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">
+            {t(locale, "m5.loadError")} {error}
+          </Text>
+          <Button
+            variant="default"
+            onClick={() => {
+              setError(null);
+              setAttempt((n) => n + 1);
+            }}
+          >
+            {t(locale, "common.retry")}
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
 
   async function createFilter(event: React.FormEvent) {
     event.preventDefault();
@@ -69,7 +117,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
       setFilters((current) => [...current, filter]);
       setFilterName("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+      setError(errorMessage(locale, err));
     }
   }
 
@@ -82,7 +130,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
       setSnippetName("");
       setSnippetBody("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+      setError(errorMessage(locale, err));
     }
   }
 
@@ -94,7 +142,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
           : await updateApplication(application.id, status);
       setApplications((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+      setError(errorMessage(locale, err));
     }
   }
 
@@ -111,7 +159,9 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
           <Progress value={completeness.score} color={completeness.complete ? "teal" : "blue"} />
           {completeness.missing.length > 0 && (
             <Text size="sm" c="dimmed" mt="xs">
-              {t(locale, "m5.missing", { fields: completeness.missing.join(", ") })}
+              {t(locale, "m5.missing", {
+                fields: completeness.missing.map((f) => t(locale, `completeness.${f}` as TranslationKey)).join(", "),
+              })}
             </Text>
           )}
         </Paper>
@@ -157,7 +207,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
                       void deleteSavedFilter(filter.id)
                         .then(() => setFilters((c) => c.filter((i) => i.id !== filter.id)))
                         .catch((err: unknown) =>
-                          setError(err instanceof ApiError ? err.message : t(locale, "auth.error")),
+                          setError(errorMessage(locale, err)),
                         )
                     }
                   >
@@ -185,19 +235,13 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
                     <Text size="sm" fw={500} truncate>
                       {application.job_title || application.job_key}
                     </Text>
-                    <Select
-                      size="xs"
-                      w={150}
+                    <NativeSelect
+                      w={190}
+                      style={{ flex: "none" }}
                       value={application.status}
-                      onChange={(v) => void changeStatus(application, v as Application["status"])}
-                      data={[
-                        { value: "form_filled", label: "form filled" },
-                        { value: "submitted", label: "submitted" },
-                        { value: "viewed", label: "viewed" },
-                        { value: "rejected", label: "rejected" },
-                        { value: "interview", label: "interview" },
-                      ]}
-                      aria-label={application.job_title || application.job_key}
+                      onChange={(e) => void changeStatus(application, e.currentTarget.value as Application["status"])}
+                      data={STATUSES.map((status) => ({ value: status, label: t(locale, `status.${status}`) }))}
+                      aria-label={t(locale, "m5.statusFor", { job: application.job_title || application.job_key || "" })}
                     />
                   </Group>
                 ))}
@@ -247,7 +291,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
                 onClick={() =>
                   void deleteSnippet(snippet.id)
                     .then(() => setSnippets((c) => c.filter((i) => i.id !== snippet.id)))
-                    .catch((err: unknown) => setError(err instanceof ApiError ? err.message : t(locale, "auth.error")))
+                    .catch((err: unknown) => setError(errorMessage(locale, err)))
                 }
               >
                 {t(locale, "m5.remove")}
