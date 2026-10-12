@@ -1,0 +1,21 @@
+ACCEPTANCE.md
+  s_cfeddd1935d5d3::t_d666e225d6c249 144-145
+PROGRESS.md
+  s_cfeddd1935d5d3::t_e9d2ca9b23f2ee 82-83,115,142,160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ef92dbd3978dcef9637317c7ef77d2f5c188025b",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
