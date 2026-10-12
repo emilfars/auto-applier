@@ -141,8 +141,8 @@ Test-type conventions:
 | AC-REV-COV | E-COV | ≥90% of changed lines covered per loop | `go test -coverprofile` / `vitest --coverage` intersected with `git diff` | ⬜ |
 | AC-REV-SCOPE | E-SCOPE | Each loop stays in its stated area and the 400-line budget | `git diff --stat` per commit | ⬜ |
 | AC-REV-FROZEN | E-FROZEN | Routes, JSON shapes, extension message types, schema and map versions unchanged | route list, contract tests, map versions, migration checksums vs `main` | ⬜ |
-| AC-REV-FUNC | E-FUNC | Every PRD requirement maps to an `AC-*` test; no P0 proven by mocks alone | traceability table in `REVAMP_REPORT.md` | ⬜ |
-| AC-REV-JOURNEY | E-JOURNEY | register → verify → upload CV → confirm profile → filter feed → Open & Fill → review works in a real browser; zero console errors; no system submit | scripted browser run on the local stack | ⬜ |
+| AC-REV-FUNC | E-FUNC | Every PRD requirement maps to an `AC-*` test; no P0 proven by mocks alone | traceability table in `REVAMP_REPORT.md` | 🟡 AUTH-2 is mock-only (deferred, PROGRESS D1) |
+| AC-REV-JOURNEY | E-JOURNEY | register → verify → upload CV → confirm profile → filter feed → Open & Fill → review works in a real browser; zero console errors; no system submit | scripted browser run on the local stack |✅ R1 (re-run in R6) |
 | AC-REV-SIMPLE | E-SIMPLE | Non-test LOC below the R0 baseline; dead-code findings zero or justified | LOC count, `deadcode`, `knip` | ⬜ |
 | AC-REV-BEHAVE | E-BEHAVE | No test lost without a listed code deletion | test names before/after | ⬜ |
 | AC-REV-SLOP | E-SLOP | Every screen passes the antislop Delivery Gate | PASS/FAIL report per screen under `anti-slop/` | ⬜ |

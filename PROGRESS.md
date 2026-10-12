@@ -79,8 +79,8 @@ Plan: `plan-revamp.md`. Evals: `ACCEPTANCE.md` section 8.
 | Phase | Status | Close tag |
 |---|---|---|
 | R0 Baseline and audit | ✅ | `m8-R0-done` |
-| R1 Functional review and fixes | 🟡 | — |
-| R2 Complexity and redundancy reduction | ⬜ | — |
+| R1 Functional review and fixes | ✅ (E-FUNC partial, see D1) | `m8-R1-done` |
+| R2 Complexity and redundancy reduction | 🟡 | — |
 | R3 Design direction | ⬜ | — |
 | R4 UI revamp | ⬜ | — |
 | R5 Production hardening | ⬜ | — |
@@ -112,7 +112,7 @@ Functional (F) and simplification (S). Classified by `plan-revamp.md` section 9.
 | F1 | `web/nginx.conf` proxies `auth|cv|profile|account|feed|telemetry|healthz` only; `/saved-filters`, `/applications`, `/snippets`, `/jobs` fall through to the SPA and return `index.html`, so every M5 feature fails in the compose/production stack. `scripts/browser-e2e.mjs` has the same prefix list, which is why the E2E never saw F0 | `web/nginx.conf:11`, `web/vite.config.ts:10` (correct list), `scripts/browser-e2e.mjs:249` | High: M5 dead in prod | S | Accepted → R1-2 |
 | F2 | `apiFetch` calls `JSON.parse` on every body; a non-JSON error body (nginx 502/504 HTML, SPA fallback) throws `SyntaxError` instead of `ApiError`, losing the status | `web/src/api/http.ts:47` | Medium | S | Accepted → R1-3 |
 | F3 | E-JOURNEY gaps in `scripts/browser-e2e.mjs`: no feed-filter step, no console-error assertion, M5 routes not proxied | script read; no `console` listener, no filter interaction | Medium: journey unproven | M | Accepted → R1-4 |
-| F4 | Feed source filter offers `kalibrr, jooble, glints, jobstreet, kemnaker, company-career`. Glints and Jobstreet are excluded sources (locked decision), `kemnaker`/`company-career` exist only in the synthetic seed, and real sources (`careerjet`, `remotive`, `jobicy`, `remoteok`) are missing; the filter is exact-match | `web/src/components/JobFeed.tsx` `SOURCE_IDS` vs `backend/internal/ingest/*source.go` IDs | Medium: dead filter options | S | Accepted → R1-5 (static sources only; per-board ATS IDs need a new route, deferred D5) |
+| F4 | Feed source filter offers `kalibrr, jooble, glints, jobstreet, kemnaker, company-career`. Glints and Jobstreet are excluded sources (locked decision), `kemnaker`/`company-career` exist only in the synthetic seed, and real sources (`careerjet`, `remotive`, `jobicy`, `remoteok`) are missing; the filter is exact-match | `web/src/components/JobFeed.tsx` `SOURCE_IDS` vs `backend/internal/ingest/*source.go` IDs | Medium: dead filter options | S | Deferred in R1 → D10 |
 | F5 | An expired session (401 on any non-auth call) leaves the UI signed in; `signOut` rejects unhandled on network loss | `web/src/auth/session.tsx`, `web/src/api/http.ts` | Medium | S | Accepted → R5 (E-PROD line 3) |
 | F6 | No React error boundary: any render error blanks the page | `web/src/main.tsx` | High with F0 | S | Accepted → R5 (E-PROD line 2) |
 | F7 | Hardcoded English in validation and labels (`"Invalid email"`, `"Min 8 characters"`, `"Consent required"`, `"Required"`, `"Invalid JSON"`, `"PDF or DOCX"`, tracker statuses, employment types); several list errors reuse `auth.error` | `AuthPanel.tsx`, `ProfilePanel.tsx`, `CvPanel.tsx`, `EnhancementsPanel.tsx` | Medium: id-ID users see English | M | Accepted → R4, per screen |
@@ -139,6 +139,7 @@ Candidate areas from the plan that were examined and produced no accepted findin
 | D6 | `auth.ContextWithUser`, `auth.rateLimiter.size`, `storage.containsPlaintext`, `auth`/`cv` copies of `writeJSON` | Protected paths | `deadcode ./...` |
 | D7 | `discover.NewDiscoverer`/`Discoverer.Validate` unreachable from `cmd/discover-boards` | Public test seam of a tool this run may not execute (`-write` is off limits); behavior cannot be re-verified live | `deadcode ./...` |
 | D8 | E-COV is not wired into `scripts/verify.sh` | `verify.sh` is a protected path; coverage runs as the standalone `scripts/changed-coverage.mjs` instead (section 9: the option that changes less) | `plan-revamp.md` section 4 |
+| D10 | F4: feed source filter options do not match real source IDs | Ambiguous, product decision: the options match the synthetic seed (`seed/generator.go:80`) that backs demos and the E2E, real ingestion uses other IDs, and no route lists sources. Reclassified from accepted to deferred in R1 | `JobFeed.tsx` `SOURCE_IDS`, `seed/generator.go:80`, `ingest/*source.go` |
 | D9 | Empty Go slices encode as JSON `null` in M5 list responses | Changing it alters a frozen JSON shape; the web client normalizes instead (R1-1) | `m5/service.go:255,458,580` |
 
 ## 7. Open questions / decisions needed
@@ -156,6 +157,7 @@ Candidate areas from the plan that were examined and produced no accepted findin
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-10-12** — [M8/R1] Phase close, tag `m8-R1-done`. E-JOURNEY ✅: `node scripts/browser-e2e.mjs` passes register (API) → verify → CV upload → profile save and confirm → feed filter → Open & Fill → review states → no submit → account export and delete, with 0 console errors or warnings. E-FUNC ❌ partial: every PRD requirement maps to an `AC-*` test, but AUTH-2 (P0) is proven by a mock alone and has no production provider (D1, locked decision); APP-3 portal maps are proven on saved fixture DOMs, not live portals; MOB-1..4 are unbuilt (M6, non-goal). Remaining items deferred (D10), so the phase closes. Loop health: 4 loops, first-pass gate rate 4/4 (R1-4 needed a second E2E run before the gate), reverted 0, stop events 0, review findings 1.
 - **2026-10-12** — [M8/R1] R1-4 (F3): `scripts/browser-e2e.mjs` now proxies the M5 routes like nginx, filters the feed to zero results and back, and fails on any console error, warning or uncaught exception on the web app page (only the browser's network log for the signed-out `/auth/me` 401 is tolerated). The new assertion caught a `/favicon.ico` 404, fixed with an empty `data:` icon link in `web/index.html` (no asset created). Register/verify/login still run through `fetch` from the page, not the form; the form journey is added with the AuthPanel rebuild in R4. Diff +2/−0 product non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a SCOPE ✅ FROZEN ✅. Review findings: 1 (favicon). Attempts: 2.
 - **2026-10-12** — [M8/R1] R1-3 (F2): `apiFetch` no longer throws `SyntaxError` on a non-JSON body; a non-JSON error keeps its HTTP status in `ApiError`, and a 2xx non-JSON body (SPA fallback) rejects as `ApiError`. New `web/src/api/http.test.ts`, failing first. Diff +8/−1 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV 100% SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R1] R1-2 (F1): `web/nginx.conf` now proxies `/saved-filters`, `/applications`, `/snippets` and `/jobs`; new `web/src/api/proxy-prefixes.test.ts` fails when a client API prefix is missing from nginx or the Vite proxy (failing test first). Not verified: an M5 request through the real nginx container (the Docker smoke only proves the config loads and the existing routes work). Diff +1/−1 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (config) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
