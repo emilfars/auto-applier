@@ -1,0 +1,23 @@
+web/src/api/http.ts
+  s_cfeddd1935d5d3::t_81a8dbde55374f 47-54
+web/src/api/http.test.ts
+  s_cfeddd1935d5d3::t_81a8dbde55374f 1-40
+PROGRESS.md
+  s_cfeddd1935d5d3::t_9dec075683943c 159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "3b34131e00d031b578522c9a9604677d04364e9d",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
