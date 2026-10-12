@@ -1,0 +1,31 @@
+web/src/i18n/locales/en.json
+  s_cfeddd1935d5d3::t_0128a4933b5ab9 201-204
+anti-slop/delivery-gate-2026-10-12.md
+  s_cfeddd1935d5d3::t_5600925d080ec2 116-137
+PROGRESS.md
+  s_cfeddd1935d5d3::t_5600925d080ec2 161
+web/src/components/EnhancementsPanel.tsx
+  s_cfeddd1935d5d3::t_0128a4933b5ab9 38,152,154-155,170-171,177,183,187,193-197,207,225-226,256-257,263,269-270,274,280-284,297,311-315
+  s_cfeddd1935d5d3::t_2549403a9fd7a4 206,296
+web/src/i18n/locales/id.json
+  s_cfeddd1935d5d3::t_0128a4933b5ab9 201-204
+web/src/components/EnhancementsPanel.test.tsx
+  s_cfeddd1935d5d3::t_885219bda03ab9 8,67,87,105,178-191
+  s_cfeddd1935d5d3::t_dc887e4d8c6fe2 192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "8c7f48bc26775de5e30881410ba4306fc331e33d",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
