@@ -78,8 +78,8 @@ Plan: `plan-revamp.md`. Evals: `ACCEPTANCE.md` section 8.
 
 | Phase | Status | Close tag |
 |---|---|---|
-| R0 Baseline and audit | 🟡 | — |
-| R1 Functional review and fixes | ⬜ | — |
+| R0 Baseline and audit | ✅ | `m8-R0-done` |
+| R1 Functional review and fixes | 🟡 | — |
 | R2 Complexity and redundancy reduction | ⬜ | — |
 | R3 Design direction | ⬜ | — |
 | R4 UI revamp | ⬜ | — |
@@ -156,6 +156,8 @@ Candidate areas from the plan that were examined and produced no accepted findin
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-10-12** — [M8/R1] R1-1 (F0): `web/src/api/m5.ts` list clients and `getCompleteness` return `[]` when the API encodes an empty list as `null`, so a new signed-in user no longer gets a blank page. Failing tests first (2 added). Diff +12/−8 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV 100% (12/12) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
+- **2026-10-12** — [M8/R0] Phase close, tag `m8-R0-done`. Exit met: every finding classified. Loop health: 4 loops, first-pass gate rate 4/4, reverted 0, stop events 0. The baseline screenshot matrix is recorded in the next R0 addendum line (the harness needed three fixes before it could run to completion).
 - **2026-10-12** — [M8/R0] R0-3/R0-5: captured baselines and wrote the functional (F0–F8) and simplification (S1–S7) findings with their section 9 classification; nine items deferred (D1–D9). See section 6.1. Diff +0/−0 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (docs) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R0] R0-4: added `scripts/changed-coverage.mjs` (E-COV: changed executable lines vs. Go coverprofile and vitest lcov, 90% threshold, `--self-test`) and `scripts/ui-matrix.mjs` (E-STATE screenshot matrix; needs an out-of-repo `playwright-core`); added the pre-approved `@vitest/coverage-v8` dev dependency to web, extension and fill-mappings. `verify.sh` untouched (protected, see D8). Diff +0/−0 product non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (tooling) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R0] R0-0/R0-1: preflight passed (Docker 29.5.2, Postgres 16 test container on 127.0.0.1:5442 as `TEST_DATABASE_URL`, Chrome for Testing in `.cft/`); cut `revamp/m8`; added Milestone 8 to `plan.md`, section 6.1 here and `AC-REV-*` rows to `ACCEPTANCE.md`; committed `plan-revamp.md`. Baseline gate on `main` (bc80b09): ran=21 skipped=1 (android, not present, non-goal) failed=0. Diff +0/−0 non-test. Evals: GATE ✅ SAFE ✅ COV n/a (docs) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.

@@ -53,8 +53,8 @@ export function recordApplication(jobKey: string) {
 }
 
 export async function listApplications() {
-  const response = await apiFetch<{ applications: Application[] }>("/applications");
-  return response.applications;
+  const response = await apiFetch<{ applications: Application[] | null }>("/applications");
+  return response.applications ?? [];
 }
 
 export function updateApplication(id: string, status: Application["status"]) {
@@ -69,8 +69,8 @@ export function confirmSubmitted(id: string) {
 }
 
 export async function listSavedFilters() {
-  const response = await apiFetch<{ filters: SavedFilter[] }>("/saved-filters");
-  return response.filters;
+  const response = await apiFetch<{ filters: SavedFilter[] | null }>("/saved-filters");
+  return response.filters ?? [];
 }
 
 export function saveFilter(name: string, query: FeedQuery) {
@@ -82,8 +82,8 @@ export function deleteSavedFilter(id: string) {
 }
 
 export async function listSnippets() {
-  const response = await apiFetch<{ snippets: Snippet[] }>("/snippets");
-  return response.snippets;
+  const response = await apiFetch<{ snippets: Snippet[] | null }>("/snippets");
+  return response.snippets ?? [];
 }
 
 export function createSnippet(name: string, body: string) {
@@ -94,6 +94,10 @@ export function deleteSnippet(id: string) {
   return apiFetch<void>(`/snippets/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-export function getCompleteness(signal?: AbortSignal) {
-  return apiFetch<Completeness>("/profile/completeness", { signal });
+export async function getCompleteness(signal?: AbortSignal): Promise<Completeness> {
+  const response = await apiFetch<Omit<Completeness, "missing"> & { missing: string[] | null }>(
+    "/profile/completeness",
+    { signal },
+  );
+  return { ...response, missing: response.missing ?? [] };
 }

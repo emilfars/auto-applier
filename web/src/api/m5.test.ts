@@ -145,3 +145,19 @@ describe("m5 saved filters, snippets, completeness", () => {
     expect(lastCall()[0]).toBe("/profile/completeness");
   });
 });
+
+describe("m5 list clients with empty server lists", () => {
+  it("returns [] when the API encodes an empty list as null", async () => {
+    vi.stubGlobal("fetch", mockFetch(200, { filters: null, applications: null, snippets: null }));
+
+    expect(await listSavedFilters()).toEqual([]);
+    expect(await listApplications()).toEqual([]);
+    expect(await listSnippets()).toEqual([]);
+  });
+
+  it("returns an empty missing list when completeness has none", async () => {
+    vi.stubGlobal("fetch", mockFetch(200, { score: 100, complete: true, missing: null }));
+
+    expect(await getCompleteness()).toEqual({ score: 100, complete: true, missing: [] });
+  });
+});
