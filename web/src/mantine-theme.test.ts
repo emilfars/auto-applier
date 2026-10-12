@@ -5,8 +5,8 @@ import { BRAND_VARIABLE_MAP, brandCssVariablesResolver, brandTheme } from "./man
 describe("mantine brand theme", () => {
   it("routes every Mantine override through a brand token", () => {
     const out = brandCssVariablesResolver({} as MantineTheme);
-    expect(out.variables).toEqual(BRAND_VARIABLE_MAP);
-    const entries = Object.entries(out.variables);
+    expect(out.dark).toMatchObject(BRAND_VARIABLE_MAP);
+    const entries = Object.entries(out.dark);
     expect(entries.length).toBeGreaterThan(0);
     for (const [name, value] of entries) {
       expect(value, name).toMatch(/^var\(--brand-[a-z0-9-]+\)$/);
@@ -14,7 +14,7 @@ describe("mantine brand theme", () => {
   });
 
   it("wires the primary variant and surfaces to the brand tokens", () => {
-    expect(BRAND_VARIABLE_MAP["--mantine-primary-color-filled"]).toBe("var(--brand-primary)");
+    expect(BRAND_VARIABLE_MAP["--mantine-primary-color-filled"]).toBe("var(--brand-primary-strong)");
     expect(BRAND_VARIABLE_MAP["--mantine-color-body"]).toBe("var(--brand-bg)");
     expect(BRAND_VARIABLE_MAP["--mantine-color-text"]).toBe("var(--brand-text)");
   });

@@ -1,18 +1,27 @@
+/* Design tokens. Core and semantic values come from design/brand/palette.md;
+   the "derived" ones are computed from those to meet WCAG AA (see DESIGN.md). */
 :root {
   --brand-primary: #2e7cf6;
   --brand-primary-strong: #1e5fd0;
+  /* derived: primary-strong 85% over black, hover/pressed fill */
+  --brand-primary-hover: #1a51b1;
   --brand-accent-light: #5aa7ff;
   --brand-bg: #0b1830;
   --brand-surface: #13234a;
   --brand-surface-2: #1b2f5e;
   --brand-border: #24406f;
+  /* derived: muted 60% over surface, 3:1 boundary for inputs */
+  --brand-border-strong: #6d7c9f;
   --brand-text: #ffffff;
   --brand-on-primary: #ffffff;
   --brand-muted: #a9b8d8;
+  --brand-link: var(--brand-accent-light);
   --brand-success: #34d399;
   --brand-warning: #fbbf24;
   --brand-danger: #f87171;
-  --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  --brand-on-state: #0b1830;
+  /* 8% keeps --brand-link at 4.5:1 on the tint over every surface */
+  --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 8%, transparent);
   --brand-success-soft: color-mix(in srgb, var(--brand-success) 15%, transparent);
   --brand-warning-soft: color-mix(in srgb, var(--brand-warning) 15%, transparent);
   --brand-danger-soft: color-mix(in srgb, var(--brand-danger) 15%, transparent);
@@ -24,20 +33,31 @@
   --brand-surface: #ffffff;
   --brand-surface-2: #e8eef8;
   --brand-border: #cbd5e1;
+  /* derived: muted 75% over white */
+  --brand-border-strong: #7d899f;
   --brand-text: #13223f;
   --brand-muted: #52627f;
-}
-
-html {
-  scroll-behavior: smooth;
+  /* derived: the palette's state colors darkened with black (55%, 50%, 65%
+     of the token) because the originals fail as text on white */
+  --brand-success: #1d7454;
+  --brand-warning: #7e6012;
+  --brand-danger: #a14949;
+  --brand-on-state: #ffffff;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   background: var(--mantine-color-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mantine draws focus with the primary fill, which is under 3:1 on navy. */
+.mantine-focus-auto:focus-visible,
+.mantine-focus-always:focus {
+  outline-color: var(--brand-link);
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  background: var(--brand-primary-soft);
 }

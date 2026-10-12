@@ -23,5 +23,7 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test-setup.tsx"],
+    // Token tests read styles.css; Vitest drops CSS content unless it is opted in.
+    css: { include: [/src\/styles\.css/] },
   },
 });

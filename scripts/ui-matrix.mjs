@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // E-STATE (plan-revamp.md section 5): screenshot every screen in every
 // theme x width x state x locale against the in-memory API and the production
-// web build, and fail on a missing cell, horizontal page scroll or clipped text.
+// web build, and fail on a missing cell, horizontal page scroll, clipped text,
+// or a page background that is not the brand token.
 //
 // Usage: PW_CORE=/dir/with/node_modules node scripts/ui-matrix.mjs <out-dir>
 // MATRIX_SCREENS=cv,profile limits the run to those screens.
@@ -210,7 +211,16 @@ async function capture(browser, base, storage, screen, theme, width, locale, sta
         const box = el.getBoundingClientRect();
         if (box.width > 0 && box.right > window.innerWidth + 1) clipped.push(`offscreen: ${el.textContent.trim().slice(0, 40)}`);
       }
-      return { pageOverflow: document.documentElement.scrollWidth > window.innerWidth, clipped };
+      const probe = document.createElement("div");
+      probe.style.background = "var(--brand-bg)";
+      document.body.append(probe);
+      const brandBg = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return {
+        pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+        clipped,
+        offBrand: getComputedStyle(document.body).backgroundColor !== brandBg,
+      };
     }, screen.selector);
 
     file = `${screen.id}__${theme}__${width}__${state}__${locale}.png`;
@@ -302,10 +312,11 @@ async function main() {
       missing: count((c) => c.missing),
       pageOverflow: count((c) => c.pageOverflow),
       clipped: count((c) => c.clipped?.length),
+      offBrand: count((c) => c.offBrand),
       withConsoleErrors: count((c) => c.consoleErrors?.length),
     };
     console.log(JSON.stringify(summary));
-    if (summary.missing || summary.pageOverflow || summary.clipped) process.exitCode = 1;
+    if (summary.missing || summary.pageOverflow || summary.clipped || summary.offBrand) process.exitCode = 1;
   } finally {
     await browser?.close();
     web?.close();
