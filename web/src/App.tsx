@@ -36,16 +36,20 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
   const { user } = useSession();
   const [profileRefresh, setProfileRefresh] = useState(0);
-  const [profileConfirmed, setProfileConfirmed] = useState(false);
+  // null until the profile has loaded. Open & Fill is not refused on a guess:
+  // the server's arm check decides while this is unknown.
+  const [profileConfirmed, setProfileConfirmed] = useState<boolean | null>(null);
+  const userId = user?.id;
+  useEffect(() => setProfileConfirmed(null), [userId]);
   const mobile = useMediaQuery("(max-width: 48em)", false, { getInitialValueInEffect: false });
 
   const views = VIEWS.filter((v) => user || !v.signedIn);
   const view = useHashView(views.map((v) => v.id));
 
-  const canFill = !!user && profileConfirmed;
+  const canFill = !!user && profileConfirmed !== false;
   const fillReason: "needLogin" | "needProfile" | undefined = !user
     ? "needLogin"
-    : !profileConfirmed
+    : profileConfirmed === false
       ? "needProfile"
       : undefined;
 

@@ -21,7 +21,10 @@ vi.mock("./components/EnhancementsPanel", () => ({
 }));
 vi.mock("./components/ProfilePanel", () => ({
   ProfilePanel: ({ onConfirmedChange }: { onConfirmedChange?: (v: boolean) => void }) => (
-    <button onClick={() => onConfirmedChange?.(true)}>probe-confirm</button>
+    <>
+      <button onClick={() => onConfirmedChange?.(true)}>probe-confirm</button>
+      <button onClick={() => onConfirmedChange?.(false)}>probe-unconfirmed</button>
+    </>
   ),
 }));
 vi.mock("./components/JobFeed", () => ({
@@ -57,6 +60,9 @@ describe("App confirm-before-apply gate", () => {
   it("gates Open & Fill behind profile confirmation when signed in", async () => {
     session.user = { id: "u1", email: "a@b.co", verified: true };
     renderApp();
+    // Before the profile has loaded the gate is left to the server's arm check.
+    expect(feed().getAttribute("data-canfill")).toBe("true");
+    fireEvent.click(await screen.findByText("probe-unconfirmed"));
     expect(feed().getAttribute("data-canfill")).toBe("false");
     expect(feed().getAttribute("data-reason")).toBe("needProfile");
     expect(await screen.findByTestId("cv-panel")).toBeTruthy();
