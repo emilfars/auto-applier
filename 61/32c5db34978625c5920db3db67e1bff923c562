@@ -1,0 +1,35 @@
+web/src/styles.css
+  s_cfeddd1935d5d3::t_46b0501899e04f 1-2,6-7,13-14,18,22,36-37,40-45,52-58,62
+  s_cfeddd1935d5d3::t_f116fe6ba20b43 23-24
+web/src/mantine-theme.test.ts
+  s_cfeddd1935d5d3::t_f116fe6ba20b43 8
+  s_cfeddd1935d5d3::t_46b0501899e04f 9,17
+web/src/tokens.test.ts
+  s_cfeddd1935d5d3::t_f116fe6ba20b43 69-78
+  s_cfeddd1935d5d3::t_02c88b2aa9522d 1-68,79-88
+web/vite.config.ts
+  s_cfeddd1935d5d3::t_2545d41bc7eee5 26-27
+web/src/mantine-theme.ts
+  s_cfeddd1935d5d3::t_f116fe6ba20b43 18-20,47,53,70-84,90-91
+  s_cfeddd1935d5d3::t_46b0501899e04f 3-5,8-11,15-17,23-41,43-44,49-52,54-57,60,66,85-87,89
+scripts/ui-matrix.mjs
+  s_cfeddd1935d5d3::t_97f370defb449f 4-5,214-223,315,319
+PROGRESS.md
+  s_cfeddd1935d5d3::t_7c14c23c2fbf06 161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "6132c5db34978625c5920db3db67e1bff923c562",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
