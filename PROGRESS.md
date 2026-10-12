@@ -86,9 +86,60 @@ Plan: `plan-revamp.md`. Evals: `ACCEPTANCE.md` section 8.
 | R5 Production hardening | ⬜ | — |
 | R6 End-to-end review and close | ⬜ | — |
 
+### R0 baselines (main @ bc80b09, measured 2026-10-12)
+
+| Metric | Baseline |
+|---|---|
+| Gate (`verify.sh`, Docker + Postgres + Chrome) | ran=21 skipped=1 (android, not present) failed=0 |
+| Non-test LOC | backend 12,373 · web/src 3,036 · extension/src 1,792 · fill-mappings/src 642 |
+| Tests | Go 238 top-level (330 incl. subtests) · web 105 · extension 82 · fill-mappings 70 |
+| Statement coverage | Go 69.9% (`-coverpkg=./...`) · web 79.7% · extension 74.9% · fill-mappings 98.6% |
+| Web bundle | JS 468,321 B (143,803 B gzip) · CSS 206,441 B |
+| Extension bundle | background 18,574 B · content-entry 22,221 B · guard-entry 7,995 B |
+| Dead code (`deadcode ./...`) | 32 unreachable funcs (6 unreachable even with tests) |
+| Unused TS (`knip`) | web 3 exports + 4 types · extension 2 exports + 4 types (3 "unused files" are esbuild entries, false positives) · fill-mappings 0 |
+| Duplication (`jscpd`, ≥8 lines, non-test) | 22 clones |
+| Lighthouse (production build, signed-out, mobile preset) | performance 70 · accessibility 90 · best-practices 96 · LCP 4.8 s · TBT 20 ms · CLS 0.083. Accessibility fails: `button-name`, `color-contrast` |
+| Screenshot matrix (288 cells) | See the R0 close line in the Log |
+
+### R0 findings
+
+Functional (F) and simplification (S). Classified by `plan-revamp.md` section 9. Accepted items are the R1/R2/R5 worklists, in order.
+
+| ID | Finding | Evidence | Risk | Size | Class |
+|---|---|---|---|---|---|
+| F0 | Signed-in app renders a blank page when the M5 endpoints are reachable and a list is empty: Go encodes nil slices as `null`, `web/src/api/m5.ts` returns them unguarded, `EnhancementsPanel` reads `.length`, and no error boundary exists | `scripts/ui-matrix.mjs` signed-in cells: `TypeError: Cannot read properties of null (reading 'length')`, `#root` empty | High: every new user | S | Accepted → R1-1 |
+| F1 | `web/nginx.conf` proxies `auth|cv|profile|account|feed|telemetry|healthz` only; `/saved-filters`, `/applications`, `/snippets`, `/jobs` fall through to the SPA and return `index.html`, so every M5 feature fails in the compose/production stack. `scripts/browser-e2e.mjs` has the same prefix list, which is why the E2E never saw F0 | `web/nginx.conf:11`, `web/vite.config.ts:10` (correct list), `scripts/browser-e2e.mjs:249` | High: M5 dead in prod | S | Accepted → R1-2 |
+| F2 | `apiFetch` calls `JSON.parse` on every body; a non-JSON error body (nginx 502/504 HTML, SPA fallback) throws `SyntaxError` instead of `ApiError`, losing the status | `web/src/api/http.ts:47` | Medium | S | Accepted → R1-3 |
+| F3 | E-JOURNEY gaps in `scripts/browser-e2e.mjs`: no feed-filter step, no console-error assertion, M5 routes not proxied | script read; no `console` listener, no filter interaction | Medium: journey unproven | M | Accepted → R1-4 |
+| F4 | Feed source filter offers `kalibrr, jooble, glints, jobstreet, kemnaker, company-career`. Glints and Jobstreet are excluded sources (locked decision), `kemnaker`/`company-career` exist only in the synthetic seed, and real sources (`careerjet`, `remotive`, `jobicy`, `remoteok`) are missing; the filter is exact-match | `web/src/components/JobFeed.tsx` `SOURCE_IDS` vs `backend/internal/ingest/*source.go` IDs | Medium: dead filter options | S | Accepted → R1-5 (static sources only; per-board ATS IDs need a new route, deferred D5) |
+| F5 | An expired session (401 on any non-auth call) leaves the UI signed in; `signOut` rejects unhandled on network loss | `web/src/auth/session.tsx`, `web/src/api/http.ts` | Medium | S | Accepted → R5 (E-PROD line 3) |
+| F6 | No React error boundary: any render error blanks the page | `web/src/main.tsx` | High with F0 | S | Accepted → R5 (E-PROD line 2) |
+| F7 | Hardcoded English in validation and labels (`"Invalid email"`, `"Min 8 characters"`, `"Consent required"`, `"Required"`, `"Invalid JSON"`, `"PDF or DOCX"`, tracker statuses, employment types); several list errors reuse `auth.error` | `AuthPanel.tsx`, `ProfilePanel.tsx`, `CvPanel.tsx`, `EnhancementsPanel.tsx` | Medium: id-ID users see English | M | Accepted → R4, per screen |
+| F8 | Education and work history are edited as raw JSON text (`JsonInput`) | `ProfilePanel.tsx` | Medium: unusable for the PRD personas | M | Accepted → R4 ProfilePanel |
+| S1 | Six ingest constructors unreachable even from tests: `NewATSSource`, `NewGreenhouseSource`, `NewLeverSource`, `NewWorkableSource`, `NewAshbySource`, `NewCareerjetSourceWithURL` | `deadcode -test ./...` | Low | S | Accepted → R2-1 |
+| S2 | `profile.isJSONArray` and `seed.Generator.Jobs` unreachable from production | `deadcode ./...` | Low | S | Accepted → R2-2 |
+| S3 | `extension/src/arming.ts` `ArmingStore` (in-memory) and `messaging.ts` `handleOpenAndFill`/`handleIsArmed` are reached only by tests; `background.ts` uses `SessionArmingStore` and its own handlers. `openfill.test.ts` therefore proves a non-production path | `grep` of `extension/src`; `knip` | Medium: tests off the prod path | M | Accepted → R2-3 |
+| S4 | `web/src/api/openfill.ts`: `sendViaPageBridge` and `clearViaPageBridge` are the same 35-line promise; the 401/403 mapping is duplicated | `jscpd`, file read | Low | S | Accepted → R2-4 |
+| S5 | `writeJSON`/`writeErr` are copied into `profile`, `m5`, `feed`, `account`, `ingestctl` (plus `auth`, `cv`, `parser`) | `grep '^func writeJSON'` | Low | S | Accepted → R2-5 for the five unprotected packages |
+| S6 | Unused exports: web `sendToExtension`, `readTheme`, `applyTheme` and 4 types; extension `ARM_TTL_MS`, `IndexedDbBinaryPayloadStore` and 4 types | `knip` | Low | S | Accepted → R2-6 (`theme.tsx` in R4) |
+| S7 | `SessionArmingStore` repeats "delete entry, persist, cleanup, reschedule" three times | `extension/src/arming.ts` | Low | S | Accepted → R2-7 |
+
+Candidate areas from the plan that were examined and produced no accepted finding: memory vs. pgx store pairs (both are runtime paths: in-memory mode backs the browser E2E and local dev), `cmd/api/main.go` wiring (one 12-line clone, no behavior duplication).
+
 ### Deferred (M8)
 
-_None yet._
+| ID | Item | Reason | Evidence |
+|---|---|---|---|
+| D1 | AUTH-2 (P0) is proven by a mock only: no production `OIDCProvider` implementation exists | Locked decision (`plan.md`: Google OAuth deferred, needs live credentials); `backend/internal/auth` is a protected path. E-FUNC cannot be 100% green in this run | `grep OIDCProvider backend` → interface and config field only |
+| D2 | CV-2 live parser accuracy (`RUN_PARSER_ACCURACY=1`) | Needs a real `OPENROUTER_API_KEY`; real secrets are off limits | `plan-revamp.md` section 4 |
+| D3 | AC-FEED-1p (4G p95) and AC-NFR-SCALE | Held by locked decision | `plan.md` Launch Readiness |
+| D4 | `ingest.HTMLSource` (232 lines) is reached only by tests | Deleting it removes the AC-SCR-1 fixture proof; keeping a generic HTML adapter is a product decision | `deadcode ./...` |
+| D5 | Source filter cannot list per-board ATS sources (`greenhouse-*`, `workday-*`, …) | Needs a new route or JSON field; frozen surface | `feed` API |
+| D6 | `auth.ContextWithUser`, `auth.rateLimiter.size`, `storage.containsPlaintext`, `auth`/`cv` copies of `writeJSON` | Protected paths | `deadcode ./...` |
+| D7 | `discover.NewDiscoverer`/`Discoverer.Validate` unreachable from `cmd/discover-boards` | Public test seam of a tool this run may not execute (`-write` is off limits); behavior cannot be re-verified live | `deadcode ./...` |
+| D8 | E-COV is not wired into `scripts/verify.sh` | `verify.sh` is a protected path; coverage runs as the standalone `scripts/changed-coverage.mjs` instead (section 9: the option that changes less) | `plan-revamp.md` section 4 |
+| D9 | Empty Go slices encode as JSON `null` in M5 list responses | Changing it alters a frozen JSON shape; the web client normalizes instead (R1-1) | `m5/service.go:255,458,580` |
 
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
@@ -105,6 +156,8 @@ _None yet._
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-10-12** — [M8/R0] R0-3/R0-5: captured baselines and wrote the functional (F0–F8) and simplification (S1–S7) findings with their section 9 classification; nine items deferred (D1–D9). See section 6.1. Diff +0/−0 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (docs) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
+- **2026-10-12** — [M8/R0] R0-4: added `scripts/changed-coverage.mjs` (E-COV: changed executable lines vs. Go coverprofile and vitest lcov, 90% threshold, `--self-test`) and `scripts/ui-matrix.mjs` (E-STATE screenshot matrix; needs an out-of-repo `playwright-core`); added the pre-approved `@vitest/coverage-v8` dev dependency to web, extension and fill-mappings. `verify.sh` untouched (protected, see D8). Diff +0/−0 product non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (tooling) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R0] R0-0/R0-1: preflight passed (Docker 29.5.2, Postgres 16 test container on 127.0.0.1:5442 as `TEST_DATABASE_URL`, Chrome for Testing in `.cft/`); cut `revamp/m8`; added Milestone 8 to `plan.md`, section 6.1 here and `AC-REV-*` rows to `ACCEPTANCE.md`; committed `plan-revamp.md`. Baseline gate on `main` (bc80b09): ran=21 skipped=1 (android, not present, non-goal) failed=0. Diff +0/−0 non-test. Evals: GATE ✅ SAFE ✅ COV n/a (docs) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-09-20** — [DONE] CI green + perf stage. The `Verify` gate had been red on every push: (1) `TestFeedHTTPP95Under500msOn50kPostgresRows` measured p95 ~1.1s on the shared runner vs the 500ms bound, and (2) the Docker smoke could not pull `minio/minio` (Docker Hub pruned the pinned tag). Fixes: the 50k p95 test now skips unless `RUN_PERF=1` (perf-stage, not per-commit, per the locked NFR decision) with a configurable `FEED_P95_BUDGET_MS` (default 500ms = prod NFR); MinIO now pulls from `quay.io/minio/minio` (same tag, confirmed present). Added `.github/workflows/perf.yml` (weekly + manual `workflow_dispatch`) that provisions Postgres and runs the p95 check with `RUN_PERF=1` and a shared-runner budget (default 2000ms, overridable). Verify is now green (run 35508137996). Local perf run: p95=687ms under a 2s budget, PASS.
 - **2026-09-20** — [DONE/DECISION] Seed-path kickoff. Measured achievable real-listing volume by running `cmd/seed -real -n 5000` against a local Postgres with **keyless sources only**: **1,188 active real listings** (Kalibrr 712/~797 fetched, jobicy 99, remoteok 99, remotive 17, ashby-ramp 136, workday binus/kalbe/tiket/… ~71, smartrecruiters 25, greenhouse/workable ~29) — 24% of the 5,000 gate; the seed mechanism itself works end to end (10 migrations applied, 22 sources ran, per-source breakers isolated dead slugs). **Decisions (owner):** production on the **full AWS stack** (RDS/EC2/S3), and **Careerjet** as the gap-closer (`CAREERJET_AFFID`, owner-supplied). Found and fixed a blocker: Careerjet was hard-capped at 10 pages (1,000 listings/run) in `careerjetsource.go`; replaced the fixed cap with `maxPages` derived from the run target so it fetches up to the target (still stops early on API exhaustion). Added `TestCareerjetSourcePaginatesBeyondTenPages`. Even so, Careerjet's real ID volume is unknown until the affid arrives, so a re-measure decides whether Jooble backfill / Wayback ATS-catalog growth is still needed. `go build/vet` and `go test ./internal/ingest` green. **Next:** owner supplies RDS `DATABASE_URL` (+`S3_*`/`CV_ENCRYPTION_KEY`) and `CAREERJET_AFFID`; then run `DATABASE_URL=... CAREERJET_AFFID=... go run ./cmd/seed -real -n 5000` and re-measure.
