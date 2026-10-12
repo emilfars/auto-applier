@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilePanel } from "./ProfilePanel";
+import { ApiError } from "../api/http";
 import * as profileApi from "../api/profile";
 
 const wrap = (ui: React.ReactElement) => <MantineProvider>{ui}</MantineProvider>;
@@ -112,7 +113,7 @@ describe("ProfilePanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tambah pendidikan" }));
     fireEvent.click(screen.getByRole("button", { name: "Tambah pendidikan" }));
     fireEvent.change(screen.getAllByLabelText("Institusi")[0], { target: { value: "UGM" } });
-    fireEvent.click(screen.getByRole("button", { name: "Hapus Pendidikan 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hapus Riwayat pendidikan 2" }));
     expect(screen.getAllByLabelText("Institusi")).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Simpan perubahan" }));
@@ -121,5 +122,39 @@ describe("ProfilePanel", () => {
         expect.objectContaining({ education: [expect.objectContaining({ institution: "UGM" })] }),
       ),
     );
+  });
+
+  it("explains a failed load and retries on request", async () => {
+    vi.mocked(profileApi.getProfile).mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValue(profile);
+    render(wrap(<ProfilePanel locale="id-ID" />));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Profil Anda tidak bisa dimuat.");
+    expect(alert.textContent).toContain("Periksa koneksi Anda");
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByLabelText("Institusi")).toBeTruthy();
+  });
+
+  it("validates required fields in the user's language and keeps what was typed", async () => {
+    vi.mocked(profileApi.getProfile).mockResolvedValue({ ...profile, full_name: "", confirmed: false });
+    render(wrap(<ProfilePanel locale="id-ID" />));
+
+    fireEvent.change(await screen.findByLabelText(/Kota/), { target: { value: "Depok" } });
+    fireEvent.click(screen.getByRole("button", { name: "Simpan perubahan" }));
+
+    expect(await screen.findByText("Wajib diisi.")).toBeTruthy();
+    expect(profileApi.patchProfile).not.toHaveBeenCalled();
+    expect((screen.getByLabelText(/Kota/) as HTMLInputElement).value).toBe("Depok");
+    expect(screen.getByText(/Belum dikonfirmasi/)).toBeTruthy();
+  });
+
+  it("shows the server's reason when a save is rejected", async () => {
+    vi.mocked(profileApi.getProfile).mockResolvedValue(profile);
+    vi.mocked(profileApi.patchProfile).mockRejectedValue(new ApiError(400, "notice_period_days must be 0-365"));
+    render(wrap(<ProfilePanel locale="en" />));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("notice_period_days must be 0-365")).toBeTruthy();
   });
 });

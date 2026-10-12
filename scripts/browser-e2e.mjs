@@ -617,7 +617,7 @@ async function run() {
       setValue("work_authorization", "authorized");
       setValue("expected_salary", values.expected_salary);
       setValue("notice_period_days", values.notice_period);
-      await setSelect("employment_type", "full time");
+      await setSelect("employment_type", "Penuh waktu");
       const relocation = field("open_to_relocation");
       if (!(relocation instanceof HTMLInputElement)) throw new Error("relocation control missing");
       relocation.click();

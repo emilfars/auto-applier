@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Badge,
   Button,
   Checkbox,
   CloseButton,
@@ -15,7 +14,9 @@ import {
   Text,
   TextInput,
   Textarea,
+  Title,
 } from "@mantine/core";
+import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
 import { useForm, type UseFormReturnType } from "@mantine/form";
 import { t, type Locale, type TranslationKey } from "../i18n";
 import { useSession } from "../auth/session";
@@ -29,7 +30,9 @@ import {
   type ProfilePatch,
   type WorkEntry,
 } from "../api/profile";
-import { ApiError } from "../api/http";
+import { errorMessage } from "../i18n/errors";
+import { employmentLabel } from "./JobCard";
+import { StateMarker } from "./StateMarker";
 
 interface FormState {
   full_name: string;
@@ -216,15 +219,17 @@ export function ProfilePanel({
       preferred_locations: "",
     },
     validate: {
-      full_name: (v) => (v.trim() ? null : "Required"),
-      email: (v) => (/^\S+@\S+$/.test(v) ? null : "Invalid email"),
-      phone: (v) => (v.trim() ? null : "Required"),
-      work_authorization: (v) => (v.trim() ? null : "Required"),
-      employment_type: (v) => (v.trim() ? null : "Required"),
+      full_name: (v) => (v.trim() ? null : t(locale, "validation.required")),
+      email: (v) => (/^\S+@\S+$/.test(v) ? null : t(locale, "validation.email")),
+      phone: (v) => (v.trim() ? null : t(locale, "validation.required")),
+      work_authorization: (v) => (v.trim() ? null : t(locale, "validation.required")),
+      employment_type: (v) => (v.trim() ? null : t(locale, "validation.required")),
     },
   });
 
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const applyProfile = useCallback(
     (p: Profile) => {
@@ -241,22 +246,40 @@ export function ProfilePanel({
   useEffect(() => {
     if (!user) return;
     setLoaded(false);
+    setLoadError(null);
     const controller = new AbortController();
     getProfile(controller.signal)
       .then(applyProfile)
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(t(locale, "auth.error"));
+        setLoadError(errorMessage(locale, err));
       });
     return () => controller.abort();
-  }, [user, applyProfile]);
+  }, [user, applyProfile, attempt]);
 
   if (!user) {
     return <Text size="sm" c="dimmed">{t(locale, "profile.loginRequired")}</Text>;
   }
+  if (loadError) {
+    return (
+      <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm">
+            {t(locale, "profile.loadError")} {loadError}
+          </Text>
+          <Button variant="default" onClick={() => setAttempt((n) => n + 1)}>
+            {t(locale, "common.retry")}
+          </Button>
+        </Stack>
+      </Alert>
+    );
+  }
   if (!loaded) {
     return (
-      <Stack gap="sm">
+      <Stack gap="sm" aria-busy="true" aria-live="polite">
+        <Text size="sm" c="dimmed">
+          {t(locale, "profile.loading")}
+        </Text>
         <Skeleton height={40} radius="md" />
         <Skeleton height={40} radius="md" />
         <Skeleton height={96} radius="md" />
@@ -271,7 +294,7 @@ export function ProfilePanel({
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+      setError(errorMessage(locale, err));
     } finally {
       setBusy(false);
     }
@@ -300,6 +323,11 @@ export function ProfilePanel({
       <form onSubmit={onSave} noValidate data-testid="profile-form">
         <Grid gutter="md">
           <Grid.Col span={12}>
+            <Title order={3} size="h5" mt="sm">
+              {t(locale, "profile.section.contact")}
+            </Title>
+          </Grid.Col>
+          <Grid.Col span={12}>
             <TextInput label={t(locale, "profile.fullName")} required data-testid="profile-full_name" {...form.getInputProps("full_name")} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
@@ -307,6 +335,17 @@ export function ProfilePanel({
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput label={t(locale, "profile.phone")} required data-testid="profile-phone" {...form.getInputProps("phone")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <TextInput label={t(locale, "profile.city")} data-testid="profile-city" {...form.getInputProps("city")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <TextInput label={t(locale, "profile.address")} data-testid="profile-address" {...form.getInputProps("address")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Title order={3} size="h5" mt="sm">
+              {t(locale, "profile.section.links")}
+            </Title>
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput label={t(locale, "profile.linkedin")} type="url" data-testid="profile-linkedin_url" {...form.getInputProps("linkedin_url")} />
@@ -317,11 +356,10 @@ export function ProfilePanel({
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput label={t(locale, "profile.portfolio")} type="url" data-testid="profile-portfolio_url" {...form.getInputProps("portfolio_url")} />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <TextInput label={t(locale, "profile.city")} data-testid="profile-city" {...form.getInputProps("city")} />
-          </Grid.Col>
           <Grid.Col span={12}>
-            <TextInput label={t(locale, "profile.address")} data-testid="profile-address" {...form.getInputProps("address")} />
+            <Title order={3} size="h5" mt="sm">
+              {t(locale, "profile.section.work")}
+            </Title>
           </Grid.Col>
           <Grid.Col span={12}>
             <Textarea label={t(locale, "profile.summary")} rows={4} data-testid="profile-summary" {...form.getInputProps("summary")} />
@@ -332,11 +370,36 @@ export function ProfilePanel({
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput label={t(locale, "profile.currentTitle")} data-testid="profile-current_title" {...form.getInputProps("current_title")} />
           </Grid.Col>
+          <Grid.Col span={12}>
+            <EntryList form={form} locale={locale} name="work_history" blank={EMPTY_WORK} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Title order={3} size="h5" mt="sm">
+              {t(locale, "profile.section.education")}
+            </Title>
+          </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput label={t(locale, "profile.highestEducation")} data-testid="profile-highest_education" {...form.getInputProps("highest_education")} />
           </Grid.Col>
+          <Grid.Col span={12}>
+            <EntryList form={form} locale={locale} name="education" blank={EMPTY_EDUCATION} />
+          </Grid.Col>
+          <Grid.Col span={12}>
+            <Title order={3} size="h5" mt="sm">
+              {t(locale, "profile.section.preferences")}
+            </Title>
+          </Grid.Col>
           <Grid.Col span={{ base: 12, md: 6 }}>
             <TextInput label={t(locale, "profile.workAuth")} required data-testid="profile-work_authorization" {...form.getInputProps("work_authorization")} />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <Select
+              label={t(locale, "profile.employmentType")}
+              required
+              data-testid="profile-employment_type"
+              data={EMPLOYMENT_TYPES.map((et) => ({ value: et, label: employmentLabel(locale, et) }))}
+              {...form.getInputProps("employment_type")}
+            />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>
             <NumberInput
@@ -345,7 +408,6 @@ export function ProfilePanel({
               data-testid="profile-expected_salary"
               value={form.values.expected_salary ? Number(form.values.expected_salary) : undefined}
               onChange={(v) => form.setFieldValue("expected_salary", v ? String(v) : "")}
-              placeholder="IDR"
               hideControls
             />
           </Grid.Col>
@@ -360,33 +422,18 @@ export function ProfilePanel({
               hideControls
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <Select
-              label={t(locale, "profile.employmentType")}
-              required
-              data-testid="profile-employment_type"
-              data={EMPLOYMENT_TYPES.map((et) => ({ value: et, label: et.replace("_", " ") }))}
-              {...form.getInputProps("employment_type")}
-            />
-          </Grid.Col>
           <Grid.Col span={12}>
             <Checkbox label={t(locale, "profile.relocation")} data-testid="profile-open_to_relocation" {...form.getInputProps("open_to_relocation", { type: "checkbox" })} />
-          </Grid.Col>
-          <Grid.Col span={12}>
-            <EntryList form={form} locale={locale} name="education" blank={EMPTY_EDUCATION} />
-          </Grid.Col>
-          <Grid.Col span={12}>
-            <EntryList form={form} locale={locale} name="work_history" blank={EMPTY_WORK} />
-          </Grid.Col>
-          <Grid.Col span={12}>
-            <TextInput label={t(locale, "profile.skills")} required data-testid="profile-skills" {...form.getInputProps("skills")} />
           </Grid.Col>
           <Grid.Col span={12}>
             <TextInput label={t(locale, "profile.preferredLocations")} required data-testid="profile-preferred_locations" {...form.getInputProps("preferred_locations")} />
           </Grid.Col>
           <Grid.Col span={12}>
+            <TextInput label={t(locale, "profile.skills")} required data-testid="profile-skills" {...form.getInputProps("skills")} />
+          </Grid.Col>
+          <Grid.Col span={12}>
             <Group>
-              <Button type="submit" loading={busy} data-testid="profile-save">{t(locale, "profile.save")}</Button>
+              <Button type="submit" variant="default" loading={busy} data-testid="profile-save">{t(locale, "profile.save")}</Button>
             </Group>
           </Grid.Col>
         </Grid>
@@ -394,22 +441,32 @@ export function ProfilePanel({
 
       <Stack gap="xs" pt="md" style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}>
         {confirmed ? (
-          <Group gap="xs" data-testid="profile-confirmed">
-            <Badge color="teal" size="lg" circle data-testid="profile-confirmed-badge">✓</Badge>
-            <Text size="sm" fw={600} c="teal">{t(locale, "profile.confirmed")}</Text>
-          </Group>
+          <div data-testid="profile-confirmed">
+            <span data-testid="profile-confirmed-badge">
+              <StateMarker state="success">{t(locale, "profile.confirmed")}</StateMarker>
+            </span>
+          </div>
         ) : (
           <>
+            <StateMarker state="warning">{t(locale, "profile.unconfirmed")}</StateMarker>
             <Text size="sm" c="dimmed">{t(locale, "profile.confirmNote")}</Text>
-            <Button variant="default" loading={busy} onClick={onConfirm} data-testid="profile-confirm" style={{ alignSelf: "flex-start" }}>
+            <Button loading={busy} onClick={onConfirm} data-testid="profile-confirm" style={{ alignSelf: "flex-start" }}>
               {t(locale, "profile.confirm")}
             </Button>
           </>
         )}
       </Stack>
 
-      {error && <Alert color="red" role="alert" data-testid="profile-status">{error}</Alert>}
-      {notice && <Alert color="teal" data-testid="profile-status">{notice}</Alert>}
+      {error && (
+        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />} data-testid="profile-status">
+          {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert color="teal" variant="light" icon={<IconCircleCheck aria-hidden />} data-testid="profile-status">
+          {notice}
+        </Alert>
+      )}
     </Stack>
   );
 }

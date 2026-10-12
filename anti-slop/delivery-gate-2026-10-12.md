@@ -92,3 +92,24 @@ Design Read: an upload row and a short list of stored CVs, the first step of the
 | R-09 badges | PASS | "Utama" is a state marker for a real state (the primary CV), not a pill |
 | Liveliness | PASS | state marker motif reused; rows are the only surface |
 | C-2, C-4 | PASS | no dead control; works in both themes, three widths, four states |
+
+## ProfilePanel
+
+Design Read: a long sectioned form whose job is "review what will be filled into applications, then confirm", dial 1/2/1. Focal point: the confirm step, the only filled button on the screen.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | `profile.confirmNote` and `profile.confirmed` rewritten; locale files contain no em dash |
+| R-03 mobile | PASS | matrix `profile`: 48/48 captured at 360/768/1280, 0 overflow, 0 clipped; fields stack to one column below the `md` breakpoint and row fields below `sm`; remove buttons are 44px |
+| R-23, R-38 | PASS | no sample data in fields; placeholders removed; row labels say what goes in each field, date fields state the format |
+| R-26 controls | PASS | Save, Confirm, Add education, Add experience, Remove row, Try again all act (`ProfilePanel.test.tsx`) |
+| R-27 states | PASS | loading (text plus skeleton), load error (what failed, why, Try again), empty rows ("Belum ada pendidikan. Tambahkan setidaknya satu sebelum mengonfirmasi."), populated; a fresh account is the matrix "empty" cell |
+| R-32 keyboard | PASS | every field has a visible label; rows are `role="group"` with a name; remove buttons have an accessible name with the row number |
+| R-34 themes | PASS | both themes captured, 0 off-brand |
+| R-35 run and click | PASS | `browser-e2e.mjs` fills all 21 fields including an education row and a work row through the UI, saves, confirms, and the confirmed data reaches the ATS fixture; unit tests cover add, remove, validation, load retry and a rejected save |
+| R-36 copy, audit #9, #10 | PASS | raw JSON editors replaced by labeled rows; "Required", "Invalid email" and the employment types are localized |
+| R-12 shadow, R-14 | PASS | no shadows; only repeated rows get a surface |
+| Liveliness | PASS | section headings give the form a rhythm of five named groups; the state marker shows unconfirmed (amber) or confirmed (green) next to the one filled button |
+| C-4 | PASS | input survives a validation error (`ProfilePanel.test.tsx` "keeps what was typed") |
+
+Known limit: `work_authorization` is still free text and the server's 4xx validation messages are English; both need a product decision or a contract change and are listed in `REVAMP_REPORT.md`.
