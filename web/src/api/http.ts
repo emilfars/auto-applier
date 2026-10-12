@@ -11,6 +11,13 @@ export class ApiError extends Error {
   }
 }
 
+let onSessionExpired: (() => void) | null = null;
+
+/** Register what to do when the server says the session is gone (the session provider clears the user). */
+export function setSessionExpiredHandler(handler: (() => void) | null): void {
+  onSessionExpired = handler;
+}
+
 interface RequestOptions {
   method?: string;
   /** JSON body; serialized automatically. Omit for GET. */
@@ -52,6 +59,8 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
     parsed = false;
   }
   if (res.ok && !parsed) throw new ApiError(res.status, "unexpected response from server");
+  // /auth/* answers 401 for wrong credentials and for the signed-out probe; only other paths mean expiry.
+  if (res.status === 401 && !path.startsWith("/auth/")) onSessionExpired?.();
   if (!res.ok) {
     const msg =
       (data && typeof data === "object" && "error" in data

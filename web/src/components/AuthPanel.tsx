@@ -70,9 +70,21 @@ export function AuthPanel({ locale }: { locale: Locale }) {
         <Text size="sm" c="dimmed">
           {t(locale, "auth.signedInAs")} <Text span fw={700} c="bright">{user.email}</Text>
         </Text>
-        <Button variant="default" onClick={() => void signOut()} data-testid="auth-signout">
+        <Button
+          variant="default"
+          onClick={() => {
+            setError(null);
+            void signOut().catch((err: unknown) => setError(errorMessage(locale, err)));
+          }}
+          data-testid="auth-signout"
+        >
           {t(locale, "auth.signout")}
         </Button>
+        {error && (
+          <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />} w="100%">
+            {error}
+          </Alert>
+        )}
       </Group>
     );
   }

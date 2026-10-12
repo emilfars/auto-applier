@@ -12,7 +12,7 @@ const wrap = (ui: React.ReactElement) => <MantineProvider>{ui}</MantineProvider>
 const session = vi.hoisted(() => ({
   user: null as { id: string; email: string; verified: boolean } | null,
   refresh: vi.fn(),
-  signOut: vi.fn(),
+  signOut: vi.fn(async () => undefined),
 }));
 
 vi.mock("../auth/session", () => ({
@@ -131,6 +131,17 @@ describe("AuthPanel flows", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(session.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("stays signed in and says why when sign-out cannot reach the server", async () => {
+    session.user = { id: "u1", email: "a@b.co", verified: true };
+    session.signOut.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(wrap(<AuthPanel locale="en" />));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByText("Can't reach the server. Check your connection and try again.")).toBeTruthy();
+    expect(screen.getByText(/Signed in as/)).toBeTruthy();
   });
 
   it("explains a wrong password in the user's language and blocks a second submit while busy", async () => {

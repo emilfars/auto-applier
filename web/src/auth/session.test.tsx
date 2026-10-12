@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionProvider, useSession } from "./session";
 import * as authApi from "../api/auth";
 import * as openfill from "../api/openfill";
+import { apiFetch } from "../api/http";
 
 vi.mock("../api/auth", () => ({ me: vi.fn(), logout: vi.fn() }));
 vi.mock("../api/openfill", () => ({ clearExtensionState: vi.fn() }));
@@ -72,5 +73,24 @@ describe("SessionProvider", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<Probe />)).toThrow(/useSession must be used within a SessionProvider/);
     spy.mockRestore();
+  });
+
+  it("clears the user when any API call reports an expired session", async () => {
+    vi.mocked(authApi.me).mockResolvedValue({ id: "u1", email: "a@b.co", verified: true });
+    render(
+      <SessionProvider>
+        <Probe />
+      </SessionProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("user").textContent).toBe("a@b.co"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '{"error":"invalid or expired session"}' }),
+    );
+    await expect(apiFetch("/profile")).rejects.toMatchObject({ status: 401 });
+    vi.unstubAllGlobals();
+
+    await waitFor(() => expect(screen.getByTestId("user").textContent).toBe("none"));
   });
 });

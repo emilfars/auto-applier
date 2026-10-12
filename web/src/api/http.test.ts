@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { ApiError, apiFetch } from "./http";
+import { ApiError, apiFetch, setSessionExpiredHandler } from "./http";
 
 function stubFetch(status: number, text: string) {
   vi.stubGlobal(
@@ -36,5 +36,28 @@ describe("apiFetch with non-JSON bodies", () => {
 
     stubFetch(403, '{"error":"profile not confirmed"}');
     await expect(apiFetch("/profile/arm")).rejects.toMatchObject({ status: 403, message: "profile not confirmed" });
+  });
+});
+
+describe("apiFetch session expiry", () => {
+  afterEach(() => setSessionExpiredHandler(null));
+
+  it("reports an expired session for a 401 outside /auth and still rejects", async () => {
+    const expired = vi.fn();
+    setSessionExpiredHandler(expired);
+    stubFetch(401, '{"error":"invalid or expired session"}');
+
+    await expect(apiFetch("/profile")).rejects.toMatchObject({ status: 401 });
+    expect(expired).toHaveBeenCalledOnce();
+  });
+
+  it("does not treat a wrong password or the signed-out probe as expiry", async () => {
+    const expired = vi.fn();
+    setSessionExpiredHandler(expired);
+    stubFetch(401, '{"error":"invalid credentials"}');
+
+    await expect(apiFetch("/auth/login", { body: {} })).rejects.toMatchObject({ status: 401 });
+    await expect(apiFetch("/auth/me")).rejects.toMatchObject({ status: 401 });
+    expect(expired).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { logout, me, type User } from "../api/auth";
 import { clearExtensionState } from "../api/openfill";
+import { setSessionExpiredHandler } from "../api/http";
 
 interface SessionValue {
   user: User | null;
@@ -26,6 +27,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await logout();
     await clearExtensionState();
     setUser(null);
+  }, []);
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => setUser(null));
+    return () => setSessionExpiredHandler(null);
   }, []);
 
   useEffect(() => {
