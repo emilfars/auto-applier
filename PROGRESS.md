@@ -80,8 +80,8 @@ Plan: `plan-revamp.md`. Evals: `ACCEPTANCE.md` section 8.
 |---|---|---|
 | R0 Baseline and audit | ✅ | `m8-R0-done` |
 | R1 Functional review and fixes | ✅ (E-FUNC partial, see D1) | `m8-R1-done` |
-| R2 Complexity and redundancy reduction | 🟡 | — |
-| R3 Design direction | ⬜ | — |
+| R2 Complexity and redundancy reduction | ✅ | `m8-R2-done` |
+| R3 Design direction | 🟡 | — |
 | R4 UI revamp | ⬜ | — |
 | R5 Production hardening | ⬜ | — |
 | R6 End-to-end review and close | ⬜ | — |
@@ -158,6 +158,8 @@ Candidate areas from the plan that were examined and produced no accepted findin
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-10-12** — [M8/R2] Phase close, tag `m8-R2-done`. E-SIMPLE ✅: non-test LOC backend 12,373 → 12,342, web/src 3,036 → 3,009 (includes the R1 fixes), extension/src 1,792 → 1,667, fill-mappings/src 642 → 642 (no findings there); `deadcode -test` 6 → 0; `deadcode` 32 → 25, each remaining one justified (test seams `New*SourceWithURL`/`NewCareerjetSource`/`NewJoobleSource*`/`Generator.Jobs`, protected paths D6, deferred D4 and D7); `jscpd` clones 22 → 20. E-BEHAVE ✅: Go tests 238 → 238 (0 lost); extension 82 → 76 (7 removed with `ArmingStore`, listed in R2-3; 1 added); web 105 → 118; fill-mappings 70 → 70. Loop health: 6 loops, first-pass gate rate 6/6, reverted 0, stop events 0, review findings 2; two findings reclassified to deferred (D10, D11).
+- **2026-10-12** — [M8/R2] R2-7 (S7): `SessionArmingStore.drop` replaces three copies of "delete entry, persist, release payloads, reschedule alarm" in `consume` and `peek`; added a test for the expired-peek branch the first coverage run flagged. Diff +10/−16 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV 100% (9/9, 88.9% before the added test) SCOPE ✅ FROZEN ✅. Review findings: 1 (broken signature from a bad regex, caught by tsc before the gate). Attempts: 2.
 - **2026-10-12** — [M8/R2] R2-6 (S6): extension: deleted the unused `CanonicalProfile` alias and unexported `ARM_TTL_MS`, `IndexedDbBinaryPayloadStore`, `SerializedFile`, `AppliedField` (module-private). Kept by decision: `ExtensionMessage`/`OpenAndFillResult` (document the frozen message contract), web `EducationEntry`/`WorkEntry`/`AccountInfo`/`AccountCVFile` (part of exported signatures; R4 uses the first two), `readTheme`/`applyTheme` (web component file, R4). S5 reclassified to deferred D11. Diff +4/−7 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (no executable change) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R2] R2-4 (S4): `web/src/api/openfill.ts` 259 → 221 lines: one `pageBridge` helper replaces the two copied promise bodies, and the arm and snapshot calls share one 401/403 mapping. Behavior pinned first with 4 new characterization tests (armed flag, non-boolean flag, send timeout, clear timeout). Diff +37/−75 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV 100% (29/29) SCOPE ✅ FROZEN ✅ (bridge message shapes unchanged). Review findings: 0. Attempts: 1.
 - **2026-10-12** — [M8/R2] R2-3 (S3): deleted the in-memory `ArmingStore` and the `messaging.ts` `handleOpenAndFill`/`handleIsArmed` handlers, which only tests reached. `openfill.test.ts` (AC-APP-5 flow, 6 tests kept) now arms and consumes through the production `SessionArmingStore`. Tests removed with the deleted class (7, `arming.test.ts` `ArmingStore` block): arms a URL and consumes it exactly once; does not consume an unrelated URL; treats an expired arm as absent; sweeps expired entries; binds an arm to its created tab; keeps same-URL arms independent across tabs; does not consume a same-tab arm for the wrong URL. Extension tests 82 → 75. Diff +1/−118 non-test. Evals: GATE ✅ (21/21) SAFE ✅ COV n/a (deletion) SCOPE ✅ FROZEN ✅ (message types unchanged). Review findings: 0. Attempts: 1.

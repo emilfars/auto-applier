@@ -300,18 +300,8 @@ export class SessionArmingStore {
       const entry = state[key];
       if (!entry) return null;
       if (entry.url !== normalizeUrl(url)) return null;
-      if (now >= entry.expiresAt) {
-        delete state[key];
-        await this.storage.set({ [SESSION_KEY]: state });
-        await this.cleanup(state, this.entryPayloadIds(entry), now);
-        await this.rescheduleAlarm(state);
-        return null;
-      }
-      const materialized = await this.materialize(entry);
-      delete state[key];
-      await this.storage.set({ [SESSION_KEY]: state });
-      await this.cleanup(state, this.entryPayloadIds(entry), now);
-      await this.rescheduleAlarm(state);
+      const materialized = now >= entry.expiresAt ? null : await this.materialize(entry);
+      await this.drop(state, key, entry, now);
       return materialized;
     });
   }
@@ -324,10 +314,7 @@ export class SessionArmingStore {
       if (!entry) return null;
       if (entry.url !== normalizeUrl(url)) return null;
       if (now >= entry.expiresAt) {
-        delete state[key];
-        await this.storage.set({ [SESSION_KEY]: state });
-        await this.cleanup(state, this.entryPayloadIds(entry), now);
-        await this.rescheduleAlarm(state);
+        await this.drop(state, key, entry, now);
         return null;
       }
       const materialized = await this.materialize(entry);
@@ -428,6 +415,13 @@ export class SessionArmingStore {
       }
     }
     return released;
+  }
+
+  private async drop(state: Record<string, StoredArmedEntry>, key: string, entry: StoredArmedEntry, now: number): Promise<void> {
+    delete state[key];
+    await this.storage.set({ [SESSION_KEY]: state });
+    await this.cleanup(state, this.entryPayloadIds(entry), now);
+    await this.rescheduleAlarm(state);
   }
 
   private async cleanup(

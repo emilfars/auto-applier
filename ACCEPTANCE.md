@@ -143,8 +143,8 @@ Test-type conventions:
 | AC-REV-FROZEN | E-FROZEN | Routes, JSON shapes, extension message types, schema and map versions unchanged | route list, contract tests, map versions, migration checksums vs `main` | ⬜ |
 | AC-REV-FUNC | E-FUNC | Every PRD requirement maps to an `AC-*` test; no P0 proven by mocks alone | traceability table in `REVAMP_REPORT.md` | 🟡 AUTH-2 is mock-only (deferred, PROGRESS D1) |
 | AC-REV-JOURNEY | E-JOURNEY | register → verify → upload CV → confirm profile → filter feed → Open & Fill → review works in a real browser; zero console errors; no system submit | scripted browser run on the local stack |✅ R1 (re-run in R6) |
-| AC-REV-SIMPLE | E-SIMPLE | Non-test LOC below the R0 baseline; dead-code findings zero or justified | LOC count, `deadcode`, `knip` | ⬜ |
-| AC-REV-BEHAVE | E-BEHAVE | No test lost without a listed code deletion | test names before/after | ⬜ |
+| AC-REV-SIMPLE | E-SIMPLE | Non-test LOC below the R0 baseline; dead-code findings zero or justified | LOC count, `deadcode`, `knip` |✅ R2 |
+| AC-REV-BEHAVE | E-BEHAVE | No test lost without a listed code deletion | test names before/after |✅ R2 |
 | AC-REV-SLOP | E-SLOP | Every screen passes the antislop Delivery Gate | PASS/FAIL report per screen under `anti-slop/` | ⬜ |
 | AC-REV-A11Y | E-A11Y | Contrast ≥4.5:1 body / 3:1 large in both themes; Lighthouse accessibility ≥95; journey completes by keyboard | contrast check, Lighthouse, keyboard run | ⬜ |
 | AC-REV-STATE | E-STATE | Screen × theme × width × state × locale matrix has no missing cell, overflow or clipped text | screenshot matrix | ⬜ |

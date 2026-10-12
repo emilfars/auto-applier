@@ -104,6 +104,20 @@ describe("SessionArmingStore", () => {
     };
   }
 
+  it("drops an expired arm when it is peeked, releasing its CV payload", async () => {
+    const storage = fakeStorage();
+    const binary = fakeBinaryStore();
+    const store = new SessionArmingStore(storage, 10, binary);
+    await store.arm("https://x.io/a", 0, 3, {
+      profile: { confirmed: true },
+      cv: { name: "cv.pdf", type: "application/pdf", bytesBase64: "Y3Y=" },
+    });
+
+    expect(await store.isArmed("https://x.io/a", 10, 3)).toBe(false);
+    expect(storage.state.autoApplierArms).toEqual({});
+    expect(binary.payloads.size).toBe(0);
+  });
+
   it("survives a new store instance and consumes atomically once", async () => {
     const storage = fakeStorage();
     const first = new SessionArmingStore(storage);
