@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge, Button, Card, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconExternalLink } from "@tabler/icons-react";
 import { t, type Locale, type TranslationKey } from "../i18n";
+import { errorMessage } from "../i18n/errors";
 import { hasStatedSalary, type JobCard as Job } from "../api/feed";
 import {
   openFillDeps,
@@ -51,6 +52,7 @@ export function JobCard({
   const [notice, setNotice] = useState<OpenFillStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(job.already_applied ?? false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function onOpenFill() {
     if (!canFill) {
@@ -74,12 +76,13 @@ export function JobCard({
   async function changeState(action: "dismiss" | "applied") {
     if (!job.dedup_key) return;
     setBusy(true);
+    setActionError(null);
     try {
       await setJobState(job.dedup_key, action);
       if (action === "applied") setApplied(true);
       if (action === "dismiss") onDismiss?.();
-    } catch {
-      setNotice("error");
+    } catch (err) {
+      setActionError(errorMessage(locale, err));
     } finally {
       setBusy(false);
     }
@@ -166,6 +169,11 @@ export function JobCard({
             </>
           )}
         </Group>
+        {actionError && (
+          <Paper role="alert" p="xs" bg="var(--mantine-color-red-light)">
+            <StateMarker state="danger">{actionError}</StateMarker>
+          </Paper>
+        )}
         {notice && (
           <Paper
             role="status"

@@ -52,6 +52,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
   const [error, setError] = useState<string | null>(null);
   const [load, setLoad] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const [saving, setSaving] = useState<"filter" | "snippet" | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -111,19 +112,25 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
 
   async function createFilter(event: React.FormEvent) {
     event.preventDefault();
-    if (!filterName.trim()) return;
+    if (!filterName.trim() || saving) return;
+    setSaving("filter");
+    setError(null);
     try {
       const filter = await saveFilter(filterName, { q: filterSearch });
       setFilters((current) => [...current, filter]);
       setFilterName("");
     } catch (err) {
       setError(errorMessage(locale, err));
+    } finally {
+      setSaving(null);
     }
   }
 
   async function createAnswer(event: React.FormEvent) {
     event.preventDefault();
-    if (!snippetName.trim() || !snippetBody.trim()) return;
+    if (!snippetName.trim() || !snippetBody.trim() || saving) return;
+    setSaving("snippet");
+    setError(null);
     try {
       const snippet = await createSnippet(snippetName, snippetBody);
       setSnippets((current) => [...current, snippet]);
@@ -131,6 +138,8 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
       setSnippetBody("");
     } catch (err) {
       setError(errorMessage(locale, err));
+    } finally {
+      setSaving(null);
     }
   }
 
@@ -184,7 +193,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
                   value={filterSearch}
                   onChange={(e) => setFilterSearch(e.target.value)}
                 />
-                <Button type="submit" variant="default" style={{ alignSelf: "flex-start" }}>
+                <Button type="submit" variant="default" loading={saving === "filter"} style={{ alignSelf: "flex-start" }}>
                   {t(locale, "m5.saveFilter")}
                 </Button>
               </Stack>
@@ -271,7 +280,7 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
               value={snippetBody}
               onChange={(e) => setSnippetBody(e.target.value)}
             />
-            <Button type="submit" variant="default" style={{ alignSelf: "flex-start" }}>
+            <Button type="submit" variant="default" loading={saving === "snippet"} style={{ alignSelf: "flex-start" }}>
               {t(locale, "m5.saveSnippet")}
             </Button>
           </Stack>

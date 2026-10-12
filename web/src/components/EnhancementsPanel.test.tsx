@@ -190,4 +190,19 @@ describe("EnhancementsPanel", () => {
     expect(await screen.findByText("Too many attempts. Wait a few minutes and try again.")).toBeTruthy();
     expect(name.value).toBe("Remote Go");
   });
+
+  it("saves a filter once when the button is pressed twice", async () => {
+    let resolve: (f: m5.SavedFilter) => void = () => undefined;
+    vi.mocked(m5.saveFilter).mockReturnValue(new Promise((r) => (resolve = r)));
+    render(wrap(<EnhancementsPanel locale="en" />));
+
+    fireEvent.change(await screen.findByLabelText(/Filter name/), { target: { value: "Remote Go" } });
+    const form = screen.getByRole("button", { name: "Save filter" }).closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(m5.saveFilter).toHaveBeenCalledOnce();
+
+    resolve({ id: "f1", name: "Remote Go", query: {}, created_at: "", last_alerted_at: null });
+    expect(await screen.findByText("Remote Go")).toBeTruthy();
+  });
 });

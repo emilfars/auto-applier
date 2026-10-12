@@ -112,4 +112,16 @@ describe("JobCard Open & Fill notices", () => {
     expect(notice.getAttribute("data-status")).toBe("armed");
     expect(notice.textContent).toMatch(/review the filled fields/i);
   });
+
+  it("says why hiding a job failed and keeps the card", async () => {
+    vi.mocked(m5.setJobState).mockRejectedValue(new TypeError("Failed to fetch"));
+    const onDismiss = vi.fn();
+    render(wrap(<JobCard job={makeJob()} locale="id-ID" signedIn onDismiss={onDismiss} />));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sembunyikan" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Tidak bisa terhubung ke server");
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
 });
