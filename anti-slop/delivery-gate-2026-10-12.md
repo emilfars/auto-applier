@@ -135,3 +135,18 @@ Design Read: three small working lists (tracker, saved filters, saved answers) u
 | C-4 | PASS | a rejected save keeps the typed input (`EnhancementsPanel.test.tsx`) |
 
 Not verified in a real browser: a tracker row with a status change (the matrix user has no applications; covered by unit tests against mocked API calls only).
+
+## AccountPanel (data rights)
+
+Design Read: two short blocks under the signed-in identity, export my data and delete my account (UU PDP), dial 1/2/1. Focal point: the signed-in identity line; the destructive action is deliberately quiet until its dialog.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02, R-36 copy | PASS | no em dash; no compliance claim beyond naming the law the feature implements (`PRD.md` AUTH-5) |
+| R-03 mobile | PASS | matrix `account`: 24 captured, 24 N/A (no fetch on mount, no list), 0 overflow, 0 clipped |
+| R-26 controls | PASS | Export downloads a JSON file; Delete opens a dialog that closes on Escape or Cancel; the confirm button stays disabled until the typed email matches |
+| R-27 states | PASS | error (role=alert, icon, localized sentence with a next step, captured by the matrix through a forced 500 on export), success notice (role=status); loading and empty do not apply: the panel fetches nothing on mount and has no list |
+| R-32, R-34 | PASS | dialog is Mantine `Modal` (focus trap, Escape); both themes captured |
+| R-35 run and click | PASS | `browser-e2e.mjs` in real Chrome: Export -> a real file downloads and parses; Delete -> type email -> confirm -> signed out and `/auth/me` unauthenticated |
+| R-25 contrast | PASS | danger text and button use `--brand-danger` (5.55:1 dark, 5.03:1 light worst case) |
+| C-2, C-4 | PASS | no dead control; error path covered by `AccountPanel.test.tsx` |

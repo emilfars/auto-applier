@@ -101,6 +101,6 @@ describe("AccountPanel", () => {
     fireEvent.click(screen.getByTestId("account-export"));
 
     const status = await screen.findByTestId("account-status");
-    expect(status.textContent).toContain("export failed");
+    expect(status.textContent).toContain("The server had a problem. Try again in a moment.");
   });
 });

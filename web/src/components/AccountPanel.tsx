@@ -4,11 +4,12 @@
 
 import { useState } from "react";
 import { Alert, Button, Divider, Group, Modal, Stack, Text, TextInput, Title } from "@mantine/core";
+import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
 import { t, type Locale } from "../i18n";
 import { useSession } from "../auth/session";
 import { deleteAccount, exportAccount } from "../api/account";
 import { downloadJSON } from "../api/download";
-import { ApiError } from "../api/http";
+import { errorMessage } from "../i18n/errors";
 
 function exportFilename(): string {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -33,7 +34,7 @@ export function AccountPanel({ locale }: { locale: Locale }) {
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t(locale, "account.error"));
+      setError(errorMessage(locale, err));
     } finally {
       setBusy(null);
     }
@@ -62,7 +63,7 @@ export function AccountPanel({ locale }: { locale: Locale }) {
     <Stack gap="md">
       <Divider />
       <Stack gap="xs">
-        <Title order={5}>{t(locale, "account.dataRights")}</Title>
+        <Title order={3} size="h5">{t(locale, "account.dataRights")}</Title>
         <Text size="xs" c="dimmed">
           {t(locale, "account.dataRights.note")}
         </Text>
@@ -107,12 +108,12 @@ export function AccountPanel({ locale }: { locale: Locale }) {
       </Stack>
 
       {error && (
-        <Alert color="red" variant="light" role="alert" data-testid="account-status">
+        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />} data-testid="account-status">
           {error}
         </Alert>
       )}
       {notice && (
-        <Alert color="teal" variant="light" data-testid="account-notice">
+        <Alert color="teal" variant="light" role="status" icon={<IconCircleCheck aria-hidden />} data-testid="account-notice">
           {notice}
         </Alert>
       )}
