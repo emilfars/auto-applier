@@ -1,0 +1,23 @@
+anti-slop/audit-001-2026-10-12.md
+  s_cfeddd1935d5d3::t_cbf30ea6cdb71f 1-40
+DESIGN.md
+  s_cfeddd1935d5d3::t_7512e10b192a38 1-188
+PROGRESS.md
+  s_cfeddd1935d5d3::t_0e1100f2a9f9a9 84-85,161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "608b4cdf6f9a7ded56210f8b8c92a407791663bd",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
