@@ -141,13 +141,17 @@ class CDP {
   #socket;
   #next = 0;
   #pending = new Map();
+  events = [];
 
   static async connect(url) {
     const cdp = new CDP();
     cdp.#socket = new WebSocket(url);
     cdp.#socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data));
-      if (!message.id) return;
+      if (!message.id) {
+        cdp.events.push(message);
+        return;
+      }
       const pending = cdp.#pending.get(message.id);
       if (!pending) return;
       cdp.#pending.delete(message.id);
@@ -248,7 +252,7 @@ function startBackend(apiPort, sourceURL) {
 }
 
 function startWebServer(webPort, apiPort, certPath, keyPath) {
-  const apiPrefixes = ["/feed", "/auth", "/cv", "/profile", "/account", "/telemetry", "/healthz"];
+  const apiPrefixes = ["/feed", "/auth", "/cv", "/profile", "/account", "/telemetry", "/healthz", "/saved-filters", "/applications", "/snippets", "/jobs"];
   const mime = {
     ".css": "text/css",
     ".html": "text/html",
@@ -486,6 +490,8 @@ async function run() {
     await once(webServer, "listening");
 
     ({ cdp: web } = await connectPage(debugPort, (target) => target.type === "page"));
+    await web.send("Runtime.enable");
+    await web.send("Log.enable");
     await web.send("Page.navigate", { url: `https://localhost:${webPort}/` });
     await waitFor(() => web.evaluate(() => document.readyState === "complete"), "web app load");
 
@@ -662,6 +668,31 @@ async function run() {
     if (!snapshotBytes.equals(PDF_BYTES)) fail("snapshot CV bytes mismatch");
     if (snapshot.body.profile.full_name !== profile.full_name) fail("snapshot profile mismatch");
 
+    // E-JOURNEY: filter the feed. A query no listing matches must empty the
+    // list, and clearing it must bring the listing back.
+    const setFeedSearch = (value) =>
+      web.evaluate((text) => {
+        const input = document.querySelector('#feed input[type="search"]');
+        if (!(input instanceof HTMLInputElement)) throw new Error("feed search input missing");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, text);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }, value);
+    await waitFor(
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="job-fill-button"]'))),
+      "feed listing before filtering",
+    );
+    await setFeedSearch("zzz-no-such-listing");
+    await waitFor(
+      () =>
+        web.evaluate(
+          () =>
+            document.querySelectorAll('[data-testid="job-fill-button"]').length === 0 &&
+            !document.querySelector('#feed [aria-busy="true"]') &&
+            !document.querySelector('#feed [role="alert"]'),
+        ),
+      "feed filtered to no results",
+    );
+    await setFeedSearch("");
     await waitFor(
       () => web.evaluate(() => Boolean(document.querySelector('[data-testid="job-fill-button"]:not([disabled])'))),
       "enabled Open & Fill button",
@@ -935,6 +966,28 @@ async function run() {
     if (meStatus === 200) fail("account session survived deletion");
 
     console.log("AC-AUTH-5 PASS: account export downloaded + account deleted/erased");
+
+    // E-JOURNEY: the web app page must stay free of console errors, warnings
+    // and uncaught exceptions. The only tolerated entry is the browser's own
+    // network log for the 401 that /auth/me returns to a signed-out visitor.
+    const consoleProblems = web.events.flatMap((event) => {
+      if (event.method === "Runtime.exceptionThrown") {
+        return [event.params.exceptionDetails.exception?.description ?? event.params.exceptionDetails.text];
+      }
+      if (event.method === "Runtime.consoleAPICalled" && ["error", "warning", "assert"].includes(event.params.type)) {
+        return [event.params.args.map((arg) => arg.value ?? arg.description ?? "").join(" ")];
+      }
+      if (event.method === "Log.entryAdded" && ["error", "warning"].includes(event.params.entry.level)) {
+        const { url = "", text } = event.params.entry;
+        if (url.endsWith("/auth/me") && text.includes("401")) return [];
+        return [`${text} ${url}`];
+      }
+      return [];
+    });
+    if (consoleProblems.length > 0) {
+      fail(`web app logged ${consoleProblems.length} console problem(s):\n${consoleProblems.join("\n")}`);
+    }
+    console.log("E-JOURNEY PASS: feed filter narrowed and restored the list; 0 console errors or warnings");
   } finally {
     source?.close();
     worker?.close();
