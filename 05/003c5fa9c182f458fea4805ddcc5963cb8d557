@@ -1,0 +1,23 @@
+extension/src/arming.ts
+  s_cfeddd1935d5d3::t_0a20acdca804b4 15,33,101
+extension/src/apply.ts
+  s_cfeddd1935d5d3::t_0a20acdca804b4 19
+PROGRESS.md
+  s_cfeddd1935d5d3::t_df6470620e07dd 124,142,161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "05003c5fa9c182f458fea4805ddcc5963cb8d557",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
