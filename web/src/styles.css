@@ -61,3 +61,40 @@ body {
 ::selection {
   background: var(--brand-primary-soft);
 }
+
+/* App navigation: header row on wide screens, labeled bottom bar on phones. */
+.app-nav-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--mantine-radius-md);
+  color: var(--brand-muted);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-nav-item[data-stacked] {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 64px;
+  padding: 0 4px;
+  border-radius: 0;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.app-nav-item:hover {
+  color: var(--brand-text);
+}
+
+.app-nav-item[aria-current="page"] {
+  color: var(--brand-text);
+  box-shadow: inset 0 -2px 0 var(--brand-link);
+}
+
+.app-nav-item[data-stacked][aria-current="page"] {
+  box-shadow: inset 0 2px 0 var(--brand-link);
+}

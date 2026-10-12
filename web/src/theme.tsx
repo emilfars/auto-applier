@@ -90,13 +90,12 @@ export function ThemeToggle({ locale = "en" }: { locale?: Locale }) {
   return (
     <ActionIcon
       variant="default"
-      radius="xl"
-      size="lg"
+      size={44}
       aria-label={t(locale, current === "dark" ? "theme.toLight" : "theme.toDark")}
       onClick={toggle}
       title={t(locale, current === "dark" ? "theme.toLight" : "theme.toDark")}
     >
-      {current === "dark" ? <IconSun size={18} /> : <IconMoon size={18} />}
+      {current === "dark" ? <IconSun size={20} aria-hidden /> : <IconMoon size={20} aria-hidden />}
     </ActionIcon>
   );
 }

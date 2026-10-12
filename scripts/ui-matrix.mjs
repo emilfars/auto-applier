@@ -37,12 +37,12 @@ const EMPTY_FEED = { jobs: [], total: 0, limit: 24, offset: 0 };
 // api: GET paths whose response defines the screen's state. act: interaction
 // that produces the error state on screens whose error only follows an action.
 const SCREENS = [
-  { id: "auth", selector: "#account", signedIn: false, api: ["/auth/me"], skip: { empty: "form has no empty state" }, errorAct: "badLogin" },
-  { id: "feed", selector: "#feed", signedIn: false, api: ["/feed"], emptyBody: EMPTY_FEED },
-  { id: "cv", selector: "#cv", signedIn: true, api: ["/cv"] },
-  { id: "profile", selector: "#profile", signedIn: true, api: ["/profile"] },
-  { id: "enhancements", selector: "#enhancements", signedIn: true, api: ["/saved-filters", "/applications", "/snippets", "/profile/completeness"] },
-  { id: "account", selector: "#account", signedIn: true, api: [], skip: { loading: "no fetch on mount", empty: "no list" }, errorAct: "badExport" },
+  { id: "auth", view: "account", selector: "#account", signedIn: false, api: ["/auth/me"], skip: { empty: "form has no empty state" }, errorAct: "badLogin" },
+  { id: "feed", view: "feed", selector: "#feed", signedIn: false, api: ["/feed"], emptyBody: EMPTY_FEED },
+  { id: "cv", view: "profile", selector: "#cv", signedIn: true, api: ["/cv"] },
+  { id: "profile", view: "profile", selector: "#profile", signedIn: true, api: ["/profile"] },
+  { id: "enhancements", view: "applications", selector: "#enhancements", signedIn: true, api: ["/saved-filters", "/applications", "/snippets", "/profile/completeness"] },
+  { id: "account", view: "account", selector: "#account", signedIn: true, api: [], skip: { loading: "no fetch on mount", empty: "no list" }, errorAct: "badExport" },
 ];
 
 function chromePath() {
@@ -177,11 +177,8 @@ async function capture(browser, base, storage, screen, theme, width, locale, sta
       );
     }
 
-    await page.goto(base, { waitUntil: "domcontentloaded" });
-    if (locale !== "id-ID") {
-      await page.getByLabel(/^(language|bahasa)$/i).first().click();
-      await page.getByRole("option", { name: locale, exact: true }).click();
-    }
+    await page.goto(`${base}/#${screen.view}`, { waitUntil: "domcontentloaded" });
+    if (locale !== "id-ID") await page.getByText(locale.slice(0, 2).toUpperCase(), { exact: true }).click();
     const target = page.locator(screen.selector).first();
     await target.waitFor({ state: "visible", timeout: WAIT_MS }).catch((error) => {
       throw new Error(consoleErrors.length ? `screen did not render: ${consoleErrors[0].split("\n")[0]}` : String(error));

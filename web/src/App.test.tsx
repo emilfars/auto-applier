@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -66,7 +66,7 @@ describe("App confirm-before-apply gate", () => {
   it("unlocks Open & Fill only after a change reports the profile confirmed", () => {
     session.user = { id: "u1", email: "a@b.co", verified: true };
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "probe-confirm" }));
+    fireEvent.click(screen.getByText("probe-confirm"));
     expect(feed().getAttribute("data-canfill")).toBe("true");
     expect(feed().getAttribute("data-reason")).toBe("");
   });
@@ -81,10 +81,53 @@ describe("App language switch", () => {
     renderApp();
     expect(screen.getByText(t("id-ID", "app.tagline"))).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("textbox", { name: t("id-ID", "app.language") }));
-    fireEvent.click(screen.getByRole("option", { name: "en" }));
+    fireEvent.click(screen.getByRole("radio", { name: "EN" }));
 
     expect(screen.getByText(t("en", "app.tagline"))).toBeTruthy();
     expect(screen.queryByText(t("id-ID", "app.tagline"))).toBeNull();
+  });
+});
+
+describe("App views", () => {
+  beforeEach(() => {
+    session.user = null;
+    window.location.hash = "";
+  });
+
+  const visibleSection = (testId: string) => screen.getByTestId(testId).closest("section")?.hidden === false;
+
+  it("shows the feed by default and offers only real destinations to a visitor", () => {
+    renderApp();
+    expect(visibleSection("job-feed")).toBe(true);
+    expect(visibleSection("auth-panel")).toBe(false);
+    const targets = screen.getAllByRole("link").map((a) => a.getAttribute("href")?.slice(1));
+    expect(new Set(targets)).toEqual(new Set(["feed", "account"]));
+  });
+
+  it("switches view on hash change and marks the current nav item", () => {
+    session.user = { id: "u1", email: "a@b.co", verified: true };
+    renderApp();
+    act(() => {
+      window.location.hash = "applications";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    expect(visibleSection("enhancements")).toBe(true);
+    expect(visibleSection("job-feed")).toBe(false);
+    const current = screen.getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page");
+    expect(current.map((a) => a.getAttribute("href")?.slice(1))).toContain("applications");
+  });
+
+  it("falls back to the feed for a signed-in-only view when signed out", () => {
+    window.location.hash = "profile";
+    renderApp();
+    expect(visibleSection("job-feed")).toBe(true);
+  });
+
+  it("keeps the profile mounted while hidden so the fill gate knows the confirmation", () => {
+    session.user = { id: "u1", email: "a@b.co", verified: true };
+    renderApp();
+    expect(visibleSection("cv-panel")).toBe(false);
+    fireEvent.click(screen.getByText("probe-confirm"));
+    expect(feed().getAttribute("data-canfill")).toBe("true");
   });
 });

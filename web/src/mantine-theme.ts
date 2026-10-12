@@ -63,7 +63,7 @@ export const BRAND_VARIABLE_MAP: Record<string, string> = {
   "--mantine-color-default": "var(--brand-surface)",
   "--mantine-color-default-hover": "var(--brand-surface-2)",
   "--mantine-color-default-color": "var(--brand-text)",
-  "--mantine-color-default-border": "var(--brand-border-strong)",
+  "--mantine-color-default-border": "var(--brand-border)",
   "--mantine-color-error": "var(--brand-danger)",
 };
 
