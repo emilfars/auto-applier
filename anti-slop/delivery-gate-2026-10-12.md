@@ -150,3 +150,23 @@ Design Read: two short blocks under the signed-in identity, export my data and d
 | R-35 run and click | PASS | `browser-e2e.mjs` in real Chrome: Export -> a real file downloads and parses; Delete -> type email -> confirm -> signed out and `/auth/me` unauthenticated |
 | R-25 contrast | PASS | danger text and button use `--brand-danger` (5.55:1 dark, 5.03:1 light worst case) |
 | C-2, C-4 | PASS | no dead control; error path covered by `AccountPanel.test.tsx` |
+
+## Extension review UI (in-page panel on the employer's form)
+
+Design Read: a small fixed legend on someone else's page that tells the applicant what was filled and that the click is theirs, dial 1/1/1 (it is a guest on the page). Focal point: the three counts.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | none in `REVIEW_COPY` |
+| R-03 mobile | PASS | width is `min(340px, 100vw - 24px)`, so it fits a 360px page; close button is 44x44. Not screenshot-verified (see below) |
+| R-17, R-38 | PASS | counts are the real `ApplyReport` numbers; `browser-e2e.mjs` reads them back from the panel's data attributes |
+| R-25 contrast | PASS | white on #13234A is 15.4:1, note text #A9B8D8 on #13234A is 7.71:1 (`contrast-check.py`); legend squares carry a white outline so the grey one is visible on navy |
+| R-26 controls | PASS | one control, a `type="button"` close that removes the panel (`openfill.test.ts`); it sits outside any form and cannot submit one |
+| R-27 states | PASS | the panel exists only after a fill ran; filled, uncertain and empty are each named with a count. A page that was not armed shows nothing by design |
+| R-32 keyboard | PASS | the close control is a native button with an accessible name; the panel is `role="status"` |
+| R-35 run | PASS | real Chrome MV3 run: panel present on the Lever fixture with applied=6, uncertain=1, empty=1, submitted=false, and the fixture's submit listener never fired |
+| R-36 copy | PASS | "Auto Applier tidak pernah mengirim lamaran" is the product's enforced behavior (static guards plus the E2E no-submit assertion) |
+| Identity | PASS | same square-marker vocabulary as the web app; marker colors are the field outline colors (`REVIEW_COLORS`, shared with `apply.ts`), so the panel is a legend for what the applicant sees on the fields |
+| Prime Directive | PASS | `guard*.ts` untouched; `safety.test.ts` and `bundle.test.ts` scans green |
+
+Not verified: a screenshot of the panel on a real page (the matrix harness drives the web app, not the extension); language follows the browser (Indonesian unless English) because the frozen message contract carries no locale.

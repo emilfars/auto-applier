@@ -6,7 +6,7 @@
 import type { ProfileData } from "@auto-applier/fill-mappings";
 import { runFill, type RunFillResult } from "./fill.js";
 import type { IsArmedMessage, IsArmedResult } from "./messaging.js";
-import type { ApplyOptions } from "./apply.js";
+import { REVIEW_COLORS, type ApplyOptions } from "./apply.js";
 import type { FillSnapshot } from "./arming.js";
 
 /** Sends a message to the background and resolves its reply. */
@@ -63,8 +63,34 @@ function snapshotProfile(snapshot: FillSnapshot): {
   };
 }
 
-/** Render a small in-page review summary without requiring a popup UI. */
-export function renderReviewSummary(doc: Document, report: RunFillResult): void {
+const REVIEW_COPY = {
+  id: {
+    title: "Tinjauan Auto Applier",
+    filled: "terisi",
+    uncertain: "perlu dicek",
+    empty: "kosong",
+    note: "Warna garis tiap kolom mengikuti daftar ini. Tinjau, lalu klik Lamar sendiri. Auto Applier tidak pernah mengirim lamaran.",
+    close: "Tutup tinjauan",
+  },
+  en: {
+    title: "Auto Applier review",
+    filled: "filled",
+    uncertain: "to check",
+    empty: "empty",
+    note: "Field outlines match this list. Review, then click Apply yourself. Auto Applier never sends an application.",
+    close: "Close review",
+  },
+} as const;
+
+/**
+ * Render the in-page review panel: a legend for the field outlines with counts.
+ * Indonesian unless the browser language is English, like the web app's default.
+ */
+export function renderReviewSummary(
+  doc: Document,
+  report: RunFillResult,
+  language: string = globalThis.navigator?.language ?? "id",
+): void {
   const existing = doc.querySelector("[data-aa-review-summary]");
   existing?.remove();
   const summary = doc.createElement("aside");
@@ -87,12 +113,50 @@ export function renderReviewSummary(doc: Document, report: RunFillResult): void 
     .map((field) => field.key)
     .join(",");
   summary.setAttribute("role", "status");
-  summary.textContent =
-    `Auto Applier review: ${report.applied} filled, ` +
-    `${report.uncertain} uncertain, ${report.fields.filter((f) => f.state === "empty").length} empty.`;
+  const copy = REVIEW_COPY[language.toLowerCase().startsWith("en") ? "en" : "id"];
+  const empty = report.fields.filter((f) => f.state === "empty").length;
   summary.style.cssText =
-    "position:fixed;z-index:2147483647;right:12px;bottom:12px;" +
-    "max-width:360px;padding:10px 12px;background:#111827;color:#fff;" +
-    "font:13px system-ui,sans-serif;border-radius:6px;box-shadow:0 2px 8px #0005;";
+    "position:fixed;z-index:2147483647;right:12px;bottom:12px;box-sizing:border-box;" +
+    "width:min(340px,calc(100vw - 24px));padding:12px 14px;background:#13234a;color:#fff;" +
+    "border:1px solid #6d7c9f;border-radius:8px;" +
+    "font:14px/1.45 system-ui,sans-serif;";
+
+  const header = doc.createElement("div");
+  header.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:8px;";
+  const title = doc.createElement("strong");
+  title.textContent = copy.title;
+  const close = doc.createElement("button");
+  close.type = "button";
+  close.textContent = "\u00d7";
+  close.setAttribute("aria-label", copy.close);
+  close.style.cssText =
+    "min-width:44px;min-height:44px;margin:-8px -10px -8px 0;border:0;background:transparent;" +
+    "color:#fff;font-size:22px;line-height:1;cursor:pointer;";
+  close.addEventListener("click", () => summary.remove());
+  header.append(title, close);
+
+  const list = doc.createElement("ul");
+  list.style.cssText = "list-style:none;margin:6px 0 8px;padding:0;";
+  const rows: Array<[keyof typeof REVIEW_COLORS, number]> = [
+    ["filled", report.applied],
+    ["uncertain", report.uncertain],
+    ["empty", empty],
+  ];
+  for (const [state, count] of rows) {
+    const item = doc.createElement("li");
+    item.style.cssText = "display:flex;align-items:baseline;gap:8px;";
+    const marker = doc.createElement("span");
+    marker.setAttribute("aria-hidden", "true");
+    marker.style.cssText = `flex:none;width:10px;height:10px;border-radius:2px;outline:1px solid #fff;background:${REVIEW_COLORS[state]};`;
+    const label = doc.createElement("span");
+    label.textContent = `${count} ${copy[state]}`;
+    item.append(marker, label);
+    list.append(item);
+  }
+
+  const note = doc.createElement("p");
+  note.textContent = copy.note;
+  note.style.cssText = "margin:0;color:#a9b8d8;";
+  summary.append(header, list, note);
   (doc.body ?? doc.documentElement).append(summary);
 }

@@ -103,10 +103,24 @@ describe("Open & Fill end-to-end (AC-APP-5)", () => {
     if (result.ran) {
       expect(result.report.submitted).toBe(false);
       expect(result.report.applied).toBeGreaterThan(0);
-      renderReviewSummary(doc, result.report);
-      expect(doc.querySelector("[data-aa-review-summary]")?.textContent).toContain(
-        "filled",
-      );
+      renderReviewSummary(doc, result.report, "en-US");
+      const panel = doc.querySelector("[data-aa-review-summary]") as HTMLElement;
+      expect(panel.textContent).toContain(`${result.report.applied} filled`);
+      expect(panel.textContent).toContain(`${result.report.uncertain} to check`);
+      expect(panel.textContent).toContain("click Apply yourself");
+      expect(panel.getAttribute("role")).toBe("status");
+
+      renderReviewSummary(doc, result.report, "id-ID");
+      expect(doc.querySelectorAll("[data-aa-review-summary]")).toHaveLength(1);
+      const localized = doc.querySelector("[data-aa-review-summary]") as HTMLElement;
+      expect(localized.textContent).toContain(`${result.report.applied} terisi`);
+      expect(localized.textContent).toContain("Auto Applier tidak pernah mengirim lamaran");
+
+      const close = localized.querySelector("button") as HTMLButtonElement;
+      expect(close.type).toBe("button");
+      expect(close.getAttribute("aria-label")).toBe("Tutup tinjauan");
+      close.dispatchEvent(new win.Event("click") as unknown as Event);
+      expect(doc.querySelector("[data-aa-review-summary]")).toBeNull();
     }
     expect((doc.querySelector('input[name="email"]') as HTMLInputElement).value).toBe(
       "sri.wahyuni@example.com",

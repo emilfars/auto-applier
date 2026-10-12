@@ -89,12 +89,13 @@ function hasTypedValue(el: Element): boolean {
 }
 
 /** Mark a field for the review UI (filled=green, uncertain=amber, empty=gray). */
+// Chosen for at least 3:1 against a white employer page, where these outlines land.
+export const REVIEW_COLORS = { filled: "#16a34a", uncertain: "#d97706", empty: "#6b7280" } as const;
+
 function highlight(el: Element, state: "filled" | "uncertain" | "empty"): void {
   el.setAttribute(FILL_ATTR, state);
-  const color =
-    state === "filled" ? "#16a34a" : state === "uncertain" ? "#d97706" : "#6b7280";
   if (el instanceof HTMLElement) {
-    el.style.outline = `2px solid ${color}`;
+    el.style.outline = `2px solid ${REVIEW_COLORS[state]}`;
     el.style.outlineOffset = "1px";
   }
 }
