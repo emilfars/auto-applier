@@ -203,6 +203,8 @@ async function capture(browser, base, storage, screen, theme, width, locale, sta
       for (const el of root.querySelectorAll("*")) {
         if (!el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
         const style = getComputedStyle(el);
+        // Screen-reader-only text is a 1px clipped box by design.
+        if (el.clientWidth <= 1 || el.clientHeight <= 1) continue;
         const intended = style.textOverflow === "ellipsis" || style.webkitLineClamp !== "none";
         if (!intended && style.overflowX !== "visible" && el.scrollWidth > el.clientWidth + 1) clipped.push(el.textContent.trim().slice(0, 40));
         const box = el.getBoundingClientRect();

@@ -51,7 +51,7 @@ describe("AuthPanel flows", () => {
 
     expect(authApi.register).not.toHaveBeenCalled();
     expect((screen.getByRole("checkbox") as HTMLInputElement).required).toBe(true);
-    expect(await screen.findByText("Consent required")).toBeTruthy();
+    expect(await screen.findByText("Tick the consent box to create an account.")).toBeTruthy();
   });
 
   it("registers with consent, prefills the emailed token, and verifies", async () => {
@@ -89,7 +89,7 @@ describe("AuthPanel flows", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
-    expect(await screen.findByText("email already registered")).toBeTruthy();
+    expect(await screen.findByText("That email already has an account. Sign in instead.")).toBeTruthy();
   });
 
   it("logs in and refreshes the session", async () => {
@@ -131,5 +131,49 @@ describe("AuthPanel flows", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(session.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("explains a wrong password in the user's language and blocks a second submit while busy", async () => {
+    let reject: (e: unknown) => void = () => undefined;
+    vi.mocked(authApi.login).mockReturnValue(new Promise((_, r) => (reject = r)));
+    render(wrap(<AuthPanel locale="id-ID" />));
+    fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "a@b.co" } });
+    fireEvent.change(screen.getByLabelText(/Kata sandi/), { target: { value: "password123" } });
+    const submit = screen.getAllByRole("button", { name: "Masuk" }).at(-1) as HTMLButtonElement;
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+    expect(authApi.login).toHaveBeenCalledOnce();
+
+    reject(new ApiError(401, "invalid credentials"));
+    expect(await screen.findByText("Email atau kata sandi salah.")).toBeTruthy();
+    expect((screen.getByLabelText(/Email/) as HTMLInputElement).value).toBe("a@b.co");
+  });
+
+  it("opens the verification step when sign-in is refused for an unverified email", async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new ApiError(403, "email not verified"));
+    render(wrap(<AuthPanel locale="en" />));
+    fillCredentials();
+    fireEvent.click(screen.getAllByRole("button", { name: "Sign in" }).at(-1) as HTMLButtonElement);
+
+    expect(await screen.findByText(/Email not verified yet/)).toBeTruthy();
+    expect(screen.getByLabelText(/Verification token/)).toBeTruthy();
+  });
+
+  it("asks for a valid email before requesting a reset, in the user's language", () => {
+    render(wrap(<AuthPanel locale="id-ID" />));
+    fireEvent.click(screen.getByRole("button", { name: "Lupa kata sandi?" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kirim token reset" }));
+
+    expect(authApi.requestReset).not.toHaveBeenCalled();
+    expect(screen.getByText("Masukkan alamat email yang valid.")).toBeTruthy();
+  });
+
+  it("reports a network failure with a next step", async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new TypeError("Failed to fetch"));
+    render(wrap(<AuthPanel locale="en" />));
+    fillCredentials();
+    fireEvent.click(screen.getAllByRole("button", { name: "Sign in" }).at(-1) as HTMLButtonElement);
+
+    expect(await screen.findByText("Can't reach the server. Check your connection and try again.")).toBeTruthy();
   });
 });

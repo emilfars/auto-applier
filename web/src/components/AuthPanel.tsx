@@ -11,9 +11,12 @@ import {
   Text,
   TextInput,
   Title,
+  VisuallyHidden,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { t, type Locale } from "../i18n";
+import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
+import { t, type Locale, type TranslationKey } from "../i18n";
+import { errorMessage } from "../i18n/errors";
 import { useSession } from "../auth/session";
 import {
   confirmReset,
@@ -24,6 +27,8 @@ import {
   type RegisterResult,
 } from "../api/auth";
 import { ApiError } from "../api/http";
+
+type StatusKeys = Partial<Record<number, TranslationKey>>;
 
 type Mode = "signin" | "signup";
 
@@ -42,9 +47,9 @@ export function AuthPanel({ locale }: { locale: Locale }) {
   const form = useForm({
     initialValues: { email: "", password: "", consent: false },
     validate: {
-      email: (v) => (/^\S+@\S+$/.test(v) ? null : "Invalid email"),
-      password: (v) => (v.length >= 8 ? null : "Min 8 characters"),
-      consent: (v) => (mode === "signup" && !v ? "Consent required" : null),
+      email: (v) => (/^\S+@\S+$/.test(v) ? null : t(locale, "validation.email")),
+      password: (v) => (v.length >= 8 ? null : t(locale, "validation.passwordMin")),
+      consent: (v) => (mode === "signup" && !v ? t(locale, "validation.consent") : null),
     },
   });
 
@@ -54,9 +59,7 @@ export function AuthPanel({ locale }: { locale: Locale }) {
         <Skeleton height={16} w={140} />
         <Skeleton height={40} radius="md" />
         <Skeleton height={40} radius="md" />
-        <Text span style={{ position: "absolute", left: -9999 }}>
-          {t(locale, "common.loading")}
-        </Text>
+        <VisuallyHidden>{t(locale, "common.loading")}</VisuallyHidden>
       </Stack>
     );
   }
@@ -74,14 +77,15 @@ export function AuthPanel({ locale }: { locale: Locale }) {
     );
   }
 
-  async function run(fn: () => Promise<void>) {
+  async function run(fn: () => Promise<void>, byStatus: StatusKeys = {}) {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+      if (err instanceof ApiError && err.status === 403) setShowVerify(true);
+      setError(errorMessage(locale, err, byStatus));
     } finally {
       setBusy(false);
     }
@@ -94,12 +98,15 @@ export function AuthPanel({ locale }: { locale: Locale }) {
         setShowVerify(true);
         if (res.verification_token) setVerifyToken(res.verification_token);
         setNotice(t(locale, "auth.needVerify"));
-      });
+      }, { 409: "auth.error.emailTaken" });
     } else {
-      void run(async () => {
-        await login(values.email, values.password);
-        await refresh();
-      });
+      void run(
+        async () => {
+          await login(values.email, values.password);
+          await refresh();
+        },
+        { 401: "auth.error.credentials", 403: "auth.error.unverified" },
+      );
     }
   });
 
@@ -110,11 +117,11 @@ export function AuthPanel({ locale }: { locale: Locale }) {
       setShowVerify(false);
       setNotice(t(locale, "auth.verify.done"));
       setMode("signin");
-    });
+    }, { 400: "auth.error.verifyToken" });
   };
 
   const onRequestReset = () => {
-    if (!form.values.email.trim()) return;
+    if (form.validateField("email").hasError) return;
     void run(async () => {
       const res = await requestReset(form.values.email);
       if (res.reset_token) setResetToken(res.reset_token);
@@ -129,7 +136,7 @@ export function AuthPanel({ locale }: { locale: Locale }) {
       setShowReset(false);
       setNotice(t(locale, "auth.reset.done"));
       setMode("signin");
-    });
+    }, { 400: "auth.error.resetToken" });
   };
 
   return (
@@ -138,9 +145,9 @@ export function AuthPanel({ locale }: { locale: Locale }) {
         {(["signin", "signup"] as const).map((m) => (
           <Button
             key={m}
-            variant={mode === m ? "filled" : "default"}
-            size="xs"
+            variant={mode === m ? "light" : "default"}
             aria-pressed={mode === m}
+            data-testid={`auth-mode-${m}`}
             onClick={() => setMode(m)}
           >
             {t(locale, m === "signin" ? "auth.tab.signin" : "auth.tab.signup")}
@@ -155,30 +162,38 @@ export function AuthPanel({ locale }: { locale: Locale }) {
             type="email"
             required
             autoComplete="email"
+            data-testid="auth-email"
             {...form.getInputProps("email")}
           />
           <PasswordInput
             label={t(locale, "auth.password")}
             required
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            data-testid="auth-password"
             {...form.getInputProps("password")}
           />
           {mode === "signup" && (
             <Checkbox
               label={t(locale, "auth.consent")}
               required
+              data-testid="auth-consent"
               checked={form.values.consent}
               onChange={(e) => form.setFieldValue("consent", e.currentTarget.checked)}
               error={form.errors.consent}
             />
           )}
-          <Button type="submit" loading={busy} fullWidth>
+          <Button type="submit" loading={busy} fullWidth data-testid="auth-submit">
             {mode === "signup" ? t(locale, "auth.signup") : t(locale, "auth.signin")}
           </Button>
         </Stack>
       </form>
 
-      <Button variant="subtle" size="xs" onClick={() => setShowReset((v) => !v)} px={0} justify="flex-start">
+      <Button
+        variant="subtle"
+        onClick={() => setShowReset((v) => !v)}
+        aria-expanded={showReset}
+        style={{ alignSelf: "flex-start" }}
+      >
         {t(locale, "auth.reset.toggle")}
       </Button>
 
@@ -187,14 +202,15 @@ export function AuthPanel({ locale }: { locale: Locale }) {
           <Divider />
           <form onSubmit={onVerify}>
             <Stack gap="sm">
-              <Title order={5}>{t(locale, "auth.verify.heading")}</Title>
+              <Title order={3} size="h5">{t(locale, "auth.verify.heading")}</Title>
               <TextInput
                 label={t(locale, "auth.verify.token")}
                 required
                 value={verifyToken}
                 onChange={(e) => setVerifyToken(e.target.value)}
+                data-testid="auth-verify-token"
               />
-              <Button type="submit" variant="default" loading={busy}>
+              <Button type="submit" variant="default" loading={busy} data-testid="auth-verify-submit">
                 {t(locale, "auth.verify.submit")}
               </Button>
             </Stack>
@@ -206,8 +222,8 @@ export function AuthPanel({ locale }: { locale: Locale }) {
         <>
           <Divider />
           <Stack gap="sm">
-            <Title order={5}>{t(locale, "auth.reset.heading")}</Title>
-            <Button variant="default" size="xs" loading={busy} onClick={onRequestReset} style={{ alignSelf: "flex-start" }}>
+            <Title order={3} size="h5">{t(locale, "auth.reset.heading")}</Title>
+            <Button variant="default" loading={busy} onClick={onRequestReset} style={{ alignSelf: "flex-start" }}>
               {t(locale, "auth.reset.request")}
             </Button>
             <form onSubmit={onConfirmReset}>
@@ -234,12 +250,12 @@ export function AuthPanel({ locale }: { locale: Locale }) {
       )}
 
       {error && (
-        <Alert color="red" variant="light" role="alert">
+        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
           {error}
         </Alert>
       )}
       {notice && (
-        <Alert color="teal" variant="light">
+        <Alert color="teal" variant="light" role="status" icon={<IconCircleCheck aria-hidden />}>
           {notice}
         </Alert>
       )}

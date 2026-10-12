@@ -495,48 +495,52 @@ async function run() {
     await web.send("Page.navigate", { url: `https://localhost:${webPort}/` });
     await waitFor(() => web.evaluate(() => document.readyState === "complete"), "web app load");
 
-    const auth = await web.evaluate(
-      async (email) => {
-        const password = "browser-e2e-password";
-        const response = await fetch("/auth/register", {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, password, consent: true }),
-        });
-        return { registered: { status: response.status, body: await response.json() }, password };
-      },
-      profile.email,
+    // E-JOURNEY: register, verify and sign in through the real form. The dev
+    // API returns the verification token, which the form prefills.
+    const password = "browser-e2e-password";
+    const typeInto = (testId, value) =>
+      web.evaluate(
+        (id, text) => {
+          const input = document.querySelector(`[data-testid="${id}"]`);
+          if (!(input instanceof HTMLInputElement)) throw new Error(`${id} input missing`);
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, text);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        },
+        testId,
+        value,
+      );
+    const press = (testId) =>
+      web.evaluate((id) => {
+        const control = document.querySelector(`[data-testid="${id}"]`);
+        if (!(control instanceof HTMLElement)) throw new Error(`${id} control missing`);
+        control.click();
+      }, testId);
+    await web.send("Page.navigate", { url: `https://localhost:${webPort}/#account` });
+    await waitFor(
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="auth-mode-signup"]'))),
+      "sign-up form",
     );
-    if (auth.registered.status !== 201 || !auth.registered.body.verification_token) {
-      fail(`registration returned ${auth.registered.status}`);
-    }
-    const verified = await web.evaluate(
-      async (token) => {
-        const response = await fetch("/auth/verify", {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        return response.status;
-      },
-      auth.registered.body.verification_token,
+    await press("auth-mode-signup");
+    await typeInto("auth-email", profile.email);
+    await typeInto("auth-password", password);
+    await press("auth-consent");
+    await press("auth-submit");
+    await waitFor(
+      () => web.evaluate(() => (document.querySelector('[data-testid="auth-verify-token"]')?.value ?? "") !== ""),
+      "verification token prefilled after registration",
     );
-    if (verified !== 200) fail(`verification returned ${verified}`);
-    const loggedIn = await web.evaluate(
-      async ({ email, password }) => {
-        const response = await fetch("/auth/login", {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        return response.status;
-      },
-      { email: profile.email, password: auth.password },
+    await press("auth-verify-submit");
+    await waitFor(
+      () => web.evaluate(() => !document.querySelector('[data-testid="auth-verify-token"]')),
+      "account verification",
     );
-    if (loggedIn !== 200) fail(`login returned ${loggedIn}`);
+    await typeInto("auth-email", profile.email);
+    await typeInto("auth-password", password);
+    await press("auth-submit");
+    await waitFor(
+      () => web.evaluate(() => Boolean(document.querySelector('[data-testid="auth-signedin"]'))),
+      "signed in through the form",
+    );
 
     await web.send("Page.reload", { ignoreCache: true });
     await waitFor(() => web.evaluate(() => document.readyState === "complete"), "web session reload");

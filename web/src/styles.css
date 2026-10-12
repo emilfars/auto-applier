@@ -98,3 +98,13 @@ body {
 .app-nav-item[data-stacked][aria-current="page"] {
   box-shadow: inset 0 2px 0 var(--brand-link);
 }
+
+/* Touch targets: at least 44px tall where a finger is the pointer. */
+@media (pointer: coarse), (max-width: 48em) {
+  .mantine-Button-root,
+  .mantine-ActionIcon-root,
+  .mantine-Input-input,
+  .mantine-PasswordInput-input {
+    min-height: 44px;
+  }
+}

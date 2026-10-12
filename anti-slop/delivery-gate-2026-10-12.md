@@ -24,3 +24,26 @@ Design Read: the frame of a four-view workspace for Indonesian job seekers, calm
 | C-2 dead controls | PASS | the burger and its empty navbar are gone; every control has a destination or toggles state |
 | R-05 structure | PASS | feed first, four views shaped by their job (`DESIGN.md` information architecture) |
 | Tap targets | PASS | nav items min-height 44px (64px in the bottom bar), theme toggle 44px, language segments 44x44 |
+
+## AuthPanel (sign in, sign up, verify, reset)
+
+Design Read: a short account form for a returning or new job seeker, calm navy, dial 1/2/1. Focal point: the one filled button.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | no em dash in any `auth.*`, `validation.*` or `error.*` string (`grep` on both locale files for these keys) |
+| R-03 mobile | PASS | matrix `auth` cells at 360/768/1280: 0 page overflow, 0 clipped (after excluding screen-reader-only text); buttons and inputs are 44px tall on touch (`styles.css` touch-target rule) |
+| R-25 contrast | PASS | filled button white on `--brand-primary-strong` 5.83:1; error and notice text is `--brand-text` on a 15% state tint; `tokens.test.ts` |
+| R-26 controls | PASS | "Send reset token" used to do nothing with an empty email; it now validates and shows the email error (`AuthPanel.flows.test.tsx` "asks for a valid email before requesting a reset") |
+| R-27 states | PASS | loading (skeleton with hidden "Loading" text), error (role=alert, icon, sentence with a next step), populated; empty is not applicable to a form. Matrix: 36 captured, 12 N/A |
+| R-32 keyboard | PASS | native form submit on Enter; mode switch buttons expose `aria-pressed`; reset toggle exposes `aria-expanded` |
+| R-34 themes | PASS | light and dark captured for every cell, 0 off-brand |
+| R-35 run and click | PASS | `browser-e2e.mjs` in real Chrome: Sign up tab -> fills email and password -> consent -> Create account -> token prefilled -> Verify -> Sign in -> signed-in state, 0 console errors. Matrix error cell: wrong password -> alert. Unit: double submit blocked, unverified sign-in opens the verify step, network failure message |
+| R-37 direction | PASS | `DESIGN.md` |
+| R-04 icons | PASS | alert circle on errors, check circle on confirmations: each marks the state it sits on, so status is not color-only |
+| R-15, R-16 copy | PASS | actions say what they do: "Masuk", "Buat akun", "Verifikasi", "Kirim token reset" |
+| C-2, C-4 | PASS | every control acts; input survives an error (`AuthPanel.flows.test.tsx` checks the email is kept) |
+| Liveliness | PASS | one filled button per state of the form; the mode switch and reset link are quiet |
+| Copy in both locales | PASS | validation and status-specific errors come from `validation.*`, `auth.error.*`, `error.*` in `id.json` and `en.json` (key parity test) |
+
+Known limit: an unmapped 4xx still shows the server's English message (it names the specific field); listed in `REVAMP_REPORT.md`.
