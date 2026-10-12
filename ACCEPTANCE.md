@@ -149,7 +149,7 @@ Test-type conventions:
 | AC-REV-A11Y | E-A11Y | Contrast ≥4.5:1 body / 3:1 large in both themes; Lighthouse accessibility ≥95; journey completes by keyboard | contrast check, Lighthouse, keyboard run | ✅ R4 (keyboard run excludes file choice) |
 | AC-REV-STATE | E-STATE | Screen × theme × width × state × locale matrix has no missing cell, overflow or clipped text | screenshot matrix | ✅ R4 (252 captured, 36 N/A) |
 | AC-REV-PERF | E-PERF | Lighthouse performance ≥90; JS bundle ≤ baseline +10%; 50k p95 within the locked NFR | Lighthouse on the production build, bundle size, `RUN_PERF=1` | 🟡 Lighthouse 99 and bundle ✅; 50k p95 603–656 ms locally vs 500 ms ❌ (pre-existing) |
-| AC-REV-PROD | E-PROD | Production-grade checklist (`plan-revamp.md` section 7) all PASS | checklist with evidence per line | ⬜ |
+| AC-REV-PROD | E-PROD | Production-grade checklist (`plan-revamp.md` section 7) all PASS | checklist with evidence per line | ✅ R5 (PROGRESS log, R5 phase close) |
 
 ---
 
