@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Alert,
-  Badge,
   Button,
   Card,
   Grid,
@@ -36,6 +35,7 @@ import {
 import { IconAlertCircle } from "@tabler/icons-react";
 import { t, type Locale, type TranslationKey } from "../i18n";
 import { errorMessage } from "../i18n/errors";
+import { StateMarker } from "./StateMarker";
 
 const STATUSES: Application["status"][] = ["form_filled", "submitted", "viewed", "rejected", "interview"];
 
@@ -149,12 +149,10 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
   return (
     <Stack gap="md">
       {completeness && (
-        <Paper withBorder p="md" radius="md">
+        <Paper withBorder p="md" bg="var(--mantine-color-default)">
           <Group justify="space-between" mb={8}>
-            <Title order={5}>{t(locale, "m5.completeness")}</Title>
-            <Badge color={completeness.complete ? "teal" : "yellow"} size="lg">
-              {completeness.score}%
-            </Badge>
+            <Title order={3} size="h5">{t(locale, "m5.completeness")}</Title>
+            <StateMarker state={completeness.complete ? "success" : "warning"}>{completeness.score}%</StateMarker>
           </Group>
           <Progress value={completeness.score} color={completeness.complete ? "teal" : "blue"} />
           {completeness.missing.length > 0 && (
@@ -169,31 +167,34 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
 
       <Grid>
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder shadow="sm" radius="md" h="100%">
-            <Title order={5} mb="sm">
+          <Card withBorder h="100%">
+            <Title order={3} size="h5" mb="sm">
               {t(locale, "m5.savedFilters")}
             </Title>
             <form onSubmit={createFilter}>
               <Stack gap="xs">
                 <TextInput
-                  placeholder={t(locale, "m5.filterName")}
-                  aria-label={t(locale, "m5.filterName")}
+                  label={t(locale, "m5.filterName")}
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   required
                 />
                 <TextInput
-                  placeholder={t(locale, "m5.filterSearch")}
-                  aria-label={t(locale, "m5.filterSearch")}
+                  label={t(locale, "m5.filterSearch")}
                   value={filterSearch}
                   onChange={(e) => setFilterSearch(e.target.value)}
                 />
-                <Button type="submit" size="xs">
+                <Button type="submit" variant="default" style={{ alignSelf: "flex-start" }}>
                   {t(locale, "m5.saveFilter")}
                 </Button>
               </Stack>
             </form>
             <Stack gap="xs" mt="md">
+              {filters.length === 0 && (
+                <Text size="sm" c="dimmed">
+                  {t(locale, "m5.noFilters")}
+                </Text>
+              )}
               {filters.map((filter) => (
                 <Group key={filter.id} justify="space-between" wrap="nowrap">
                   <Text size="sm" truncate>
@@ -202,7 +203,8 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
                   <Button
                     color="red"
                     variant="subtle"
-                    size="compact-xs"
+                    style={{ flex: "none" }}
+                    aria-label={t(locale, "m5.removeItem", { name: filter.name })}
                     onClick={() =>
                       void deleteSavedFilter(filter.id)
                         .then(() => setFilters((c) => c.filter((i) => i.id !== filter.id)))
@@ -220,8 +222,8 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder shadow="sm" radius="md" h="100%">
-            <Title order={5} mb="sm">
+          <Card withBorder h="100%">
+            <Title order={3} size="h5" mb="sm">
               {t(locale, "m5.tracker")}
             </Title>
             {applications.length === 0 ? (
@@ -251,31 +253,35 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
         </Grid.Col>
       </Grid>
 
-      <Card withBorder shadow="sm" radius="md">
-        <Title order={5} mb="sm">
+      <Card withBorder>
+        <Title order={3} size="h5" mb="sm">
           {t(locale, "m5.snippets")}
         </Title>
         <form onSubmit={createAnswer}>
           <Stack gap="xs">
             <TextInput
-              placeholder={t(locale, "m5.snippetName")}
-              aria-label={t(locale, "m5.snippetName")}
+              label={t(locale, "m5.snippetName")}
               value={snippetName}
               onChange={(e) => setSnippetName(e.target.value)}
             />
             <Textarea
               rows={3}
-              placeholder={t(locale, "m5.snippetBody")}
-              aria-label={t(locale, "m5.snippetBody")}
+              label={t(locale, "m5.snippetBodyLabel")}
+              description={t(locale, "m5.snippetBody")}
               value={snippetBody}
               onChange={(e) => setSnippetBody(e.target.value)}
             />
-            <Button type="submit" size="xs" style={{ alignSelf: "flex-start" }}>
+            <Button type="submit" variant="default" style={{ alignSelf: "flex-start" }}>
               {t(locale, "m5.saveSnippet")}
             </Button>
           </Stack>
         </form>
         <Stack gap="xs" mt="md">
+          {snippets.length === 0 && (
+            <Text size="sm" c="dimmed">
+              {t(locale, "m5.noSnippets")}
+            </Text>
+          )}
           {snippets.map((snippet) => (
             <Group key={snippet.id} justify="space-between" wrap="nowrap">
               <Text size="sm" lineClamp={2} style={{ flex: 1 }}>
@@ -287,7 +293,8 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
               <Button
                 color="red"
                 variant="subtle"
-                size="compact-xs"
+                style={{ flex: "none" }}
+                aria-label={t(locale, "m5.removeItem", { name: snippet.name })}
                 onClick={() =>
                   void deleteSnippet(snippet.id)
                     .then(() => setSnippets((c) => c.filter((i) => i.id !== snippet.id)))
@@ -301,7 +308,11 @@ export function EnhancementsPanel({ locale }: { locale: Locale }) {
         </Stack>
       </Card>
 
-      {error && <Alert color="red" role="alert">{error}</Alert>}
+      {error && (
+        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+          {error}
+        </Alert>
+      )}
     </Stack>
   );
 }

@@ -113,3 +113,25 @@ Design Read: a long sectioned form whose job is "review what will be filled into
 | C-4 | PASS | input survives a validation error (`ProfilePanel.test.tsx` "keeps what was typed") |
 
 Known limit: `work_authorization` is still free text and the server's 4xx validation messages are English; both need a product decision or a contract change and are listed in `REVAMP_REPORT.md`.
+
+## EnhancementsPanel (Applications view)
+
+Design Read: three small working lists (tracker, saved filters, saved answers) under a profile-completeness line, for a seeker keeping track of what was filled, dial 1/2/1. Focal point: the tracker rows once applications exist.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | no em dash in any `m5.*`, `status.*` or `completeness.*` string |
+| R-03 mobile | PASS | matrix `enhancements`: 48/48 captured, 0 overflow, 0 clipped (a first run clipped "Remove" at 360px in English; fixed by not letting the button shrink) |
+| R-17, R-38 | PASS | the completeness percentage and missing fields come from `GET /profile/completeness`; no invented numbers; lists show only the user's own rows |
+| R-26 controls | PASS | Save filter, Save answer, Remove (named per item), status select, Try again all act (`EnhancementsPanel.test.tsx`) |
+| R-27 states | PASS | loading (text plus skeletons), load error (what failed, why, Try again), an empty sentence for each of the three lists that says what will appear or what to do, populated; matrix captures all four |
+| R-32 keyboard | PASS | inputs have visible labels (they were placeholder-only); the status control is a native select named "Status lamaran {job}"; remove buttons are named "Hapus {name}" |
+| R-34 themes | PASS | both themes captured, 0 off-brand |
+| R-35 run and click | PASS | matrix renders the populated view with a saved filter and a saved answer created through the API; unit tests click every control |
+| R-36 copy, audit #10 | PASS | tracker statuses and missing-field names are localized; "submitted" reads "Terkirim (Anda konfirmasi)" because only the user can confirm a submission (Prime Directive) |
+| R-09 badges | PASS | the completeness pill is now a state marker with the percentage |
+| R-12 shadow | PASS | card shadows removed |
+| Liveliness | PASS | state marker motif on completeness; three lists with different shapes (rows with a select, name-only rows, name plus text rows) |
+| C-4 | PASS | a rejected save keeps the typed input (`EnhancementsPanel.test.tsx`) |
+
+Not verified in a real browser: a tracker row with a status change (the matrix user has no applications; covered by unit tests against mocked API calls only).

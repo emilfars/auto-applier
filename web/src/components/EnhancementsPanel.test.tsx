@@ -5,6 +5,7 @@ import { MantineProvider } from "@mantine/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EnhancementsPanel } from "./EnhancementsPanel";
 import * as m5 from "../api/m5";
+import { ApiError } from "../api/http";
 
 const wrap = (ui: React.ReactElement) => <MantineProvider>{ui}</MantineProvider>;
 
@@ -63,7 +64,7 @@ describe("EnhancementsPanel", () => {
     render(wrap(<EnhancementsPanel locale="en" />));
     await screen.findByText("80%");
 
-    fireEvent.change(screen.getByLabelText("Filter name"), { target: { value: "Remote Go" } });
+    fireEvent.change(screen.getByLabelText(/Filter name/), { target: { value: "Remote Go" } });
     fireEvent.change(screen.getByLabelText("Title or company search"), {
       target: { value: "backend" },
     });
@@ -83,7 +84,7 @@ describe("EnhancementsPanel", () => {
     render(wrap(<EnhancementsPanel locale="en" />));
 
     expect(await screen.findByText("Old filter")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Old filter" }));
 
     await waitFor(() => expect(m5.deleteSavedFilter).toHaveBeenCalledWith("f1"));
     await waitFor(() => expect(screen.queryByText("Old filter")).toBeNull());
@@ -101,7 +102,7 @@ describe("EnhancementsPanel", () => {
     await screen.findByText("80%");
 
     fireEvent.change(screen.getByLabelText("Snippet name"), { target: { value: "Greeting" } });
-    fireEvent.change(screen.getByLabelText(/Use \{name\}/), { target: { value: "Hello there" } });
+    fireEvent.change(screen.getByLabelText(/Answer text/), { target: { value: "Hello there" } });
     fireEvent.click(screen.getByRole("button", { name: "Save snippet" }));
 
     await waitFor(() =>
@@ -173,5 +174,20 @@ describe("EnhancementsPanel", () => {
       "Wawancara",
     ]);
     expect(screen.getByText("Masih diperlukan: telepon")).toBeTruthy();
+  });
+
+  it("explains the empty lists and reports a rejected save without losing the input", async () => {
+    vi.mocked(m5.saveFilter).mockRejectedValue(new ApiError(429, "too many requests"));
+    render(wrap(<EnhancementsPanel locale="en" />));
+
+    expect(await screen.findByText(/No saved filters yet\./)).toBeTruthy();
+    expect(screen.getByText("No saved answers yet.")).toBeTruthy();
+
+    const name = screen.getByLabelText(/Filter name/) as HTMLInputElement;
+    fireEvent.change(name, { target: { value: "Remote Go" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save filter" }));
+
+    expect(await screen.findByText("Too many attempts. Wait a few minutes and try again.")).toBeTruthy();
+    expect(name.value).toBe("Remote Go");
   });
 });
