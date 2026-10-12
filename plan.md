@@ -256,6 +256,13 @@ text-extractable token list** — the palette has been sampled and filled in
 - **Out of scope:** login-walled Tier 3 sources (Indeed/LinkedIn/Glassdoor), and non-commercial datasets. The Tier 1/2-only locked decision is unchanged.
 - **Guardrail:** this milestone strengthens supply; it must not be used to fill the feed with irrelevant global volume to clear the 5,000-listing gate.
 
+## Milestone 8 — Revamp (UI, function, simplification)
+- **Status: in progress (started 2026-10-12)** on branch `revamp/m8`; owner reviews once after R6.
+- **Goal, in priority order:** it runs correctly (every shipped requirement proven on a production path, critical journeys pass in a real browser); less code with the same behavior; a production-grade web and extension-review UI.
+- **Plan:** `plan-revamp.md` is canonical for phases R0–R6, invariants, protected paths, evals and decision rules. Status lives in `PROGRESS.md`; acceptance rows are `AC-REV-*` in `ACCEPTANCE.md`.
+- **Non-goals:** new features, new sources, M6 Android, the 5,000-listing seed, AWS deploy, framework or language changes.
+- **Frozen:** HTTP routes, JSON shapes, extension message types, DB schema, portal map versions.
+
 ## Later (P2 / Phase 2, indicative)
 - CV-7 regenerate downloadable CV from profile.
 - APP-8 unknown-form heuristic fallback.

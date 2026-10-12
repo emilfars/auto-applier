@@ -133,6 +133,24 @@ Test-type conventions:
 | AC-NFR-I18N | UI strings resolve for `id-ID` and `en`; currency defaults to IDR | unit: no missing-key in either locale bundle | ✅ |
 | AC-NFR-SCALE | System handles seed of 50k listings without feed regression | perf stage | ⬜ |
 
+## 8. M8 Revamp evals (`plan-revamp.md` section 5)
+| Test ID | Eval | Criteria | Verification | Status |
+|---|---|---|---|---|
+| AC-REV-GATE | E-GATE | Whole repo builds, lints, typechecks and tests with zero skipped required checks | `./scripts/verify.sh` with Docker, `TEST_DATABASE_URL` and Chrome present | ⬜ |
+| AC-REV-SAFE | E-SAFE | Prime Directive holds | static guards + `node scripts/browser-e2e.mjs` no-submit assertion | ⬜ |
+| AC-REV-COV | E-COV | ≥90% of changed lines covered per loop | `go test -coverprofile` / `vitest --coverage` intersected with `git diff` | ⬜ |
+| AC-REV-SCOPE | E-SCOPE | Each loop stays in its stated area and the 400-line budget | `git diff --stat` per commit | ⬜ |
+| AC-REV-FROZEN | E-FROZEN | Routes, JSON shapes, extension message types, schema and map versions unchanged | route list, contract tests, map versions, migration checksums vs `main` | ⬜ |
+| AC-REV-FUNC | E-FUNC | Every PRD requirement maps to an `AC-*` test; no P0 proven by mocks alone | traceability table in `REVAMP_REPORT.md` | ⬜ |
+| AC-REV-JOURNEY | E-JOURNEY | register → verify → upload CV → confirm profile → filter feed → Open & Fill → review works in a real browser; zero console errors; no system submit | scripted browser run on the local stack | ⬜ |
+| AC-REV-SIMPLE | E-SIMPLE | Non-test LOC below the R0 baseline; dead-code findings zero or justified | LOC count, `deadcode`, `knip` | ⬜ |
+| AC-REV-BEHAVE | E-BEHAVE | No test lost without a listed code deletion | test names before/after | ⬜ |
+| AC-REV-SLOP | E-SLOP | Every screen passes the antislop Delivery Gate | PASS/FAIL report per screen under `anti-slop/` | ⬜ |
+| AC-REV-A11Y | E-A11Y | Contrast ≥4.5:1 body / 3:1 large in both themes; Lighthouse accessibility ≥95; journey completes by keyboard | contrast check, Lighthouse, keyboard run | ⬜ |
+| AC-REV-STATE | E-STATE | Screen × theme × width × state × locale matrix has no missing cell, overflow or clipped text | screenshot matrix | ⬜ |
+| AC-REV-PERF | E-PERF | Lighthouse performance ≥90; JS bundle ≤ baseline +10%; 50k p95 within the locked NFR | Lighthouse on the production build, bundle size, `RUN_PERF=1` | ⬜ |
+| AC-REV-PROD | E-PROD | Production-grade checklist (`plan-revamp.md` section 7) all PASS | checklist with evidence per line | ⬜ |
+
 ---
 
 ## Traceability & enforcement

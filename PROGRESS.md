@@ -4,7 +4,7 @@
 > Update this at the end of every working session and whenever a milestone/task changes state.
 > Keep entries terse and factual. History goes in the Log (bottom); current truth goes up top.
 
-**Last updated:** 2026-09-17
+**Last updated:** 2026-10-12
 **Current phase:** **MVP hardening + M5/M5.5/M7 complete.** M0-M5 runtime behavior, M4.5 web modernization, the native Chrome MV3 Open & Fill E2E, the M5.5 CV parser service, and the M7 sourcing expansion are complete. M6 (Android) and the 5,000-real-listing launch gate remain; registration stays closed below the threshold.
 **Verify gate:** M5 targeted backend checks plus the M5.5 parser service and M7 sourcing expansion pass. This session ran the backend gate with a portable Go 1.27.1: `go build ./...`, `go vet ./...`, and `go test -count=1 -p 1 ./...` are all green (`internal/parser` and `internal/discover` included). The web gate ran green: lint, typecheck, **105 tests**, and a production build, now Mantine-only (Tailwind removed). The native browser MV3 E2E passes on Windows with Chrome for Testing (`AC-APP-1/1b/2/5 PASS: 6/6 fixture fields` and `AC-AUTH-5 PASS: account export downloaded + account deleted/erased`), and the parser service was verified end-to-end against a mock OpenRouter (12/12 checks). The earlier full `TEST_DATABASE_URL=... ./scripts/verify.sh` ran 21 checks and was blocked only by pre-existing `backend/internal/ingest/atssource_test.go` formatting and the existing Chrome MV3 E2E; Android is absent/skipped. The gate requires `TEST_DATABASE_URL`, Docker, and an extension-capable Chrome binary (`CHROME_BIN`); Docker/Postgres are not installed in the current Windows environment, and git's `core.autocrlf=true` makes `gofmt -l` flag CRLF line endings on the whole checkout (a local artifact; committed files are LF). An opt-in live engine check exists: `RUN_PARSER_ACCURACY=1 OPENROUTER_API_KEY=... go test ./internal/parser -run AC_CV_2`.
 
@@ -34,6 +34,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 | M5 P1 enhancements | SCR-5,6 · FEED-4,5,6 · APP-6,7 · CV-5,6 · AUTH-5 | ✅ | Salary estimates and requirement tags are trust-labeled; personalized match/state feed fields, saved-filter alert loop, tracker, snippets, CV primary versions, completeness prompts, and account erasure integration are shipped. |
 | M5.5 CV parser service | CV-2 gap | ✅ | Service implemented in `backend/internal/parser` + `backend/cmd/parser` (+ `Dockerfile.parser`): envelope server, PDF/DOCX text extraction, OpenRouter JSON-schema engine holding `OPENROUTER_API_KEY`, Bearer auth, PII-safe errors. `cv.HostedParser` round-trips against it in tests; live ≥90% accuracy check is opt-in (`RUN_PARSER_ACCURACY=1`). |
 | M6 Android fast-follow | MOB-1..4 | ⬜ | After desktop mappings proven; Android SDK/toolchain not present in the current environment |
+| M8 Revamp | function review, simplification, UI revamp (`plan-revamp.md` R0–R6) | 🟡 | Branch `revamp/m8`, unattended run started 2026-10-12. Phase status, baselines and the deferred list are in section 6.1. |
 | M7 Sourcing expansion | board discovery, Workday/SmartRecruiters, ETag/pooling | ✅ | Workday + SmartRecruiters Tier-2 adapters, curated catalogs, per-host connection pooling, ETag conditional fetch that replays its cache (re-touch preserved), and `cmd/discover-boards` (Wayback CDX + public-API validation, dry-run by default). |
 
 ## 3. Component readiness
@@ -71,6 +72,24 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 - **Held (by decision, not blocking MVP):** AC-FEED-1p 4G, AC-NFR-SCALE, and real Google OAuth credentials. Sources Glints/Jobstreet/Indeed remain excluded from static ingestion (WAF/anti-bot/ToS).
 - **Blocked:** launch readiness gates in `plan.md` are unmet — chiefly `AC-SEED-1-live` (≥5,000 active real listings in **production** Postgres; the fixture mechanism `AC-SEED-1-mech` is ✅ but does not satisfy this) and no full green gate since M3. Synthetic browser fixtures never open registration.
 
+## 6.1 M8 Revamp (branch `revamp/m8`)
+
+Plan: `plan-revamp.md`. Evals: `ACCEPTANCE.md` section 8.
+
+| Phase | Status | Close tag |
+|---|---|---|
+| R0 Baseline and audit | 🟡 | — |
+| R1 Functional review and fixes | ⬜ | — |
+| R2 Complexity and redundancy reduction | ⬜ | — |
+| R3 Design direction | ⬜ | — |
+| R4 UI revamp | ⬜ | — |
+| R5 Production hardening | ⬜ | — |
+| R6 End-to-end review and close | ⬜ | — |
+
+### Deferred (M8)
+
+_None yet._
+
 ## 7. Open questions / decisions needed
 | # | Question | Owner | Status |
 |---|---|---|---|
@@ -86,6 +105,7 @@ Legend: ⬜ not started · 🟡 in progress · ✅ done · ⛔ blocked
 4. After finishing work, run `./scripts/verify.sh` and record the result in the Snapshot.
 
 ## 9. Log (newest first)
+- **2026-10-12** — [M8/R0] R0-0/R0-1: preflight passed (Docker 29.5.2, Postgres 16 test container on 127.0.0.1:5442 as `TEST_DATABASE_URL`, Chrome for Testing in `.cft/`); cut `revamp/m8`; added Milestone 8 to `plan.md`, section 6.1 here and `AC-REV-*` rows to `ACCEPTANCE.md`; committed `plan-revamp.md`. Baseline gate on `main` (bc80b09): ran=21 skipped=1 (android, not present, non-goal) failed=0. Diff +0/−0 non-test. Evals: GATE ✅ SAFE ✅ COV n/a (docs) SCOPE ✅ FROZEN ✅. Review findings: 0. Attempts: 1.
 - **2026-09-20** — [DONE] CI green + perf stage. The `Verify` gate had been red on every push: (1) `TestFeedHTTPP95Under500msOn50kPostgresRows` measured p95 ~1.1s on the shared runner vs the 500ms bound, and (2) the Docker smoke could not pull `minio/minio` (Docker Hub pruned the pinned tag). Fixes: the 50k p95 test now skips unless `RUN_PERF=1` (perf-stage, not per-commit, per the locked NFR decision) with a configurable `FEED_P95_BUDGET_MS` (default 500ms = prod NFR); MinIO now pulls from `quay.io/minio/minio` (same tag, confirmed present). Added `.github/workflows/perf.yml` (weekly + manual `workflow_dispatch`) that provisions Postgres and runs the p95 check with `RUN_PERF=1` and a shared-runner budget (default 2000ms, overridable). Verify is now green (run 35508137996). Local perf run: p95=687ms under a 2s budget, PASS.
 - **2026-09-20** — [DONE/DECISION] Seed-path kickoff. Measured achievable real-listing volume by running `cmd/seed -real -n 5000` against a local Postgres with **keyless sources only**: **1,188 active real listings** (Kalibrr 712/~797 fetched, jobicy 99, remoteok 99, remotive 17, ashby-ramp 136, workday binus/kalbe/tiket/… ~71, smartrecruiters 25, greenhouse/workable ~29) — 24% of the 5,000 gate; the seed mechanism itself works end to end (10 migrations applied, 22 sources ran, per-source breakers isolated dead slugs). **Decisions (owner):** production on the **full AWS stack** (RDS/EC2/S3), and **Careerjet** as the gap-closer (`CAREERJET_AFFID`, owner-supplied). Found and fixed a blocker: Careerjet was hard-capped at 10 pages (1,000 listings/run) in `careerjetsource.go`; replaced the fixed cap with `maxPages` derived from the run target so it fetches up to the target (still stops early on API exhaustion). Added `TestCareerjetSourcePaginatesBeyondTenPages`. Even so, Careerjet's real ID volume is unknown until the affid arrives, so a re-measure decides whether Jooble backfill / Wayback ATS-catalog growth is still needed. `go build/vet` and `go test ./internal/ingest` green. **Next:** owner supplies RDS `DATABASE_URL` (+`S3_*`/`CV_ENCRYPTION_KEY`) and `CAREERJET_AFFID`; then run `DATABASE_URL=... CAREERJET_AFFID=... go run ./cmd/seed -real -n 5000` and re-measure.
 - **2026-09-17** — [DONE] `discover-boards` relevance/quality filter (M7 guardrail enforcement). A `-write` run had produced junk: 9/10 new Workday entries were `impl-*` implementation/sandbox tenants and none were Indonesian. Added two filters in `internal/discover`: (1) `isSandboxWorkdayHost` drops `tenant.impl-*.myworkdayjobs.com` sandbox hosts at extraction; (2) a validation-time Indonesia-relevance gate — `probe` now scans a bounded sample of each board's public-API response for Indonesian-location signals (`indonesia`/`jakarta`/Botabek cities) and boards with no signal are dropped unless `-allow-global` is passed (`Config.AllowGlobal`). Bumped Workday/SmartRecruiters validation sample sizes so the scan is representative. `ponytail:` ceiling noted (naive substring scan, human-reviewed diffs). Tests: impl-host rejection case, ID-relevance keep/drop + allow-global bypass; `go build/vet/gofmt` and `go test ./internal/discover` green. No catalog written — Wayback CDX is currently returning 503/timeouts, so a live grow run must be retried when it recovers.
