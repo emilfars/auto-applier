@@ -50,7 +50,7 @@ describe("JobFeed states", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
     render(wrap(<JobFeed locale="en" />));
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Could not load jobs");
+    expect(alert.textContent).toContain("Jobs could not be loaded");
   });
 
   it("shows a loading state before the first response resolves", () => {

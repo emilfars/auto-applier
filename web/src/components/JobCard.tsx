@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Badge, Button, Card, Group, Paper, Stack, Text } from "@mantine/core";
-import { IconExternalLink, IconWand, IconTrash, IconCheck } from "@tabler/icons-react";
+import { Badge, Button, Card, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { IconExternalLink } from "@tabler/icons-react";
 import { t, type Locale, type TranslationKey } from "../i18n";
 import { hasStatedSalary, type JobCard as Job } from "../api/feed";
 import {
@@ -10,6 +10,23 @@ import {
   type OpenFillStatus,
 } from "../api/openfill";
 import { recordApplication, setJobState } from "../api/m5";
+import { EMPLOYMENT_TYPES } from "../api/profile";
+import { StateMarker } from "./StateMarker";
+
+const NOTICE_KEY: Record<OpenFillStatus, TranslationKey> = {
+  armed: "feed.openFill.armed",
+  noExtension: "feed.openFill.noExtension",
+  needLogin: "feed.openFill.needLogin",
+  needProfile: "feed.openFill.needProfile",
+  error: "feed.openFill.error",
+};
+
+/** Localized employment type, or the source's own wording when it is not one of ours. */
+export function employmentLabel(locale: Locale, value: string): string {
+  return (EMPLOYMENT_TYPES as readonly string[]).includes(value)
+    ? t(locale, `employment.${value}` as TranslationKey)
+    : value.replace(/_/g, " ");
+}
 
 export function JobCard({
   job,
@@ -29,18 +46,11 @@ export function JobCard({
   runOpenFill?: (url: string) => Promise<OpenFillResult>;
 }) {
   const stated = hasStatedSalary(job.salary);
+  const estimated = !stated && !!job.salary.estimated;
   const tags = job.requirement_tags?.length ? job.requirement_tags : job.requirements;
   const [notice, setNotice] = useState<OpenFillStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(job.already_applied ?? false);
-
-  const noticeKey: Record<OpenFillStatus, TranslationKey> = {
-    armed: "feed.openFill.armed",
-    noExtension: "feed.openFill.noExtension",
-    needLogin: "feed.openFill.needLogin",
-    needProfile: "feed.openFill.needProfile",
-    error: "feed.error",
-  };
 
   async function onOpenFill() {
     if (!canFill) {
@@ -75,68 +85,64 @@ export function JobCard({
     }
   }
 
-  const noticeColor = notice === "armed" ? "teal" : notice === "error" ? "red" : "yellow";
+  const meta = [
+    job.location,
+    job.employment_type && employmentLabel(locale, job.employment_type),
+    job.seniority,
+    job.years_experience != null && `${job.years_experience} ${t(locale, "feed.experience")}`,
+  ].filter(Boolean);
 
   return (
-    <Card withBorder shadow="sm" radius="lg" padding="lg" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Group justify="space-between" align="flex-start" mb="xs" wrap="nowrap">
-        <Text fw={700} size="lg" lineClamp={2} style={{ flex: 1, lineHeight: "22px" }}>
+    <Card withBorder padding="md" component="article" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Stack gap={6}>
+        <Title order={3} size="h5" lineClamp={2}>
           {job.title}
+        </Title>
+        <Text size="sm">
+          {job.company}{" "}
+          <Text span c="dimmed">
+            {t(locale, "feed.source", { source: job.source })}
+          </Text>
         </Text>
-        <Badge variant="light" size="sm" tt="uppercase">
-          {job.source}
-        </Badge>
-      </Group>
 
-      <Text c="blue" fw={600} size="sm" truncate>
-        {job.company}
-      </Text>
+        {stated || estimated ? (
+          <div>
+            <Text fw={700} style={{ overflowWrap: "anywhere" }}>
+              {job.salary.label}
+            </Text>
+            <StateMarker state={stated ? "success" : "warning"}>
+              {t(locale, stated ? "feed.salary.stated" : "feed.salary.estimated")}
+            </StateMarker>
+          </div>
+        ) : (
+          <Text c="dimmed">{t(locale, "feed.salary.undisclosed")}</Text>
+        )}
 
-      <Group gap="xs" mt={4} wrap="wrap">
         <Text size="sm" c="dimmed">
-          {job.location}
+          {meta.join(" · ")}
         </Text>
-        {job.remote && (
-          <Badge color="blue" variant="light" size="xs">
-            {t(locale, "feed.remote")}
-          </Badge>
+        {job.remote && <StateMarker state="neutral">{t(locale, "feed.remote")}</StateMarker>}
+
+        {job.match_score != null && (
+          <Text size="sm" fw={600}>
+            {t(locale, "feed.matchScore", { score: job.match_score })}
+          </Text>
         )}
-        {job.employment_type && <Badge variant="default" size="xs">{job.employment_type}</Badge>}
-        {job.seniority && <Badge variant="default" size="xs">{job.seniority}</Badge>}
-        {job.years_experience != null && (
-          <Badge variant="default" size="xs">
-            {job.years_experience} {t(locale, "feed.experience")}
-          </Badge>
+
+        {tags.length > 0 && (
+          <Group gap={6} wrap="wrap" aria-label={t(locale, "feed.requirements")}>
+            {tags.slice(0, 6).map((req) => (
+              <Badge key={req} variant="default" radius="sm" tt="none" fw={500}>
+                {req}
+              </Badge>
+            ))}
+          </Group>
         )}
-      </Group>
+      </Stack>
 
-      <Text
-        mt="sm"
-        fw={stated ? 700 : 500}
-        c={stated ? "teal" : job.salary.estimated ? "yellow.7" : "dimmed"}
-        fs={!stated && !job.salary.estimated ? "italic" : undefined}
-        truncate
-      >
-        {stated || job.salary.estimated ? job.salary.label : t(locale, "feed.salary.undisclosed")}
-      </Text>
-
-      {job.match_score != null && (
-        <Text size="sm" fw={600} c="blue">
-          {t(locale, "feed.matchScore", { score: job.match_score })}
-        </Text>
-      )}
-
-      <Group gap={6} mt="sm" wrap="wrap" style={{ minHeight: 56, alignContent: "flex-start" }} aria-label={t(locale, "feed.requirements")}>
-        {tags.slice(0, 6).map((req) => (
-          <Badge key={req} variant="default" size="sm" radius="sm">
-            {req}
-          </Badge>
-        ))}
-      </Group>
-
-      <Stack gap="xs" mt="auto" pt="sm">
+      <Stack gap="xs" mt="auto" pt="md">
         <Group gap="xs" wrap="wrap">
-          <Button size="xs" leftSection={<IconWand size={14} />} loading={busy} onClick={onOpenFill} data-testid="job-fill-button">
+          <Button loading={busy} onClick={onOpenFill} data-testid="job-fill-button">
             {t(locale, "feed.openFill")}
           </Button>
           <Button
@@ -144,50 +150,34 @@ export function JobCard({
             href={job.source_url}
             target="_blank"
             rel="noreferrer noopener"
-            variant="outline"
-            size="xs"
-            rightSection={<IconExternalLink size={14} />}
+            variant="default"
+            rightSection={<IconExternalLink size={16} aria-hidden />}
           >
             {t(locale, "feed.viewApply")}
           </Button>
           {signedIn && (
             <>
-              <Button variant="subtle" color="red" size="xs" leftSection={<IconTrash size={14} />} loading={busy} onClick={() => void changeState("dismiss")}>
-                {t(locale, "feed.dismiss")}
-              </Button>
-              <Button
-                variant={applied ? "light" : "default"}
-                color={applied ? "teal" : undefined}
-                size="xs"
-                leftSection={<IconCheck size={14} />}
-                loading={busy}
-                disabled={applied}
-                onClick={() => void changeState("applied")}
-              >
+              <Button variant="default" loading={busy} disabled={applied} onClick={() => void changeState("applied")}>
                 {applied ? t(locale, "feed.applied") : t(locale, "feed.markApplied")}
+              </Button>
+              <Button variant="subtle" loading={busy} onClick={() => void changeState("dismiss")}>
+                {t(locale, "feed.dismiss")}
               </Button>
             </>
           )}
         </Group>
-        <Text size="xs" c="dimmed" lh={1.4}>
-          {t(locale, "feed.openFill.note")}
-        </Text>
         {notice && (
           <Paper
             role="status"
             aria-live="polite"
-            radius="md"
-            py={8}
-            px="md"
+            p="xs"
             data-testid="job-fill-notice"
             data-status={notice}
-            style={{
-              background: `var(--mantine-color-${noticeColor}-light)`,
-              color: `var(--mantine-color-${noticeColor}-light-color)`,
-              fontSize: "var(--mantine-font-size-sm)",
-            }}
+            bg={`var(--mantine-color-${notice === "armed" ? "teal" : notice === "error" ? "red" : "yellow"}-light)`}
           >
-            {t(locale, noticeKey[notice])}
+            <StateMarker state={notice === "armed" ? "success" : notice === "error" ? "danger" : "warning"}>
+              {t(locale, NOTICE_KEY[notice])}
+            </StateMarker>
           </Paper>
         )}
       </Stack>

@@ -98,7 +98,7 @@ describe("JobCard Open & Fill notices", () => {
     render(wrap(<JobCard job={makeJob()} locale="en" canFill runOpenFill={runOpenFill} />));
     fireEvent.click(screen.getByRole("button", { name: /open & fill/i }));
     await waitFor(() => expect(runOpenFill).toHaveBeenCalledOnce());
-    expect(await screen.findByText(/Could not load jobs/i)).toBeTruthy();
+    expect(await screen.findByText(/Could not set up the fill/i)).toBeTruthy();
   });
 
   it("exposes the notice as a polite status live region", async () => {

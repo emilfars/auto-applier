@@ -108,3 +108,32 @@ body {
     min-height: 44px;
   }
 }
+
+/* State marker: the identity motif (DESIGN.md). */
+.state-marker {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--brand-text);
+}
+
+.state-marker-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--brand-muted);
+}
+
+.state-marker[data-state="success"] .state-marker-dot {
+  background: var(--brand-success);
+}
+
+.state-marker[data-state="warning"] .state-marker-dot {
+  background: var(--brand-warning);
+}
+
+.state-marker[data-state="danger"] .state-marker-dot {
+  background: var(--brand-danger);
+}

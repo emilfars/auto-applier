@@ -69,4 +69,30 @@ describe("JobCard", () => {
     expect(await screen.findByText(/review the filled fields/i)).toBeTruthy();
     expect(run).toHaveBeenCalledWith("https://example.com/jobs/1");
   });
+
+  it("marks stated pay and an estimate with different words, never the same label", () => {
+    const { unmount } = render(wrap(<JobCard job={makeJob()} locale="en" />));
+    expect(screen.getByText("Stated by employer")).toBeTruthy();
+    unmount();
+
+    render(
+      wrap(
+        <JobCard
+          job={makeJob({
+            salary: { stated_min: null, stated_max: null, currency: "IDR", label: "~Rp 9.000.000 - Rp 14.000.000", stated: false, estimated: true },
+          })}
+          locale="id-ID"
+        />,
+      ),
+    );
+    expect(screen.getByText("Perkiraan, bukan angka dari perusahaan")).toBeTruthy();
+    expect(screen.queryByText("Dicantumkan perusahaan")).toBeNull();
+  });
+
+  it("shows the employment type in the user's language and the source by name", () => {
+    render(wrap(<JobCard job={makeJob({ employment_type: "part_time", remote: true })} locale="id-ID" />));
+    expect(screen.getByText(/Paruh waktu/)).toBeTruthy();
+    expect(screen.getByText("via kalibrr")).toBeTruthy();
+    expect(screen.getByText("Remote")).toBeTruthy();
+  });
 });
