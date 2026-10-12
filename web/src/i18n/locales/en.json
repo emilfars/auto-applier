@@ -154,10 +154,15 @@
   "cv.parsed": "Parsed into your profile. Review and confirm it below.",
   "cv.parseUnavailable": "CV parsing is not available right now. You can still fill your profile manually.",
   "cv.reviewNote": "Parsing only assists. Always review the result before confirming.",
-  "cv.list.empty": "No CVs uploaded yet.",
+  "cv.list.empty": "No CVs uploaded yet. Upload a PDF or DOCX above to start your profile.",
   "cv.primary": "Primary",
   "cv.setPrimary": "Use as primary",
   "cv.primarySet": "Primary CV updated.",
+  "cv.filePlaceholder": "PDF or DOCX, up to 5 MB",
+  "cv.loading": "Loading your CVs…",
+  "cv.loadError": "Your CVs could not be loaded.",
+  "cv.error.tooLarge": "That file is over 5 MB. Choose a smaller one.",
+  "cv.error.type": "Only PDF or DOCX files are accepted.",
   "m5.heading": "Job search tools",
   "m5.completeness": "Profile completeness",
   "m5.missing": "Still needed: {fields}",
@@ -172,5 +177,6 @@
   "m5.snippetBody": "Use {name}, {role}, and {company} as placeholders",
   "m5.saveSnippet": "Save snippet",
   "m5.remove": "Remove",
-  "common.loading": "Loading…"
+  "common.loading": "Loading…",
+  "common.retry": "Try again"
 }

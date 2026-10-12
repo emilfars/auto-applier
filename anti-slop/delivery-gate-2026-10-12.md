@@ -74,3 +74,21 @@ Design Read: a scannable job list with a filter rail for seekers comparing pay a
 | C-3 | PASS | filter rail and list only; no section exists to fill space |
 
 Kept and deferred: the source filter still lists the synthetic seed's source IDs (PROGRESS D10).
+
+## CvPanel
+
+Design Read: an upload row and a short list of stored CVs, the first step of the profile view, dial 1/2/1. Focal point: the upload control until a CV exists, then the "Uraikan ke profil" action.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | `cv.reviewNote` rewritten; locale files contain no em dash |
+| R-03 mobile | PASS | matrix `cv`: 48/48 captured at 360/768/1280, 0 overflow, 0 clipped; long filenames truncate with an ellipsis by design; buttons 44px on touch |
+| R-23, R-38 | PASS | the file placeholder states the real limits (PDF or DOCX, 5 MB, from `PRD.md` CV-1); no sample files or names |
+| R-26 controls | PASS | Upload is disabled until a file is chosen; Parse, Use as primary and Try again all act (`CvPanel.test.tsx`) |
+| R-27 states | PASS | loading (text plus skeleton), empty (says no CV yet and what to do), error (what failed, why, Try again), populated; upload errors name size (413) and type (415); parsing unavailable (503) keeps its own sentence. Matrix captures all four states |
+| R-32, R-34 | PASS | native file input behind Mantine `FileInput`; both themes captured, 0 off-brand |
+| R-35 run and click | PASS | `browser-e2e.mjs` uploads a real PDF through this panel and sees it listed; unit tests click parse, primary, retry, upload |
+| R-04 icons | PASS | upload arrow on Upload, alert and check circles on messages; wand and star removed |
+| R-09 badges | PASS | "Utama" is a state marker for a real state (the primary CV), not a pill |
+| Liveliness | PASS | state marker motif reused; rows are the only surface |
+| C-2, C-4 | PASS | no dead control; works in both themes, three widths, four states |

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Badge, Button, FileInput, Group, Paper, Stack, Text } from "@mantine/core";
-import { IconUpload, IconWand, IconStar } from "@tabler/icons-react";
+import { Alert, Button, FileInput, Group, Paper, Skeleton, Stack, Text } from "@mantine/core";
+import { IconAlertCircle, IconCircleCheck, IconUpload } from "@tabler/icons-react";
 import { t, type Locale } from "../i18n";
+import { errorMessage } from "../i18n/errors";
+import { StateMarker } from "./StateMarker";
 import { useSession } from "../auth/session";
 import { listCVs, parseCV, updateCVVersion, uploadCV, type CVFile } from "../api/cv";
-import { ApiError } from "../api/http";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -14,7 +15,9 @@ function formatSize(bytes: number): string {
 
 export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () => void }) {
   const { user } = useSession();
-  const [files, setFiles] = useState<CVFile[]>([]);
+  const [files, setFiles] = useState<CVFile[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,18 +25,19 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
 
   useEffect(() => {
     if (!user) {
-      setFiles([]);
+      setFiles(null);
       return;
     }
+    setLoadError(null);
     const controller = new AbortController();
     listCVs(controller.signal)
       .then(setFiles)
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(t(locale, "auth.error"));
+        setLoadError(errorMessage(locale, err));
       });
     return () => controller.abort();
-  }, [user]);
+  }, [user, attempt]);
 
   if (!user) {
     return (
@@ -50,8 +54,13 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
     try {
       await fn();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 503) setError(t(locale, "cv.parseUnavailable"));
-      else setError(err instanceof ApiError ? err.message : t(locale, "auth.error"));
+      setError(
+        errorMessage(locale, err, {
+          413: "cv.error.tooLarge",
+          415: "cv.error.type",
+          503: "cv.parseUnavailable",
+        }),
+      );
     } finally {
       setBusy(false);
     }
@@ -62,7 +71,7 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
     if (!selected) return;
     void run(async () => {
       const rec = await uploadCV(selected);
-      setFiles((prev) => [rec, ...prev]);
+      setFiles((prev) => [rec, ...(prev ?? [])]);
       setSelected(null);
       setNotice(t(locale, "cv.uploaded"));
     });
@@ -78,7 +87,7 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
   const onPrimary = (id: string) =>
     void run(async () => {
       await updateCVVersion(id, { is_primary: true });
-      setFiles((current) => current.map((file) => ({ ...file, is_primary: file.id === id })));
+      setFiles((current) => (current ?? []).map((file) => ({ ...file, is_primary: file.id === id })));
       setNotice(t(locale, "cv.primarySet"));
     });
 
@@ -88,7 +97,7 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
         <Group align="end" gap="sm" wrap="wrap">
           <FileInput
             label={t(locale, "cv.selectFile")}
-            placeholder="PDF or DOCX"
+            placeholder={t(locale, "cv.filePlaceholder")}
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             value={selected}
             onChange={setSelected}
@@ -97,7 +106,7 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
           />
           <Button
             type="submit"
-            leftSection={<IconUpload size={16} />}
+            leftSection={<IconUpload size={16} aria-hidden />}
             loading={busy}
             disabled={!selected}
             data-testid="cv-upload-button"
@@ -111,42 +120,50 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
         {t(locale, "cv.reviewNote")}
       </Text>
 
-      {files.length === 0 ? (
-        <Paper withBorder p="md" radius="md" bg="var(--mantine-color-default-hover)">
-          <Text size="sm" c="dimmed" ta="center">
-            {t(locale, "cv.list.empty")}
+      {loadError ? (
+        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+          <Stack gap="xs" align="flex-start">
+            <Text size="sm">
+              {t(locale, "cv.loadError")} {loadError}
+            </Text>
+            <Button variant="default" onClick={() => setAttempt((n) => n + 1)}>
+              {t(locale, "common.retry")}
+            </Button>
+          </Stack>
+        </Alert>
+      ) : files === null ? (
+        <Stack gap="xs" aria-busy="true" aria-live="polite">
+          <Text size="sm" c="dimmed">
+            {t(locale, "cv.loading")}
           </Text>
-        </Paper>
+          <Skeleton height={52} />
+        </Stack>
+      ) : files.length === 0 ? (
+        <Text size="sm" c="dimmed">
+          {t(locale, "cv.list.empty")}
+        </Text>
       ) : (
         <Stack gap="xs">
           {files.map((f) => (
-            <Paper key={f.id} withBorder p="sm" radius="md" data-testid="cv-item">
+            <Paper key={f.id} withBorder p="sm" bg="var(--mantine-color-default)" data-testid="cv-item">
               <Group justify="space-between" wrap="wrap" gap="xs">
-                <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-                  <Text size="sm" fw={500} truncate>
-                    {f.label || f.filename}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    ({formatSize(f.size_bytes)})
-                  </Text>
-                  {f.is_primary && (
-                    <Badge color="teal" size="xs" leftSection={<IconStar size={10} />}>
-                      {t(locale, "cv.primary")}
-                    </Badge>
-                  )}
-                </Group>
+                <Stack gap={2} style={{ minWidth: 0 }}>
+                  <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                    <Text size="sm" fw={600} truncate>
+                      {f.label || f.filename}
+                    </Text>
+                    <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                      ({formatSize(f.size_bytes)})
+                    </Text>
+                  </Group>
+                  {f.is_primary && <StateMarker state="success">{t(locale, "cv.primary")}</StateMarker>}
+                </Stack>
                 <Group gap="xs">
-                  <Button
-                    size="xs"
-                    variant="default"
-                    leftSection={<IconWand size={14} />}
-                    loading={busy}
-                    onClick={() => onParse(f.id)}
-                  >
+                  <Button variant="default" loading={busy} onClick={() => onParse(f.id)}>
                     {t(locale, "cv.parse")}
                   </Button>
                   {!f.is_primary && (
-                    <Button size="xs" variant="light" loading={busy} onClick={() => onPrimary(f.id)}>
+                    <Button variant="subtle" loading={busy} onClick={() => onPrimary(f.id)}>
                       {t(locale, "cv.setPrimary")}
                     </Button>
                   )}
@@ -157,8 +174,16 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
         </Stack>
       )}
 
-      {error && <Alert color="red" variant="light" role="alert">{error}</Alert>}
-      {notice && <Alert color="teal" variant="light">{notice}</Alert>}
+      {error && (
+        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+          {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert color="teal" variant="light" role="status" icon={<IconCircleCheck aria-hidden />}>
+          {notice}
+        </Alert>
+      )}
     </Stack>
   );
 }

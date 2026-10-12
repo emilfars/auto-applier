@@ -45,7 +45,7 @@ describe("CvPanel", () => {
 
   it("shows the empty state when no CVs are uploaded", async () => {
     render(wrap(<CvPanel locale="en" />));
-    expect(await screen.findByText("No CVs uploaded yet.")).toBeTruthy();
+    expect(await screen.findByText(/No CVs uploaded yet\./)).toBeTruthy();
   });
 
   it("lists stored CVs with a formatted size and primary badge", async () => {
@@ -65,7 +65,7 @@ describe("CvPanel", () => {
   it("uploads a selected file and prepends it to the list", async () => {
     vi.mocked(cvApi.uploadCV).mockResolvedValue(cv("new"));
     const { container } = render(wrap(<CvPanel locale="en" />));
-    await screen.findByText("No CVs uploaded yet.");
+    await screen.findByText(/No CVs uploaded yet\./);
 
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["cv"], "resume.pdf", { type: "application/pdf" });
@@ -117,5 +117,41 @@ describe("CvPanel", () => {
     );
     expect(await screen.findByText("Primary CV updated.")).toBeTruthy();
     expect(screen.queryAllByText("Primary")).toHaveLength(1);
+  });
+
+  it("says it is loading before the list arrives", () => {
+    vi.mocked(cvApi.listCVs).mockReturnValue(new Promise(() => {}));
+    render(wrap(<CvPanel locale="id-ID" />));
+    expect(screen.getByText("Memuat CV Anda…")).toBeTruthy();
+  });
+
+  it("explains a failed load and retries on request", async () => {
+    vi.mocked(cvApi.listCVs).mockRejectedValueOnce(new ApiError(502, "request failed: 502")).mockResolvedValue([]);
+    render(wrap(<CvPanel locale="en" />));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Your CVs could not be loaded.");
+    expect(alert.textContent).toContain("The server had a problem. Try again in a moment.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(/No CVs uploaded yet\./)).toBeTruthy();
+  });
+
+  it("names the problem when the server rejects the file size or type", async () => {
+    vi.mocked(cvApi.uploadCV)
+      .mockRejectedValueOnce(new ApiError(413, "file too large"))
+      .mockRejectedValueOnce(new ApiError(415, "unsupported type"));
+    const { container } = render(wrap(<CvPanel locale="id-ID" />));
+    await screen.findByText(/Belum ada CV\./);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const upload = async () => {
+      fireEvent.change(input, { target: { files: [new File(["x"], "cv.pdf", { type: "application/pdf" })] } });
+      fireEvent.click(screen.getByRole("button", { name: /unggah cv/i }));
+    };
+
+    await upload();
+    expect(await screen.findByText("File lebih dari 5 MB. Pilih file yang lebih kecil.")).toBeTruthy();
+    await upload();
+    expect(await screen.findByText("Hanya PDF atau DOCX yang diterima.")).toBeTruthy();
   });
 });
