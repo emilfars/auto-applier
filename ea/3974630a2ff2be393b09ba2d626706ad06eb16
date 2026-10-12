@@ -1,0 +1,27 @@
+web/src/components/JobFeed.states.test.tsx
+  s_cfeddd1935d5d3::t_6a486c19ed83da 53-91
+web/src/components/JobFeed.tsx
+  s_cfeddd1935d5d3::t_6a486c19ed83da 7,18-19,23,75-77,137,158-159,162-164,167-200,202-264,267,275,278,286-292,298-305,308-313
+anti-slop/delivery-gate-2026-10-12.md
+  s_cfeddd1935d5d3::t_6a486c19ed83da 50-76
+web/src/components/JobFeed.test.tsx
+  s_cfeddd1935d5d3::t_6a486c19ed83da 111
+PROGRESS.md
+  s_cfeddd1935d5d3::t_acd536f2ab735c 161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ea3974630a2ff2be393b09ba2d626706ad06eb16",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
