@@ -44,7 +44,14 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
   });
 
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as unknown) : null;
+  let data: unknown = null;
+  let parsed = true;
+  try {
+    data = text ? (JSON.parse(text) as unknown) : null;
+  } catch {
+    parsed = false;
+  }
+  if (res.ok && !parsed) throw new ApiError(res.status, "unexpected response from server");
   if (!res.ok) {
     const msg =
       (data && typeof data === "object" && "error" in data
