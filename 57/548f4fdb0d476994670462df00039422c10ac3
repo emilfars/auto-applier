@@ -1,0 +1,24 @@
+web/src/api/proxy-prefixes.test.ts
+  s_cfeddd1935d5d3::t_1c873857b016fb 2-3,8-12,16-17,32,38
+  s_cfeddd1935d5d3::t_d80e24d693aeea 1,4-7,13-15,18-31,33-37,39-40
+web/nginx.conf
+  s_cfeddd1935d5d3::t_96351a76085a5c 12
+PROGRESS.md
+  s_cfeddd1935d5d3::t_f3630b9ead499e 159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "57548f4fdb0d476994670462df00039422c10ac3",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
