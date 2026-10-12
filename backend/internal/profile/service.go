@@ -556,11 +556,6 @@ func canonicalFillProfile(p Profile) map[string]any {
 	return out
 }
 
-func isJSONArray(raw json.RawMessage) bool {
-	var arr []json.RawMessage
-	return json.Unmarshal(raw, &arr) == nil
-}
-
 type profileResp struct {
 	FullName           string          `json:"full_name"`
 	Email              string          `json:"email"`

@@ -77,3 +77,8 @@ func TestApplyParsedCVCreatesProfile(t *testing.T) {
 		t.Errorf("unexpected profile: %+v", got)
 	}
 }
+
+func isJSONArray(raw json.RawMessage) bool {
+	var arr []json.RawMessage
+	return json.Unmarshal(raw, &arr) == nil
+}
