@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MantineProvider } from "@mantine/core";
 import App from "./App";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { SessionProvider } from "./auth/session";
 import { brandCssVariablesResolver, brandTheme } from "./mantine-theme";
 import "@mantine/core/styles.css";
@@ -16,9 +17,11 @@ if (rootEl) {
         cssVariablesResolver={brandCssVariablesResolver}
         defaultColorScheme="dark"
       >
-        <SessionProvider>
-          <App />
-        </SessionProvider>
+        <ErrorBoundary>
+          <SessionProvider>
+            <App />
+          </SessionProvider>
+        </ErrorBoundary>
       </MantineProvider>
     </StrictMode>,
   );
