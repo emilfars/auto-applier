@@ -1,0 +1,23 @@
+scripts/browser-e2e.mjs
+  s_cfeddd1935d5d3::t_ece37ed194db3a 144,151-154,255,493-494,671-695,969-990
+web/index.html
+  s_cfeddd1935d5d3::t_1cd3f7363927e0 7-8
+PROGRESS.md
+  s_cfeddd1935d5d3::t_071f0f5491b9ba 159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "c3625610eea581f28cfc3e7827c7ff77eef253c2",
+  "prompts": {},
+  "sessions": {
+    "s_cfeddd1935d5d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bcb1154f-36e1-4613-a111-1d127d99172c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
