@@ -54,19 +54,19 @@ describe("App confirm-before-apply gate", () => {
     expect(screen.queryByTestId("profile-probe")).toBeNull();
   });
 
-  it("gates Open & Fill behind profile confirmation when signed in", () => {
+  it("gates Open & Fill behind profile confirmation when signed in", async () => {
     session.user = { id: "u1", email: "a@b.co", verified: true };
     renderApp();
     expect(feed().getAttribute("data-canfill")).toBe("false");
     expect(feed().getAttribute("data-reason")).toBe("needProfile");
-    expect(screen.getByTestId("cv-panel")).toBeTruthy();
+    expect(await screen.findByTestId("cv-panel")).toBeTruthy();
     expect(screen.getByTestId("enhancements")).toBeTruthy();
   });
 
-  it("unlocks Open & Fill only after a change reports the profile confirmed", () => {
+  it("unlocks Open & Fill only after a change reports the profile confirmed", async () => {
     session.user = { id: "u1", email: "a@b.co", verified: true };
     renderApp();
-    fireEvent.click(screen.getByText("probe-confirm"));
+    fireEvent.click(await screen.findByText("probe-confirm"));
     expect(feed().getAttribute("data-canfill")).toBe("true");
     expect(feed().getAttribute("data-reason")).toBe("");
   });
@@ -104,9 +104,10 @@ describe("App views", () => {
     expect(new Set(targets)).toEqual(new Set(["feed", "account"]));
   });
 
-  it("switches view on hash change and marks the current nav item", () => {
+  it("switches view on hash change and marks the current nav item", async () => {
     session.user = { id: "u1", email: "a@b.co", verified: true };
     renderApp();
+    await screen.findByTestId("enhancements");
     act(() => {
       window.location.hash = "applications";
       window.dispatchEvent(new HashChangeEvent("hashchange"));
@@ -123,11 +124,12 @@ describe("App views", () => {
     expect(visibleSection("job-feed")).toBe(true);
   });
 
-  it("keeps the profile mounted while hidden so the fill gate knows the confirmation", () => {
+  it("keeps the profile mounted while hidden so the fill gate knows the confirmation", async () => {
     session.user = { id: "u1", email: "a@b.co", verified: true };
     renderApp();
+    await screen.findByTestId("cv-panel");
     expect(visibleSection("cv-panel")).toBe(false);
-    fireEvent.click(screen.getByText("probe-confirm"));
+    fireEvent.click(await screen.findByText("probe-confirm"));
     expect(feed().getAttribute("data-canfill")).toBe("true");
   });
 });

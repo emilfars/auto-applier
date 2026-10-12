@@ -74,7 +74,7 @@ export function JobFeed({
   const [status, setStatus] = useState<Status>("loading");
   const [attempt, setAttempt] = useState(0);
   const [moreOpen, { toggle: toggleMore }] = useDisclosure(false);
-  const narrow = useMediaQuery("(max-width: 62em)") ?? false;
+  const narrow = useMediaQuery("(max-width: 62em)", false, { getInitialValueInEffect: false });
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const payMinValue = parseNumberFilter(payMin);
@@ -200,7 +200,7 @@ export function JobFeed({
                   {activeMore > 0 ? ` (${activeMore})` : ""}
                 </Button>
               )}
-              <Collapse in={!narrow || moreOpen} id="feed-more-filters">
+              <Collapse in={!narrow || moreOpen} id="feed-more-filters" transitionDuration={0}>
                 <Stack gap="sm">
                   <TextInput
                     label={t(locale, "feed.filter.payMin")}

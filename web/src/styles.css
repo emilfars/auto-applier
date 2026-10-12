@@ -48,7 +48,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--mantine-color-body);
+  background: var(--mantine-color-body, var(--brand-bg));
   font-variant-numeric: tabular-nums;
 }
 
@@ -136,4 +136,32 @@ body {
 
 .state-marker[data-state="danger"] .state-marker-dot {
   background: var(--brand-danger);
+}
+
+/* First paint before the script loads (index.html). Sizes match the real header and feed heading. */
+.boot-shell {
+  padding: 0 var(--mantine-spacing-md, 16px);
+  color: var(--brand-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.boot-title {
+  margin: 0;
+  height: 60px;
+  line-height: 60px;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.boot-tagline {
+  max-width: 640px;
+  margin: 16px 0 0;
+  font-size: 0.875rem;
+  color: var(--brand-muted);
+}
+
+.boot-heading {
+  margin: 24px 0 0;
+  font-size: 1.375rem;
+  font-weight: 700;
 }

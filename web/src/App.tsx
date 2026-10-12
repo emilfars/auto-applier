@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AppShell, Container, Group, SegmentedControl, Stack, Text, Title, UnstyledButton } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { IconBriefcase, IconFileCv, IconListCheck, IconUser } from "@tabler/icons-react";
@@ -6,11 +6,11 @@ import { t, locales, DEFAULT_LOCALE, type Locale, type TranslationKey } from "./
 import { JobFeed } from "./components/JobFeed";
 import { AuthPanel } from "./components/AuthPanel";
 import { AccountPanel } from "./components/AccountPanel";
-import { ProfilePanel } from "./components/ProfilePanel";
-import { CvPanel } from "./components/CvPanel";
 import { useSession } from "./auth/session";
 import { ThemeToggle } from "./theme";
-import { EnhancementsPanel } from "./components/EnhancementsPanel";
+
+// Signed-in screens load on demand so a visitor browsing jobs downloads less.
+const SignedInViews = lazy(() => import("./SignedInViews"));
 
 const VIEWS = [
   { id: "feed", label: "nav.feed", icon: IconBriefcase, signedIn: false },
@@ -37,7 +37,7 @@ export default function App() {
   const { user } = useSession();
   const [profileRefresh, setProfileRefresh] = useState(0);
   const [profileConfirmed, setProfileConfirmed] = useState(false);
-  const mobile = useMediaQuery("(max-width: 48em)") ?? false;
+  const mobile = useMediaQuery("(max-width: 48em)", false, { getInitialValueInEffect: false });
 
   const views = VIEWS.filter((v) => user || !v.signedIn);
   const view = useHashView(views.map((v) => v.id));
@@ -104,33 +104,15 @@ export default function App() {
           </section>
 
           {user && (
-            <>
-              <section hidden={view !== "profile"}>
-                <Stack gap="xl" maw={860}>
-                  <Stack id="cv" gap="md">
-                    <Title order={2} size="h3">
-                      {t(locale, "cv.heading")}
-                    </Title>
-                    <CvPanel locale={locale} onParsed={() => setProfileRefresh((n) => n + 1)} />
-                  </Stack>
-                  <Stack id="profile" gap="md">
-                    <Title order={2} size="h3">
-                      {t(locale, "profile.heading")}
-                    </Title>
-                    <ProfilePanel key={profileRefresh} locale={locale} onConfirmedChange={setProfileConfirmed} />
-                  </Stack>
-                </Stack>
-              </section>
-
-              <section hidden={view !== "applications"}>
-                <Stack id="enhancements" gap="md">
-                  <Title order={2} size="h3">
-                    {t(locale, "m5.heading")}
-                  </Title>
-                  <EnhancementsPanel locale={locale} />
-                </Stack>
-              </section>
-            </>
+            <Suspense fallback={null}>
+              <SignedInViews
+                locale={locale}
+                view={view}
+                profileRefresh={profileRefresh}
+                onParsed={() => setProfileRefresh((n) => n + 1)}
+                onConfirmedChange={setProfileConfirmed}
+              />
+            </Suspense>
           )}
 
           <section hidden={view !== "account"}>

@@ -19,6 +19,7 @@ import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT = process.argv[2];
@@ -78,8 +79,13 @@ function serveWeb(apiPort) {
     const { pathname } = new URL(req.url, "http://localhost");
     const file = normalize(join(dist, pathname === "/" ? "index.html" : pathname));
     if (file.startsWith(dist) && existsSync(file) && statSync(file).isFile()) {
-      res.writeHead(200, { "Content-Type": MIME[extname(file)] ?? "application/octet-stream" });
-      res.end(readFileSync(file));
+      // gzip like web/nginx.conf does, so Lighthouse sees production transfer sizes.
+      const gzip = /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""));
+      res.writeHead(200, {
+        "Content-Type": MIME[extname(file)] ?? "application/octet-stream",
+        ...(gzip ? { "Content-Encoding": "gzip" } : {}),
+      });
+      res.end(gzip ? gzipSync(readFileSync(file)) : readFileSync(file));
       return;
     }
     const upstream = httpRequest({ host: "127.0.0.1", port: apiPort, path: req.url, method: req.method, headers: req.headers }, (up) => {

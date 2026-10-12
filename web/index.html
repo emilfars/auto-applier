@@ -6,9 +6,27 @@
     <title>Auto Applier</title>
     <!-- No icon asset exists yet; the empty data URL stops the browser requesting /favicon.ico. -->
     <link rel="icon" href="data:," />
+    <script>
+      // Set the color scheme before first paint (Mantine otherwise sets it after the bundle loads).
+      (function () {
+        var theme = "dark";
+        try {
+          if (localStorage.getItem("auto-applier-theme") === "light") theme = "light";
+        } catch (e) {}
+        document.documentElement.setAttribute("data-mantine-color-scheme", theme);
+      })();
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Painted before the script loads; React replaces it. Text mirrors id.json (boot-shell.test.ts). -->
+    <div id="root">
+      <div class="boot-shell">
+        <p class="boot-title">Auto Applier</p>
+        <p class="boot-tagline">Unggah CV sekali. Ekstensi browser mengisi formulir lamaran, lalu Anda sendiri yang menekan Lamar.</p>
+        <p class="boot-heading">Lowongan terbaru di Jabodetabek</p>
+        <p class="boot-tagline">Memuat lowongan…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
