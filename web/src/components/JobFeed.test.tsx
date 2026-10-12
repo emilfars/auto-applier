@@ -108,7 +108,7 @@ describe("JobFeed pagination", () => {
       fireEvent.change(screen.getByLabelText(t(locale, "feed.filter.employmentType")), {
         target: { value: "full_time" },
       });
-      fireEvent.click(screen.getByRole("button", { name: t(locale, "feed.filter.apply") }));
+      fireEvent.submit(screen.getByRole("form", { name: t(locale, "feed.filters.label") }));
 
       await waitFor(() => {
         const path = String(fetchMock.mock.calls.at(-1)?.[0]);

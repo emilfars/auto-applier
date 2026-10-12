@@ -4,10 +4,10 @@ import {
   Button,
   Card,
   Checkbox,
+  Collapse,
   Grid,
   Group,
   NativeSelect,
-  Paper,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -15,11 +15,12 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { IconSearch, IconMapPin } from "@tabler/icons-react";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
+import { IconAdjustmentsHorizontal, IconAlertCircle, IconMapPin, IconSearch } from "@tabler/icons-react";
 import { fetchFeed, type FeedQuery, type FeedResponse } from "../api/feed";
 import { EMPLOYMENT_TYPES } from "../api/profile";
 import { t, type Locale } from "../i18n";
-import { JobCard } from "./JobCard";
+import { JobCard, employmentLabel } from "./JobCard";
 
 type Status = "loading" | "ready" | "error";
 
@@ -71,6 +72,9 @@ export function JobFeed({
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<FeedResponse | null>(null);
   const [status, setStatus] = useState<Status>("loading");
+  const [attempt, setAttempt] = useState(0);
+  const [moreOpen, { toggle: toggleMore }] = useDisclosure(false);
+  const narrow = useMediaQuery("(max-width: 62em)") ?? false;
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const payMinValue = parseNumberFilter(payMin);
@@ -130,6 +134,7 @@ export function JobFeed({
     source,
     employmentType,
     offset,
+    attempt,
   ]);
 
   const clearFilters = () => {
@@ -150,107 +155,116 @@ export function JobFeed({
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.floor(offset / PAGE_SIZE) + 1;
 
+  const activeMore = [payMin, payMax, skills, maxYoE, postedAfter, source, employmentType].filter((v) => v !== "").length + (remoteOnly ? 1 : 0);
+
   return (
     <Stack gap="md" id="feed">
-      <div>
-        <Text size="xs" fw={700} tt="uppercase" c="blue" style={{ letterSpacing: "0.18em" }}>
-          Auto Applier
-        </Text>
-        <Title order={2} mt={4}>
-          {t(locale, "feed.heading")}
-        </Title>
-      </div>
+      <Title order={2} size="h3">
+        {t(locale, "feed.heading")}
+      </Title>
 
       <Grid gutter="lg" align="flex-start">
-        <Grid.Col span={{ base: 12, lg: 3 }}>
-          <Paper withBorder shadow="sm" p="md" radius="lg" style={{ position: "sticky", top: 80 }}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (validNumberFilters(payMin, payMax, maxYoE)) setOffset(0);
-              }}
-            >
-              <Stack gap="sm">
-                <TextInput
-                  leftSection={<IconSearch size={16} />}
-                  placeholder={t(locale, "feed.search.placeholder")}
-                  aria-label={t(locale, "feed.search.placeholder")}
-                  type="search"
-                  value={search}
-                  onChange={(e) => onFilter(() => setSearch(e.target.value))}
-                />
-                <TextInput
-                  leftSection={<IconMapPin size={16} />}
-                  placeholder={t(locale, "feed.filter.location")}
-                  aria-label={t(locale, "feed.filter.location")}
-                  value={location}
-                  onChange={(e) => onFilter(() => setLocation(e.target.value))}
-                />
-                <TextInput
-                  label={t(locale, "feed.filter.payMin")}
-                  type="number"
-                  aria-label={t(locale, "feed.filter.payMin")}
-                  value={payMin}
-                  onChange={(e) => onFilter(() => setPayMin(e.target.value))}
-                />
-                <TextInput
-                  label={t(locale, "feed.filter.payMax")}
-                  type="number"
-                  aria-label={t(locale, "feed.filter.payMax")}
-                  value={payMax}
-                  onChange={(e) => onFilter(() => setPayMax(e.target.value))}
-                />
-                <TextInput
-                  label={t(locale, "feed.filter.skills")}
-                  aria-label={t(locale, "feed.filter.skills")}
-                  value={skills}
-                  onChange={(e) => onFilter(() => setSkills(e.target.value))}
-                />
-                <TextInput
-                  label={t(locale, "feed.filter.maxYoe")}
-                  type="number"
-                  aria-label={t(locale, "feed.filter.maxYoe")}
-                  value={maxYoE}
-                  onChange={(e) => onFilter(() => setMaxYoE(e.target.value))}
-                />
-                <TextInput
-                  label={t(locale, "feed.filter.postedAfter")}
-                  type="date"
-                  aria-label={t(locale, "feed.filter.postedAfter")}
-                  value={postedAfter}
-                  onChange={(e) => onFilter(() => setPostedAfter(e.target.value))}
-                />
-                <NativeSelect
-                  label={t(locale, "feed.filter.source")}
-                  aria-label={t(locale, "feed.filter.source")}
-                  data={[{ value: "", label: t(locale, "feed.filter.all") }, ...SOURCE_IDS.map((s) => ({ value: s, label: s }))]}
-                  value={source}
-                  onChange={(e) => onFilter(() => setSource(e.target.value))}
-                />
-                <NativeSelect
-                  label={t(locale, "feed.filter.employmentType")}
-                  aria-label={t(locale, "feed.filter.employmentType")}
-                  data={[{ value: "", label: t(locale, "feed.filter.all") }, ...EMPLOYMENT_TYPES.map((etype) => ({ value: etype, label: etype.replace("_", " ") }))]}
-                  value={employmentType}
-                  onChange={(e) => onFilter(() => setEmploymentType(e.target.value))}
-                />
-                <Checkbox
-                  label={t(locale, "feed.filter.remote")}
-                  checked={remoteOnly}
-                  onChange={(e) => onFilter(() => setRemoteOnly(e.currentTarget.checked))}
-                />
-                <Button type="submit" fullWidth>
-                  {t(locale, "feed.filter.apply")}
+        <Grid.Col span={{ base: 12, md: 4, lg: 3 }}>
+          <form
+            aria-label={t(locale, "feed.filters.label")}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (validNumberFilters(payMin, payMax, maxYoE)) setOffset(0);
+            }}
+          >
+            <Stack gap="sm">
+              <TextInput
+                leftSection={<IconSearch size={16} aria-hidden />}
+                placeholder={t(locale, "feed.search.placeholder")}
+                aria-label={t(locale, "feed.search.placeholder")}
+                type="search"
+                value={search}
+                onChange={(e) => onFilter(() => setSearch(e.target.value))}
+              />
+              <TextInput
+                leftSection={<IconMapPin size={16} aria-hidden />}
+                placeholder={t(locale, "feed.filter.location")}
+                aria-label={t(locale, "feed.filter.location")}
+                value={location}
+                onChange={(e) => onFilter(() => setLocation(e.target.value))}
+              />
+              {narrow && (
+                <Button
+                  variant="default"
+                  leftSection={<IconAdjustmentsHorizontal size={16} aria-hidden />}
+                  onClick={toggleMore}
+                  aria-expanded={moreOpen}
+                  aria-controls="feed-more-filters"
+                >
+                  {t(locale, "feed.filter.more")}
+                  {activeMore > 0 ? ` (${activeMore})` : ""}
                 </Button>
-                <Button variant="default" fullWidth onClick={clearFilters}>
-                  {t(locale, "feed.filter.clear")}
-                </Button>
-              </Stack>
-            </form>
-          </Paper>
+              )}
+              <Collapse in={!narrow || moreOpen} id="feed-more-filters">
+                <Stack gap="sm">
+                  <TextInput
+                    label={t(locale, "feed.filter.payMin")}
+                    type="number"
+                    inputMode="numeric"
+                    value={payMin}
+                    onChange={(e) => onFilter(() => setPayMin(e.target.value))}
+                  />
+                  <TextInput
+                    label={t(locale, "feed.filter.payMax")}
+                    type="number"
+                    inputMode="numeric"
+                    value={payMax}
+                    onChange={(e) => onFilter(() => setPayMax(e.target.value))}
+                  />
+                  <TextInput
+                    label={t(locale, "feed.filter.skills")}
+                    value={skills}
+                    onChange={(e) => onFilter(() => setSkills(e.target.value))}
+                  />
+                  <TextInput
+                    label={t(locale, "feed.filter.maxYoe")}
+                    type="number"
+                    inputMode="numeric"
+                    value={maxYoE}
+                    onChange={(e) => onFilter(() => setMaxYoE(e.target.value))}
+                  />
+                  <TextInput
+                    label={t(locale, "feed.filter.postedAfter")}
+                    type="date"
+                    value={postedAfter}
+                    onChange={(e) => onFilter(() => setPostedAfter(e.target.value))}
+                  />
+                  <NativeSelect
+                    label={t(locale, "feed.filter.source")}
+                    data={[{ value: "", label: t(locale, "feed.filter.all") }, ...SOURCE_IDS.map((s) => ({ value: s, label: s }))]}
+                    value={source}
+                    onChange={(e) => onFilter(() => setSource(e.target.value))}
+                  />
+                  <NativeSelect
+                    label={t(locale, "feed.filter.employmentType")}
+                    data={[
+                      { value: "", label: t(locale, "feed.filter.all") },
+                      ...EMPLOYMENT_TYPES.map((etype) => ({ value: etype, label: employmentLabel(locale, etype) })),
+                    ]}
+                    value={employmentType}
+                    onChange={(e) => onFilter(() => setEmploymentType(e.target.value))}
+                  />
+                  <Checkbox
+                    label={t(locale, "feed.filter.remote")}
+                    checked={remoteOnly}
+                    onChange={(e) => onFilter(() => setRemoteOnly(e.currentTarget.checked))}
+                    styles={{ body: { alignItems: "center", minHeight: 44 } }}
+                  />
+                  <Button variant="default" onClick={clearFilters}>
+                    {t(locale, "feed.filter.clear")}
+                  </Button>
+                </Stack>
+              </Collapse>
+            </Stack>
+          </form>
         </Grid.Col>
 
-        <Grid.Col span={{ base: 12, lg: 9 }}>
+        <Grid.Col span={{ base: 12, md: 8, lg: 9 }}>
           {status === "loading" && (
             <Stack gap="md" aria-busy="true" aria-live="polite">
               <Text size="sm" c="dimmed">
@@ -258,10 +272,10 @@ export function JobFeed({
               </Text>
               <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }} spacing="md">
                 {Array.from({ length: 6 }, (_, i) => (
-                  <Card key={i} withBorder radius="lg" p="lg">
+                  <Card key={i} withBorder padding="md">
                     <Skeleton height={18} width="70%" mb="md" />
                     <Skeleton height={14} width="50%" mb="lg" />
-                    <Skeleton height={36} radius="md" />
+                    <Skeleton height={36} />
                   </Card>
                 ))}
               </SimpleGrid>
@@ -269,23 +283,34 @@ export function JobFeed({
           )}
 
           {status === "error" && (
-            <Alert color="red" role="alert">
-              {t(locale, "feed.error")}
+            <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+              <Stack gap="xs" align="flex-start">
+                <Text size="sm">{t(locale, "feed.error")}</Text>
+                <Button variant="default" onClick={() => setAttempt((n) => n + 1)}>
+                  {t(locale, "feed.retry")}
+                </Button>
+              </Stack>
             </Alert>
           )}
 
           {status === "ready" && data && (
             <Stack gap="md">
-              <Text size="sm" c="dimmed">
-                {data.total} {t(locale, "feed.results.count")}
-              </Text>
+              <div>
+                <Text size="sm" fw={600}>
+                  {data.total} {t(locale, "feed.results.count")}
+                </Text>
+                <Text size="sm" c="dimmed" maw={640}>
+                  {t(locale, "feed.openFill.note")}
+                </Text>
+              </div>
 
               {data.jobs.length === 0 ? (
-                <Paper withBorder p="xl" radius="lg" style={{ borderStyle: "dashed", textAlign: "center" }}>
-                  <Text size="sm" c="dimmed">
-                    {t(locale, "feed.empty")}
-                  </Text>
-                </Paper>
+                <Stack gap="xs" align="flex-start" py="lg">
+                  <Text>{t(locale, "feed.empty")}</Text>
+                  <Button variant="default" onClick={clearFilters}>
+                    {t(locale, "feed.filter.clear")}
+                  </Button>
+                </Stack>
               ) : (
                 <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }} spacing="md">
                   {data.jobs.map((job) => (

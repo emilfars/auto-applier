@@ -47,3 +47,30 @@ Design Read: a short account form for a returning or new job seeker, calm navy, 
 | Copy in both locales | PASS | validation and status-specific errors come from `validation.*`, `auth.error.*`, `error.*` in `id.json` and `en.json` (key parity test) |
 
 Known limit: an unmapped 4xx still shows the server's English message (it names the specific field); listed in `REVAMP_REPORT.md`.
+
+## JobFeed and JobCard
+
+Design Read: a scannable job list with a filter rail for seekers comparing pay and requirements, calm navy, dial 1/2/1. Focal point: the list; inside a card, the pay line.
+
+| Item | Status | Evidence |
+|---|---|---|
+| R-02 em dash | PASS | `grep -c "—"` on both locale files returns 0 (seven strings per locale rewritten) |
+| R-03 mobile | PASS | matrix `feed`: 48/48 cells captured at 360/768/1280, 0 page overflow, 0 clipped. At 360px search and location stay visible, the other eight filters sit behind a labeled "Filter lain" toggle with an active count, and the first card starts inside the first screen (viewport screenshot). Card buttons are 36px on desktop and 44px on touch |
+| R-17, R-38 data | PASS | cards show only API fields; pay is the employer's label or an estimate that says so; an undisclosed salary says "Gaji tidak dicantumkan" |
+| R-25 contrast | PASS | pay amount is `--brand-text`; markers pair a state color with words; `tokens.test.ts` |
+| R-26 controls | PASS | the "Cari" button that changed nothing is removed (filters apply as you type, Enter still submits); every remaining button acts: Open & Fill, View & apply (real href, new tab), Mark applied, Hide, More filters, Clear filters, Try again, pagination |
+| R-27 states | PASS | loading (text plus skeleton cards, `aria-busy`), empty (says no job matches the filters and offers Clear filters), error (what failed, what to check, Try again), populated; matrix captures all four in both locales and themes; `JobFeed.states.test.tsx` covers retry |
+| R-32 keyboard | PASS | filter form is a labeled `form`; toggle exposes `aria-expanded`/`aria-controls`; notices are `role="status"` |
+| R-34 themes | PASS | light and dark captured, 0 off-brand |
+| R-35 run and click | PASS | `browser-e2e.mjs`: search narrows to zero results and back, Open & Fill arms the extension, 0 console errors. Unit: every filter reaches the query in both locales, clear resets, pagination, dismiss, mark applied, all five Open & Fill notices |
+| R-01, R-12, R-13 | PASS | no gradient, glow or shadow; cards are a flat surface with a hairline border |
+| R-04 icons | PASS | search, map pin, sliders (filters), external link, alert: each names its control. The magic wand is gone |
+| R-06 type | PASS | sentence case; the uppercase tracked "Auto Applier" eyebrow is gone |
+| R-09 badges | PASS | requirement tags are plain small chips (real labels from the listing); source, employment type and seniority moved into one muted text line |
+| R-14 cards | PASS | cards are identical on purpose: rows of one entity the user compares (PRD FEED-1) |
+| R-15, R-16 copy | PASS | "Buka & Isi", "Lihat & lamar", "Tandai dilamar", "Sembunyikan"; the Prime Directive sentence appears once above the list instead of on all 24 cards |
+| R-29 palette | PASS | navy surfaces, one blue accent on the primary action, state green/amber only on markers |
+| Liveliness | PASS | identity motif in use: square state marker plus words for stated pay (green) versus estimate (amber), and for the Open & Fill notices |
+| C-3 | PASS | filter rail and list only; no section exists to fill space |
+
+Kept and deferred: the source filter still lists the synthetic seed's source IDs (PROGRESS D10).

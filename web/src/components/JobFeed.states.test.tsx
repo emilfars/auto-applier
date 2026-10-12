@@ -50,7 +50,45 @@ describe("JobFeed states", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
     render(wrap(<JobFeed locale="en" />));
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Jobs could not be loaded");
+    expect(alert.textContent).toContain("Jobs could not be loaded. Check your connection and try again.");
+  });
+
+  it("retries the request from the error state", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+      .mockResolvedValue({ ok: true, status: 200, json: async () => empty });
+    vi.stubGlobal("fetch", fetchMock);
+    render(wrap(<JobFeed locale="id-ID" />));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Coba lagi" }));
+
+    expect(await screen.findByText("Tidak ada lowongan yang cocok dengan filter Anda.")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("tucks the secondary filters behind a labeled toggle on narrow screens", async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ ...original(query), matches: true })) as typeof window.matchMedia;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => empty }));
+    try {
+      render(wrap(<JobFeed locale="en" />));
+      const toggle = await screen.findByRole("button", { name: "More filters" });
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+      fireEvent.click(toggle);
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      fireEvent.click(screen.getByLabelText("Remote only"));
+      expect(await screen.findByRole("button", { name: "More filters (1)" })).toBeTruthy();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it("says once, above the list, that the user reviews and clicks Apply", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => empty }));
+    render(wrap(<JobFeed locale="en" />));
+    expect(await screen.findAllByText(/You review every field, then click Apply yourself/)).toHaveLength(1);
   });
 
   it("shows a loading state before the first response resolves", () => {
