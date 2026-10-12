@@ -12,7 +12,7 @@
 import type { ProfileData } from "@auto-applier/fill-mappings";
 
 /** Default time an arm stays valid before it expires (ms). */
-export const ARM_TTL_MS = 60_000;
+const ARM_TTL_MS = 60_000;
 
 /**
  * Normalize a URL for matching: scheme + host + path only. Query and hash are
@@ -30,7 +30,7 @@ export function normalizeUrl(url: string): string {
 }
 
 /** Structured-clone-safe CV bytes used at the message/content boundaries. */
-export interface SerializedFile {
+interface SerializedFile {
   name: string;
   type: string;
   bytesBase64: string;
@@ -98,7 +98,7 @@ const BINARY_STORE_NAME = "payloads";
  * IndexedDB-backed CV payload store. Payload ids are content hashes, so two
  * simultaneous arms for the same snapshot share one record.
  */
-export class IndexedDbBinaryPayloadStore implements BinaryPayloadStore {
+class IndexedDbBinaryPayloadStore implements BinaryPayloadStore {
   private dbPromise: Promise<IDBDatabase> | undefined;
 
   constructor(

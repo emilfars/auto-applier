@@ -16,7 +16,7 @@ import { watchForCorrection, type TelemetrySink } from "./telemetry.js";
 export const FILL_ATTR = "data-aa-fill";
 
 /** Outcome of applying a single field to the DOM. */
-export interface AppliedField {
+interface AppliedField {
   key: string;
   state: "filled" | "uncertain" | "empty";
   selector?: string;

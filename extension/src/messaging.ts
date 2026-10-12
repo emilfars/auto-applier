@@ -162,6 +162,3 @@ export function asFillCorrection(msg: unknown): FillCorrectionMessage | null {
   }
   return { type: "fillCorrection", event: event as FillCorrectionEvent };
 }
-
-/** Type-only assertion that snapshots always carry the canonical profile type. */
-export type CanonicalProfile = ProfileData;
