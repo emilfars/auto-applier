@@ -3,8 +3,8 @@
 // typing the account email exactly, because it cannot be undone.
 
 import { useState } from "react";
-import { Alert, Button, Divider, Group, Modal, Stack, Text, TextInput, Title } from "@mantine/core";
-import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
+import { Alert, Button, Card, Group, Modal, Stack, Text, TextInput, ThemeIcon, Title } from "@mantine/core";
+import { IconAlertCircle, IconCircleCheck, IconDownload, IconTrash } from "@tabler/icons-react";
 import { t, type Locale } from "../i18n";
 import { useSession } from "../auth/session";
 import { deleteAccount, exportAccount } from "../api/account";
@@ -60,65 +60,94 @@ export function AccountPanel({ locale }: { locale: Locale }) {
     });
 
   return (
-    <Stack gap="md">
-      <Divider />
-      <Stack gap="xs">
-        <Title order={3} size="h5">{t(locale, "account.dataRights")}</Title>
-        <Text size="xs" c="dimmed">
+    <Stack gap="lg">
+      <Stack gap={4} mt="md">
+        <Title order={2}>{t(locale, "account.dataRights")}</Title>
+        <Text size="sm" c="dimmed">
           {t(locale, "account.dataRights.note")}
         </Text>
       </Stack>
 
-      <Stack gap="xs">
-        <Text fw={500}>{t(locale, "account.export.heading")}</Text>
-        <Text size="sm" c="dimmed">
-          {t(locale, "account.export.description")}
-        </Text>
-        <Button
-          variant="default"
-          loading={busy === "export"}
-          disabled={busy !== null}
-          onClick={onExport}
-          data-testid="account-export"
-          style={{ alignSelf: "flex-start" }}
-        >
-          {t(locale, "account.export.action")}
-        </Button>
-      </Stack>
+      <Card>
+        <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Group gap="md" wrap="nowrap" align="flex-start" style={{ flex: "1 1 280px" }}>
+            <ThemeIcon size={40} radius="md" variant="light" color="blue" aria-hidden>
+              <IconDownload size={20} />
+            </ThemeIcon>
+            <div>
+              <Text fw={600}>{t(locale, "account.export.heading")}</Text>
+              <Text size="sm" c="dimmed">
+                {t(locale, "account.export.description")}
+              </Text>
+            </div>
+          </Group>
+          <Button
+            variant="default"
+            loading={busy === "export"}
+            disabled={busy !== null}
+            onClick={onExport}
+            data-testid="account-export"
+          >
+            {t(locale, "account.export.action")}
+          </Button>
+        </Group>
+      </Card>
 
-      <Divider />
-
-      <Stack gap="xs">
-        <Text fw={500} c="red">
-          {t(locale, "account.delete.heading")}
-        </Text>
-        <Text size="sm" c="dimmed">
-          {t(locale, "account.delete.description")}
-        </Text>
-        <Button
-          color="red"
-          variant="light"
-          disabled={busy !== null}
-          onClick={() => setOpened(true)}
-          data-testid="account-delete-open"
-          style={{ alignSelf: "flex-start" }}
-        >
-          {t(locale, "account.delete.action")}
-        </Button>
-      </Stack>
+      <Card style={{ borderColor: "var(--brand-danger)" }}>
+        <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Group gap="md" wrap="nowrap" align="flex-start" style={{ flex: "1 1 280px" }}>
+            <ThemeIcon size={40} radius="md" variant="light" color="red" aria-hidden>
+              <IconTrash size={20} />
+            </ThemeIcon>
+            <div>
+              <Text fw={600} c="red">
+                {t(locale, "account.delete.heading")}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {t(locale, "account.delete.description")}
+              </Text>
+            </div>
+          </Group>
+          <Button
+            color="red"
+            variant="light"
+            disabled={busy !== null}
+            onClick={() => setOpened(true)}
+            data-testid="account-delete-open"
+          >
+            {t(locale, "account.delete.action")}
+          </Button>
+        </Group>
+      </Card>
 
       {error && (
-        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />} data-testid="account-status">
+        <Alert
+          color="red"
+          variant="light"
+          role="alert"
+          icon={<IconAlertCircle aria-hidden />}
+          data-testid="account-status"
+        >
           {error}
         </Alert>
       )}
       {notice && (
-        <Alert color="teal" variant="light" role="status" icon={<IconCircleCheck aria-hidden />} data-testid="account-notice">
+        <Alert
+          color="teal"
+          variant="light"
+          role="status"
+          icon={<IconCircleCheck aria-hidden />}
+          data-testid="account-notice"
+        >
           {notice}
         </Alert>
       )}
 
-      <Modal opened={opened} onClose={closeModal} title={t(locale, "account.delete.confirmTitle")}>
+      <Modal
+        opened={opened}
+        onClose={closeModal}
+        title={<Text fw={650}>{t(locale, "account.delete.confirmTitle")}</Text>}
+      >
         <Stack gap="sm">
           <Text size="sm">{t(locale, "account.delete.confirmBody")}</Text>
           <TextInput
@@ -128,7 +157,7 @@ export function AccountPanel({ locale }: { locale: Locale }) {
             onChange={(e) => setTypedEmail(e.currentTarget.value)}
             data-testid="account-delete-email"
           />
-          <Group justify="flex-end">
+          <Group justify="flex-end" mt="sm">
             <Button variant="default" onClick={closeModal} data-testid="account-delete-cancel">
               {t(locale, "account.delete.cancel")}
             </Button>

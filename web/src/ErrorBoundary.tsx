@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
-import { Button, Container, Stack, Text, Title } from "@mantine/core";
+import { Button, Card, Container, Stack, Text, ThemeIcon, Title } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { DEFAULT_LOCALE, t } from "./i18n";
 
 /**
@@ -17,14 +18,19 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <Container size="xs" py="xl" role="alert">
-        <Stack gap="sm" align="flex-start">
-          <Title order={1} size="h3">
-            {t(DEFAULT_LOCALE, "error.boundary.title")}
-          </Title>
-          <Text c="dimmed">{t(DEFAULT_LOCALE, "error.boundary.body")}</Text>
-          <Button onClick={() => window.location.reload()}>{t(DEFAULT_LOCALE, "error.boundary.reload")}</Button>
-        </Stack>
+      <Container size="xs" py={64} role="alert">
+        <Card padding="xl">
+          <Stack gap="md" align="flex-start">
+            <ThemeIcon size={44} radius="md" variant="light" color="red" aria-hidden>
+              <IconAlertTriangle size={22} />
+            </ThemeIcon>
+            <Title order={1} size="h3">
+              {t(DEFAULT_LOCALE, "error.boundary.title")}
+            </Title>
+            <Text c="dimmed">{t(DEFAULT_LOCALE, "error.boundary.body")}</Text>
+            <Button onClick={() => window.location.reload()}>{t(DEFAULT_LOCALE, "error.boundary.reload")}</Button>
+          </Stack>
+        </Card>
       </Container>
     );
   }

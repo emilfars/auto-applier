@@ -217,5 +217,18 @@
   "completeness.employment_type": "tipe pekerjaan",
   "completeness.summary": "ringkasan profesional",
   "common.loading": "Memuat…",
-  "common.retry": "Coba lagi"
+  "common.retry": "Coba lagi",
+  "page.profile.title": "CV & profil",
+  "page.profile.description": "Unggah CV, periksa data yang kami ambil, lalu konfirmasi. Hanya data yang sudah dikonfirmasi yang diisikan ke lamaran.",
+  "page.applications.description": "Pantau lamaran yang Anda mulai, simpan pencarian, dan simpan jawaban yang sering dipakai.",
+  "page.account.description": "Masuk untuk menyimpan lowongan dan mengisi lamaran, atau kelola data Anda.",
+  "feed.search.submit": "Cari",
+  "feed.filters.heading": "Filter",
+  "profile.status.heading": "Konfirmasi",
+  "cv.list.heading": "CV Anda",
+  "feed.new": "Baru",
+  "auth.promo.title": "Melamar lebih cepat. Tetap Anda yang memegang kendali.",
+  "auth.promo.1": "Unggah CV sekali, pakai di mana saja.",
+  "auth.promo.2": "Isi formulir lamaran dengan satu klik.",
+  "auth.promo.3": "Tidak ada yang terkirim sebelum Anda sendiri menekan Lamar."
 }

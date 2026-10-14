@@ -21,10 +21,12 @@
     <!-- Painted before the script loads; React replaces it. Text mirrors id.json (boot-shell.test.ts). -->
     <div id="root">
       <div class="boot-shell">
-        <p class="boot-title">Auto Applier</p>
-        <p class="boot-tagline">Unggah CV sekali. Ekstensi browser mengisi formulir lamaran, lalu Anda sendiri yang menekan Lamar.</p>
-        <p class="boot-heading">Lowongan terbaru di Jabodetabek</p>
-        <p class="boot-tagline">Memuat lowongan…</p>
+        <div class="boot-side"><p class="boot-title">Auto Applier</p></div>
+        <div class="boot-main">
+          <p class="boot-heading">Lowongan terbaru di Jabodetabek</p>
+          <p class="boot-tagline">Unggah CV sekali. Ekstensi browser mengisi formulir lamaran, lalu Anda sendiri yang menekan Lamar.</p>
+          <p class="boot-tagline">Memuat lowongan…</p>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

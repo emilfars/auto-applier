@@ -22,9 +22,29 @@
   --brand-on-state: #0b1830;
   /* 8% keeps --brand-link at 4.5:1 on the tint over every surface */
   --brand-primary-soft: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  --brand-primary-tint: color-mix(in srgb, var(--brand-primary) 16%, transparent);
   --brand-success-soft: color-mix(in srgb, var(--brand-success) 15%, transparent);
   --brand-warning-soft: color-mix(in srgb, var(--brand-warning) 15%, transparent);
   --brand-danger-soft: color-mix(in srgb, var(--brand-danger) 15%, transparent);
+  --brand-sidebar: color-mix(in srgb, var(--brand-surface) 55%, var(--brand-bg));
+  --brand-shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.4);
+  --brand-shadow-md: 0 4px 16px rgba(2, 8, 23, 0.45);
+  --brand-shadow-lg: 0 16px 40px rgba(2, 8, 23, 0.55);
+  --brand-font: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --app-sidebar-width: 248px;
+  --brand-gradient: linear-gradient(135deg, #2e7cf6 0%, #5aa7ff 100%);
+  --brand-hero: linear-gradient(135deg, #1b2f5e 0%, #13234a 55%, #0b1830 100%);
+  --brand-glow-1: radial-gradient(circle at center, rgba(46, 124, 246, 0.45), transparent 65%);
+  --brand-glow-2: radial-gradient(circle at center, rgba(52, 211, 153, 0.22), transparent 65%);
+  --avatar-0: linear-gradient(135deg, #1e5fd0, #2e7cf6);
+  --avatar-1: linear-gradient(135deg, #047857, #059669);
+  --avatar-2: linear-gradient(135deg, #6d28d9, #8b5cf6);
+  --avatar-3: linear-gradient(135deg, #b45309, #d97706);
+  --avatar-4: linear-gradient(135deg, #be185d, #db2777);
+  --avatar-5: linear-gradient(135deg, #0369a1, #0284c7);
+  --illo-ink: var(--brand-link);
+  --illo-paper: var(--brand-surface-2);
+  --illo-line: var(--brand-border-strong);
 }
 
 [data-mantine-color-scheme="light"] {
@@ -32,7 +52,7 @@
   --brand-bg: #f4f7fc;
   --brand-surface: #ffffff;
   --brand-surface-2: #e8eef8;
-  --brand-border: #cbd5e1;
+  --brand-border: #dbe3ef;
   /* derived: muted 75% over white */
   --brand-border-strong: #7d899f;
   --brand-text: #13223f;
@@ -43,69 +63,41 @@
   --brand-warning: #7e6012;
   --brand-danger: #a14949;
   --brand-on-state: #ffffff;
+  --brand-sidebar: #ffffff;
+  --brand-shadow-sm: 0 1px 2px rgba(19, 34, 63, 0.06);
+  --brand-shadow-md: 0 4px 16px rgba(19, 34, 63, 0.08);
+  --brand-shadow-lg: 0 16px 40px rgba(19, 34, 63, 0.14);
+  --brand-hero: linear-gradient(135deg, #dbe8ff 0%, #eef4ff 55%, #f4f7fc 100%);
+  --brand-glow-1: radial-gradient(circle at center, rgba(46, 124, 246, 0.28), transparent 65%);
+  --brand-glow-2: radial-gradient(circle at center, rgba(16, 185, 129, 0.18), transparent 65%);
+  --illo-paper: #ffffff;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   background: var(--mantine-color-body, var(--brand-bg));
+  font-family: var(--brand-font);
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Mantine draws focus with the primary fill, which is under 3:1 on navy. */
+::selection {
+  background: var(--brand-primary-tint);
+}
+
+/* Focus: Mantine's primary fill is under 3:1 on navy, and inputs only change border color. */
 .mantine-focus-auto:focus-visible,
 .mantine-focus-always:focus {
   outline-color: var(--brand-link);
 }
 
-/* Mantine marks a focused input with a border color change only; add a ring. */
 .mantine-Input-input:focus,
 .mantine-Input-input:focus-within,
 .mantine-Checkbox-input:focus-visible,
 .mantine-SegmentedControl-input:focus-visible + .mantine-SegmentedControl-label {
   outline: 2px solid var(--brand-link);
   outline-offset: 2px;
-}
-
-::selection {
-  background: var(--brand-primary-soft);
-}
-
-/* App navigation: header row on wide screens, labeled bottom bar on phones. */
-.app-nav-item {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: var(--mantine-radius-md);
-  color: var(--brand-muted);
-  font-size: var(--mantine-font-size-sm);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.app-nav-item[data-stacked] {
-  flex-direction: column;
-  gap: 2px;
-  min-height: 64px;
-  padding: 0 4px;
-  border-radius: 0;
-  font-size: var(--mantine-font-size-xs);
-}
-
-.app-nav-item:hover {
-  color: var(--brand-text);
-}
-
-.app-nav-item[aria-current="page"] {
-  color: var(--brand-text);
-  box-shadow: inset 0 -2px 0 var(--brand-link);
-}
-
-.app-nav-item[data-stacked][aria-current="page"] {
-  box-shadow: inset 0 2px 0 var(--brand-link);
 }
 
 /* Touch targets: at least 44px tall where a finger is the pointer. */
@@ -118,19 +110,235 @@ body {
   }
 }
 
+/* Navigation: sidebar on wide screens, labeled bottom bar on phones. */
+.app-sidebar {
+  background: var(--brand-sidebar);
+  overflow: hidden;
+}
+
+.app-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: -120px auto auto -120px;
+  width: 320px;
+  height: 320px;
+  background: var(--brand-glow-1);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.app-sidebar > * {
+  position: relative;
+}
+
+.app-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--mantine-radius-md);
+  color: var(--brand-muted);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.app-nav-item:hover {
+  color: var(--brand-text);
+  background: var(--brand-primary-soft);
+}
+
+.app-nav-item[aria-current="page"] {
+  color: var(--brand-link);
+  background: var(--brand-primary-tint);
+  font-weight: 600;
+}
+
+.app-nav-item[data-stacked] {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 0 4px;
+  border-radius: 0;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.app-nav-item[data-stacked][aria-current="page"] {
+  background: none;
+  box-shadow: inset 0 2px 0 var(--brand-link);
+}
+
+.app-brand-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--brand-gradient);
+  color: var(--brand-on-primary);
+  box-shadow: 0 6px 16px rgba(46, 124, 246, 0.4);
+}
+
+.app-nav-item[aria-current="page"]:not([data-stacked]) {
+  box-shadow: inset 3px 0 0 var(--brand-link);
+}
+
+/* Repeated entities lift on hover so the clickable surface is obvious. */
+.job-card {
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+
+.job-card:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--brand-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.company-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.company-avatar[data-tone="0"] { background: var(--avatar-0); }
+.company-avatar[data-tone="1"] { background: var(--avatar-1); }
+.company-avatar[data-tone="2"] { background: var(--avatar-2); }
+.company-avatar[data-tone="3"] { background: var(--avatar-3); }
+.company-avatar[data-tone="4"] { background: var(--avatar-4); }
+.company-avatar[data-tone="5"] { background: var(--avatar-5); }
+
+.gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Page hero: palette.md gradient with two soft glows and an illustration. */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--brand-border);
+  border-radius: 24px;
+  background: var(--brand-hero);
+}
+
+.page-hero::before,
+.page-hero::after {
+  content: "";
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  pointer-events: none;
+}
+
+.page-hero::before {
+  top: -200px;
+  right: -80px;
+  background: var(--brand-glow-1);
+}
+
+.page-hero::after {
+  bottom: -260px;
+  left: 20%;
+  background: var(--brand-glow-2);
+}
+
+.page-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-overlap {
+  position: relative;
+  z-index: 2;
+  margin-top: -36px;
+}
+
+.stat-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-tile::after {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 160px;
+  height: 160px;
+  background: var(--brand-glow-1);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.icon-tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--brand-gradient);
+  color: var(--brand-on-primary);
+  box-shadow: 0 6px 16px rgba(46, 124, 246, 0.35);
+}
+
+.live-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-success);
+}
+
+.illustration {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Save bar stays above the phone bottom nav. */
+.sticky-actions {
+  position: sticky;
+  bottom: var(--app-shell-footer-offset, 0px);
+  z-index: 2;
+  background: var(--brand-surface);
+  border-top: 1px solid var(--brand-border);
+}
+
+.sticky-aside {
+  position: sticky;
+  top: var(--mantine-spacing-xl);
+}
+
 /* State marker: the identity motif (DESIGN.md). */
 .state-marker {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
   color: var(--brand-text);
 }
 
 .state-marker-dot {
   flex: none;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 2px;
   background: var(--brand-muted);
 }
@@ -147,30 +355,154 @@ body {
   background: var(--brand-danger);
 }
 
-/* First paint before the script loads (index.html). Sizes match the real header and feed heading. */
+/* Motion: entrances re-run whenever a hidden view is shown again. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--brand-success);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  section:not([hidden]) > * {
+    animation: fade-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  section:not([hidden]) > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  section:not([hidden]) > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .stagger > * {
+    animation: fade-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(min(var(--i, 0), 8) * 50ms);
+  }
+
+  .animate-in,
+  .mantine-Alert-root,
+  [data-testid="job-fill-notice"] {
+    animation: fade-up 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .live-dot {
+    animation: pulse 1.8s ease-out infinite;
+  }
+
+  .pop {
+    animation: pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav-item,
+  .job-card {
+    transition: none;
+  }
+
+  .job-card:hover {
+    transform: none;
+  }
+}
+
+/* First paint before the script loads (index.html); mirrors the shell layout. */
 .boot-shell {
-  padding: 0 var(--mantine-spacing-md, 16px);
   color: var(--brand-text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--brand-font);
+}
+
+.boot-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+  font-weight: 700;
 }
 
 .boot-title {
   margin: 0;
-  height: 60px;
-  line-height: 60px;
-  font-size: 1.125rem;
+}
+
+.boot-main {
+  max-width: 1200px;
+  padding: 24px 16px;
+}
+
+.boot-heading {
+  margin: 0;
+  font-size: 1.75rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .boot-tagline {
   max-width: 640px;
-  margin: 16px 0 0;
-  font-size: 0.875rem;
+  margin: 8px 0 0;
   color: var(--brand-muted);
 }
 
-.boot-heading {
-  margin: 24px 0 0;
-  font-size: 1.375rem;
-  font-weight: 700;
+@media (min-width: 48em) {
+  .boot-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  .boot-side {
+    flex: none;
+    width: var(--app-sidebar-width);
+    height: auto;
+    align-items: flex-start;
+    padding: 20px 16px;
+    box-sizing: border-box;
+    background: var(--brand-sidebar);
+    border-right: 1px solid var(--brand-border);
+  }
+
+  .boot-main {
+    padding: 32px;
+  }
 }

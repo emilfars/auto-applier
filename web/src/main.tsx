@@ -5,6 +5,7 @@ import App from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { SessionProvider } from "./auth/session";
 import { brandCssVariablesResolver, brandTheme } from "./mantine-theme";
+import "@fontsource-variable/inter";
 import "@mantine/core/styles.css";
 import "./styles.css";
 

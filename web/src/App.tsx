@@ -1,11 +1,24 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { AppShell, Container, Group, SegmentedControl, Stack, Text, Title, UnstyledButton } from "@mantine/core";
+import {
+  AppShell,
+  Avatar,
+  Box,
+  Button,
+  Container,
+  Group,
+  SegmentedControl,
+  Stack,
+  Text,
+  Title,
+  UnstyledButton,
+} from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconBriefcase, IconFileCv, IconListCheck, IconUser } from "@tabler/icons-react";
+import { IconSend, IconBriefcase, IconFileCv, IconListCheck, IconLogin2, IconUserCircle } from "@tabler/icons-react";
 import { t, locales, DEFAULT_LOCALE, type Locale, type TranslationKey } from "./i18n";
 import { JobFeed } from "./components/JobFeed";
 import { AuthPanel } from "./components/AuthPanel";
 import { AccountPanel } from "./components/AccountPanel";
+import { PageHeader } from "./components/PageHeader";
 import { useSession } from "./auth/session";
 import { ThemeToggle } from "./theme";
 
@@ -16,7 +29,7 @@ const VIEWS = [
   { id: "feed", label: "nav.feed", icon: IconBriefcase, signedIn: false },
   { id: "profile", label: "nav.profile", icon: IconFileCv, signedIn: true },
   { id: "applications", label: "nav.applications", icon: IconListCheck, signedIn: true },
-  { id: "account", label: "nav.account", icon: IconUser, signedIn: false },
+  { id: "account", label: "nav.account", icon: IconUserCircle, signedIn: false },
 ] as const satisfies ReadonlyArray<{ id: string; label: TranslationKey; icon: unknown; signedIn: boolean }>;
 
 type ViewId = (typeof VIEWS)[number]["id"];
@@ -25,11 +38,32 @@ function useHashView(allowed: readonly ViewId[]): ViewId {
   const read = () => window.location.hash.slice(1);
   const [hash, setHash] = useState(read);
   useEffect(() => {
-    const onChange = () => setHash(read());
+    const onChange = () => {
+      setHash(read());
+      document.documentElement.scrollTop = 0;
+    };
     window.addEventListener("hashchange", onChange);
     return () => window.removeEventListener("hashchange", onChange);
   }, []);
   return allowed.find((id) => id === hash) ?? "feed";
+}
+
+function BrandMark({ locale }: { locale: Locale }) {
+  return (
+    <Group
+      gap="sm"
+      wrap="nowrap"
+      renderRoot={(props) => <a href="#feed" {...props} />}
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <span className="app-brand-mark" aria-hidden="true">
+        <IconSend size={18} stroke={2} />
+      </span>
+      <Text fw={700} size="md" style={{ letterSpacing: "-0.01em" }}>
+        {t(locale, "app.title")}
+      </Text>
+    </Group>
+  );
 }
 
 export default function App() {
@@ -41,6 +75,9 @@ export default function App() {
   const [profileConfirmed, setProfileConfirmed] = useState<boolean | null>(null);
   const userId = user?.id;
   useEffect(() => setProfileConfirmed(null), [userId]);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   const mobile = useMediaQuery("(max-width: 48em)", false, { getInitialValueInEffect: false });
 
   const views = VIEWS.filter((v) => user || !v.signedIn);
@@ -63,48 +100,85 @@ export default function App() {
         className="app-nav-item"
         data-stacked={stacked || undefined}
       >
-        <Icon size={stacked ? 22 : 18} aria-hidden />
+        <Icon size={stacked ? 22 : 20} stroke={1.75} aria-hidden />
         <span>{t(locale, label)}</span>
       </UnstyledButton>
     ));
 
+  const preferences = (
+    <Group gap="xs" wrap="nowrap">
+      <SegmentedControl
+        aria-label={t(locale, "app.language")}
+        value={locale}
+        onChange={(v) => setLocale(v as Locale)}
+        data={locales.map((l) => ({ value: l, label: l.slice(0, 2).toUpperCase() }))}
+        size="sm"
+        radius="md"
+        styles={{ label: { minHeight: 36, minWidth: 40, display: "grid", placeItems: "center" } }}
+      />
+      <ThemeToggle locale={locale} />
+    </Group>
+  );
+
   return (
-    <AppShell header={{ height: 60 }} footer={{ height: 64, collapsed: !mobile }} padding="md">
-      <AppShell.Header>
-        <Container size="xl" h="100%">
-          <Group h="100%" justify="space-between" wrap="nowrap" gap="sm">
-            <Title order={1} size="h4">
-              {t(locale, "app.title")}
-            </Title>
-            {!mobile && (
-              <Group component="nav" aria-label={t(locale, "nav.label")} gap={4} wrap="nowrap">
-                {nav(false)}
-              </Group>
-            )}
-            <Group gap="xs" wrap="nowrap">
-              <SegmentedControl
-                aria-label={t(locale, "app.language")}
-                value={locale}
-                onChange={(v) => setLocale(v as Locale)}
-                data={locales.map((l) => ({ value: l, label: l.slice(0, 2).toUpperCase() }))}
-                size="sm"
-                styles={{ label: { minHeight: 44, minWidth: 44, display: "grid", placeItems: "center" } }}
-              />
-              <ThemeToggle locale={locale} />
-            </Group>
-          </Group>
-        </Container>
+    <AppShell
+      header={{ height: 56, collapsed: !mobile }}
+      navbar={{ width: 248, breakpoint: "48em", collapsed: { mobile: true } }}
+      footer={{ height: 64, collapsed: !mobile }}
+    >
+      <AppShell.Header px="md">
+        <Group h="100%" justify="space-between" wrap="nowrap">
+          <BrandMark locale={locale} />
+          {mobile && preferences}
+        </Group>
       </AppShell.Header>
 
-      <AppShell.Main>
-        <Container size="xl" px={0}>
-          <section hidden={view !== "feed"}>
-            <Stack gap="lg">
-              <Text c="dimmed" size="sm" maw={640}>
-                {t(locale, "app.tagline")}
-              </Text>
-              <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} signedIn={!!user} />
+      <AppShell.Navbar p="md" className="app-sidebar">
+        {!mobile && (
+          <>
+            <Box px={4} py={6} mb="lg">
+              <BrandMark locale={locale} />
+            </Box>
+            <Stack component="nav" aria-label={t(locale, "nav.label")} gap={4} style={{ flex: 1 }}>
+              {nav(false)}
             </Stack>
+            <Stack gap="md" pt="md" style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}>
+              {user ? (
+                <Group gap="sm" wrap="nowrap" px={4}>
+                  <Avatar size={32} radius="xl" color="blue" variant="light">
+                    {user.email.slice(0, 1).toUpperCase()}
+                  </Avatar>
+                  <Text size="sm" truncate style={{ minWidth: 0 }}>
+                    {user.email}
+                  </Text>
+                </Group>
+              ) : (
+                <Button
+                  component="a"
+                  href="#account"
+                  variant="light"
+                  leftSection={<IconLogin2 size={18} aria-hidden />}
+                  fullWidth
+                >
+                  {t(locale, "auth.tab.signin")}
+                </Button>
+              )}
+              {preferences}
+            </Stack>
+          </>
+        )}
+      </AppShell.Navbar>
+
+      <AppShell.Main>
+        <Container size={1200} px={{ base: "md", sm: "xl" }} py={{ base: "lg", sm: "xl" }}>
+          <section hidden={view !== "feed"}>
+            <PageHeader
+              title={t(locale, "feed.heading")}
+              description={t(locale, "app.tagline")}
+              illustration="jobs"
+              overlap
+            />
+            <JobFeed locale={locale} canFill={canFill} fillReason={fillReason} signedIn={!!user} />
           </section>
 
           {user && (
@@ -120,20 +194,30 @@ export default function App() {
           )}
 
           <section hidden={view !== "account"}>
-            <Stack id="account" gap="md" maw={560}>
-              <Title order={2} size="h3">
-                {t(locale, "auth.heading")}
-              </Title>
-              <AuthPanel locale={locale} />
-              {user && <AccountPanel locale={locale} />}
-            </Stack>
+            <Box id="account" maw={user ? 760 : 960} mx="auto">
+              {user ? (
+                <PageHeader
+                  title={t(locale, "auth.heading")}
+                  description={t(locale, "page.account.description")}
+                  illustration="secure"
+                />
+              ) : (
+                <Title order={1} mb="lg" style={{ letterSpacing: "-0.03em" }}>
+                  {t(locale, "auth.heading")}
+                </Title>
+              )}
+              <Stack gap="lg">
+                <AuthPanel locale={locale} />
+                {user && <AccountPanel locale={locale} />}
+              </Stack>
+            </Box>
           </section>
         </Container>
       </AppShell.Main>
 
       <AppShell.Footer>
-        <Group component="nav" aria-label={t(locale, "nav.label")} h="100%" gap={0} grow wrap="nowrap">
-          {nav(true)}
+        <Group component="nav" aria-label={t(locale, "nav.label")} h="100%" gap={0} wrap="nowrap">
+          {mobile && nav(true)}
         </Group>
       </AppShell.Footer>
     </AppShell>

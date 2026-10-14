@@ -1,8 +1,9 @@
-import { Stack, Title } from "@mantine/core";
+import { Stack } from "@mantine/core";
 import { t, type Locale } from "./i18n";
 import { CvPanel } from "./components/CvPanel";
 import { ProfilePanel } from "./components/ProfilePanel";
 import { EnhancementsPanel } from "./components/EnhancementsPanel";
+import { PageHeader } from "./components/PageHeader";
 
 /** The CV-and-profile and applications views. Both stay mounted; `view` only toggles visibility. */
 export default function SignedInViews({
@@ -21,29 +22,30 @@ export default function SignedInViews({
   return (
     <>
       <section hidden={view !== "profile"}>
-        <Stack gap="xl" maw={860}>
-          <Stack id="cv" gap="md">
-            <Title order={2} size="h3">
-              {t(locale, "cv.heading")}
-            </Title>
+        <PageHeader
+          title={t(locale, "page.profile.title")}
+          description={t(locale, "page.profile.description")}
+          illustration="documents"
+        />
+        <Stack gap="xl">
+          <div id="cv">
             <CvPanel locale={locale} onParsed={onParsed} />
-          </Stack>
-          <Stack id="profile" gap="md">
-            <Title order={2} size="h3">
-              {t(locale, "profile.heading")}
-            </Title>
+          </div>
+          <div id="profile">
             <ProfilePanel key={profileRefresh} locale={locale} onConfirmedChange={onConfirmedChange} />
-          </Stack>
+          </div>
         </Stack>
       </section>
 
       <section hidden={view !== "applications"}>
-        <Stack id="enhancements" gap="md">
-          <Title order={2} size="h3">
-            {t(locale, "m5.heading")}
-          </Title>
+        <PageHeader
+          title={t(locale, "nav.applications")}
+          description={t(locale, "page.applications.description")}
+          illustration="tracker"
+        />
+        <div id="enhancements">
           <EnhancementsPanel locale={locale} />
-        </Stack>
+        </div>
       </section>
     </>
   );

@@ -7,17 +7,36 @@ import { createTheme, type CSSVariablesResolver } from "@mantine/core";
 // Mantine still needs a concrete palette for internal shade math, so its
 // built-in blue backs the primary slot; the resolver remaps the variables
 // Mantine consumes onto the brand tokens.
-const SYSTEM_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT = 'var(--brand-font)';
 
 export const brandTheme = createTheme({
   primaryColor: "blue",
   defaultRadius: "md",
-  fontFamily: SYSTEM_FONT,
-  headings: { fontFamily: SYSTEM_FONT },
+  fontFamily: FONT,
+  headings: {
+    fontFamily: FONT,
+    fontWeight: "650",
+    sizes: {
+      h1: { fontSize: "1.75rem", lineHeight: "1.25" },
+      h2: { fontSize: "1.25rem", lineHeight: "1.3" },
+      h3: { fontSize: "1.0625rem", lineHeight: "1.35" },
+      h4: { fontSize: "1rem", lineHeight: "1.4" },
+    },
+  },
+  shadows: {
+    xs: "var(--brand-shadow-sm)",
+    sm: "var(--brand-shadow-sm)",
+    md: "var(--brand-shadow-md)",
+    lg: "var(--brand-shadow-lg)",
+    xl: "var(--brand-shadow-lg)",
+  },
   respectReducedMotion: true,
-  // Cards are the one raised surface (repeated entities, see DESIGN.md);
-  // Mantine would otherwise paint them with the page color.
-  components: { Card: { defaultProps: { bg: "var(--mantine-color-default)" } } },
+  components: {
+    Card: { defaultProps: { bg: "var(--mantine-color-default)", radius: "lg", withBorder: true, padding: "lg" } },
+    Paper: { defaultProps: { radius: "lg" } },
+    Modal: { defaultProps: { radius: "lg", shadow: "xl", centered: true } },
+    Badge: { defaultProps: { radius: "sm", tt: "none", fw: 500 } },
+  },
 });
 
 // Mantine color name -> brand token stem, for the colors components pass as props.

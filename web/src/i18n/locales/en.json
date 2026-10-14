@@ -217,5 +217,18 @@
   "completeness.employment_type": "employment type",
   "completeness.summary": "professional summary",
   "common.loading": "Loading…",
-  "common.retry": "Try again"
+  "common.retry": "Try again",
+  "page.profile.title": "CV & profile",
+  "page.profile.description": "Upload your CV, check the details we extracted, then confirm. Only confirmed details are filled into applications.",
+  "page.applications.description": "Track the applications you started, save searches, and keep answers you reuse.",
+  "page.account.description": "Sign in to save jobs and fill applications, or manage your data.",
+  "feed.search.submit": "Search",
+  "feed.filters.heading": "Filters",
+  "profile.status.heading": "Confirmation",
+  "cv.list.heading": "Your CVs",
+  "feed.new": "New",
+  "auth.promo.title": "Apply faster. Stay in control.",
+  "auth.promo.1": "Upload your CV once and reuse it everywhere.",
+  "auth.promo.2": "Fill application forms in one click.",
+  "auth.promo.3": "Nothing is sent until you click Apply yourself."
 }

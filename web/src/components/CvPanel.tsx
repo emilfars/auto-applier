@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, FileInput, Group, Paper, Skeleton, Stack, Text } from "@mantine/core";
-import { IconAlertCircle, IconCircleCheck, IconUpload } from "@tabler/icons-react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  Divider,
+  FileInput,
+  Group,
+  Skeleton,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+} from "@mantine/core";
+import { IconAlertCircle, IconCircleCheck, IconFileText, IconUpload } from "@tabler/icons-react";
 import { t, type Locale } from "../i18n";
 import { errorMessage } from "../i18n/errors";
 import { StateMarker } from "./StateMarker";
+import { Illustration } from "./Illustration";
 import { useSession } from "../auth/session";
 import { listCVs, parseCV, updateCVVersion, uploadCV, type CVFile } from "../api/cv";
 
@@ -92,98 +106,132 @@ export function CvPanel({ locale, onParsed }: { locale: Locale; onParsed?: () =>
     });
 
   return (
-    <Stack gap="md">
-      <form onSubmit={onUpload}>
-        <Group align="end" gap="sm" wrap="wrap">
-          <FileInput
-            label={t(locale, "cv.selectFile")}
-            placeholder={t(locale, "cv.filePlaceholder")}
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            value={selected}
-            onChange={setSelected}
-            clearable
-            style={{ flex: 1, minWidth: 220 }}
-          />
-          <Button
-            type="submit"
-            leftSection={<IconUpload size={16} aria-hidden />}
-            loading={busy}
-            disabled={!selected}
-            data-testid="cv-upload-button"
-          >
-            {busy ? t(locale, "cv.uploading") : t(locale, "cv.upload")}
-          </Button>
-        </Group>
-      </form>
-
-      <Text size="xs" c="dimmed">
-        {t(locale, "cv.reviewNote")}
-      </Text>
-
-      {loadError ? (
-        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
-          <Stack gap="xs" align="flex-start">
-            <Text size="sm">
-              {t(locale, "cv.loadError")} {loadError}
-            </Text>
-            <Button variant="default" onClick={() => setAttempt((n) => n + 1)}>
-              {t(locale, "common.retry")}
-            </Button>
-          </Stack>
-        </Alert>
-      ) : files === null ? (
-        <Stack gap="xs" aria-busy="true" aria-live="polite">
-          <Text size="sm" c="dimmed">
-            {t(locale, "cv.loading")}
+    <Card padding={0}>
+      <Stack gap="md" p="lg">
+        <div>
+          <Title order={2}>{t(locale, "cv.heading")}</Title>
+          <Text size="sm" c="dimmed" mt={4}>
+            {t(locale, "cv.reviewNote")}
           </Text>
-          <Skeleton height={52} />
-        </Stack>
-      ) : files.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          {t(locale, "cv.list.empty")}
+        </div>
+        <form onSubmit={onUpload}>
+          <Group align="end" gap="sm" wrap="wrap">
+            <FileInput
+              label={t(locale, "cv.selectFile")}
+              placeholder={t(locale, "cv.filePlaceholder")}
+              leftSection={<IconFileText size={18} aria-hidden />}
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              value={selected}
+              onChange={setSelected}
+              clearable
+              style={{ flex: 1, minWidth: 220 }}
+            />
+            <Button
+              type="submit"
+              leftSection={<IconUpload size={16} aria-hidden />}
+              loading={busy}
+              disabled={!selected}
+              data-testid="cv-upload-button"
+            >
+              {busy ? t(locale, "cv.uploading") : t(locale, "cv.upload")}
+            </Button>
+          </Group>
+        </form>
+        {error && (
+          <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+            {error}
+          </Alert>
+        )}
+        {notice && (
+          <Alert color="teal" variant="light" role="status" icon={<IconCircleCheck aria-hidden />}>
+            {notice}
+          </Alert>
+        )}
+      </Stack>
+
+      <Divider />
+
+      <Stack gap={0} p="lg" pt="md">
+        <Text size="sm" fw={600} c="dimmed" mb="sm">
+          {t(locale, "cv.list.heading")}
         </Text>
-      ) : (
-        <Stack gap="xs">
-          {files.map((f) => (
-            <Paper key={f.id} withBorder p="sm" bg="var(--mantine-color-default)" data-testid="cv-item">
-              <Group justify="space-between" wrap="wrap" gap="xs">
-                <Stack gap={2} style={{ minWidth: 0 }}>
-                  <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-                    <Text size="sm" fw={600} truncate>
-                      {f.label || f.filename}
-                    </Text>
-                    <Text size="xs" c="dimmed" style={{ flex: "none" }}>
-                      ({formatSize(f.size_bytes)})
-                    </Text>
-                  </Group>
-                  {f.is_primary && <StateMarker state="success">{t(locale, "cv.primary")}</StateMarker>}
-                </Stack>
+        {loadError ? (
+          <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
+            <Stack gap="xs" align="flex-start">
+              <Text size="sm">
+                {t(locale, "cv.loadError")} {loadError}
+              </Text>
+              <Button variant="default" onClick={() => setAttempt((n) => n + 1)}>
+                {t(locale, "common.retry")}
+              </Button>
+            </Stack>
+          </Alert>
+        ) : files === null ? (
+          <Stack gap="xs" aria-busy="true" aria-live="polite">
+            <Text size="sm" c="dimmed">
+              {t(locale, "cv.loading")}
+            </Text>
+            <Skeleton height={56} radius="md" />
+          </Stack>
+        ) : files.length === 0 ? (
+          <Group gap="md" wrap="nowrap">
+            <Box visibleFrom="xs" style={{ flex: "none" }}>
+              <Illustration name="documents" width={120} />
+            </Box>
+            <Text size="sm" c="dimmed">
+              {t(locale, "cv.list.empty")}
+            </Text>
+          </Group>
+        ) : (
+          <Stack gap="xs" className="stagger">
+            {files.map((f, i) => (
+              <Group
+                key={f.id}
+                justify="space-between"
+                wrap="wrap"
+                gap="sm"
+                p="sm"
+                data-testid="cv-item"
+                className="job-card"
+                style={
+                  {
+                    "--i": i,
+                    border: "1px solid var(--mantine-color-default-border)",
+                    borderRadius: "var(--mantine-radius-md)",
+                  } as React.CSSProperties
+                }
+              >
+                <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: "1 1 220px" }}>
+                  <ThemeIcon size={40} radius="md" variant="light" color="blue" aria-hidden>
+                    <IconFileText size={20} />
+                  </ThemeIcon>
+                  <Stack gap={2} style={{ minWidth: 0 }}>
+                    <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                      <Text size="sm" fw={600} truncate>
+                        {f.label || f.filename}
+                      </Text>
+                      <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                        ({formatSize(f.size_bytes)})
+                      </Text>
+                    </Group>
+                    {f.is_primary && <StateMarker state="success">{t(locale, "cv.primary")}</StateMarker>}
+                  </Stack>
+                </Group>
                 <Group gap="xs">
-                  <Button variant="default" loading={busy} onClick={() => onParse(f.id)}>
-                    {t(locale, "cv.parse")}
-                  </Button>
                   {!f.is_primary && (
-                    <Button variant="subtle" loading={busy} onClick={() => onPrimary(f.id)}>
+                    <Button variant="subtle" color="gray" loading={busy} onClick={() => onPrimary(f.id)}>
                       {t(locale, "cv.setPrimary")}
                     </Button>
                   )}
+                  <Button variant="light" loading={busy} onClick={() => onParse(f.id)}>
+                    {t(locale, "cv.parse")}
+                  </Button>
                 </Group>
               </Group>
-            </Paper>
-          ))}
-        </Stack>
-      )}
-
-      {error && (
-        <Alert color="red" variant="light" role="alert" icon={<IconAlertCircle aria-hidden />}>
-          {error}
-        </Alert>
-      )}
-      {notice && (
-        <Alert color="teal" variant="light" role="status" icon={<IconCircleCheck aria-hidden />}>
-          {notice}
-        </Alert>
-      )}
-    </Stack>
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    </Card>
   );
 }
