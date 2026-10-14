@@ -1,0 +1,20 @@
+DESIGN.md
+  s_c03a4669ba0837::t_42894cd7577206 102-106,160,180-183
+  s_c03a4669ba0837::t_5de89c537a38e9 3-6,14-16,24-26,84-92,109-111,117-135,148-159,161-164,208-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "2ab64b39161b78ee44715c2c8ccaf8253e469ff4",
+  "prompts": {},
+  "sessions": {
+    "s_c03a4669ba0837": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4f874391-210a-4862-b29d-23bb8ea1d3d1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "emil.farisan <emil.farisan@hungerstation.com>"
+    }
+  }
+}
