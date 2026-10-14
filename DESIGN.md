@@ -1,16 +1,9 @@
 # DESIGN.md: Auto Applier
 
-> **Agent-authored direction (antislop option 2).** The kickoff prompt for M8
-> left the design brief as an unfilled placeholder, and nobody was available to
-> ask, so this direction is derived only from `PRD.md`, `plan.md` and
-> `design/brand/palette.md` (`plan-revamp.md` section 9). Agent-written style
-> leans toward default taste, so expect a calm, plain result. The owner should
-> replace any line here that does not match the product they want.
->
-> antislop R-37 would label an unasked direction "draft without direction" with
-> dials 1/1/1. The project rule (`plan-revamp.md` section 9) allows a derived
-> direction with dials capped at ENERGY 2 / RHYTHM 2 / MOTION 1; where the two
-> disagree the project rule holds (`plan-revamp.md` section 3).
+> **Owner-approved direction (2026-10-14).** The M8 run left an agent-derived
+> "calm, plain" direction (ENERGY 1 / MOTION 1). The owner rejected it and asked
+> for a livelier, modern UI; this file now records the UI the owner reviewed and
+> approved. Palette, trust rules and accessibility floors are unchanged.
 
 Every statement below cites its source in brackets.
 
@@ -18,8 +11,9 @@ Every statement below cites its source in brackets.
 
 Reading this as: a signed-in job-application workspace (job feed, CV and
 profile, application tracker) for early-to-mid-career Indonesian job seekers on
-phones and laptops, in a calm, plain-spoken navy visual language, dial
-ENERGY 1 / RHYTHM 2 / MOTION 1.
+phones and laptops, in a lively, modern navy-and-royal-blue visual language
+with gradients, illustrations and purposeful motion, dial
+ENERGY 3 / RHYTHM 3 / MOTION 3.
 
 ## Identity
 
@@ -27,8 +21,9 @@ ENERGY 1 / RHYTHM 2 / MOTION 1.
   person always clicks Apply. [PRD §1]
 - The visual identity continues the previous "Ofrim" site: deep navy surfaces
   with one royal-blue accent. [palette.md, intro]
-- The name is set as text. No logo or icon asset exists and none is created in
-  this run. [plan-revamp.md §4, antislop R-23]
+- The name is set as text next to a brand tile: a rounded square in the brand
+  gradient holding a paper-plane icon (`IconSend`). No separate logo file
+  exists. [owner, 2026-10-14]
 
 ## Audience
 
@@ -86,9 +81,15 @@ Decisions, one line each:
   (with `color-mix`), because the palette's state colors fail as text on white
   (1.67:1 to 2.77:1). palette.md asks for light pairs to be verified during
   implementation.
-- **No gradient, glow, glass or texture.** palette.md describes a hero
-  gradient for the marketing site; this app has no hero, so the gradient has
-  nothing to separate.
+- **Gradients and glows are decoration, never meaning.** `--brand-hero` (the
+  palette.md navy gradient) backs page heroes and the sign-in promo panel;
+  `--brand-gradient` (primary to accent-light) fills the brand tile and icon
+  tiles; `--brand-glow-*` are soft radial glows behind heroes, stat tiles and
+  the sidebar. Text never sits on a glow without meeting 4.5:1.
+- **Company tiles use six fixed gradients** (`--avatar-0` … `--avatar-5`),
+  chosen by a hash of the company name so a company keeps its color. Each pair
+  is dark enough for white initials; the tiles are decorative (`aria-hidden`),
+  the company name is always printed as text.
 
 ## Theme
 
@@ -98,30 +99,40 @@ Milestone 4.5; plan-revamp.md §9 "Theme").
 
 ## Typography
 
-- **System UI font stack** (`system-ui, -apple-system, "Segoe UI", Roboto,
-  sans-serif`), not a loaded web font. Why: the feed must reach p95 under 2s on
-  4G [PRD §6], and this run may not add font assets [plan-revamp.md §4]. The
-  previous theme named Inter but never loaded it, so this states what users
-  already get.
+- **Inter Variable, self-hosted** through `@fontsource-variable/inter`, with
+  the system UI stack as fallback. Why: a modern, highly legible UI face that
+  ships from our own origin (no third-party font request), and the browser
+  only downloads the Latin subset (about 48 KB, `font-display: swap`), so text
+  paints immediately on 4G. [PRD §6; 2026-10-14 UI rebuild]
 - Sentence case everywhere. No uppercase labels with tracking. Why: plain-spoken
   personality; uppercase tracking is decoration here.
-- Three sizes do the work: screen title, card title, body. Pay and status lines
-  use weight, not size, to stand out. Why: one focal point per screen.
+- Hero titles are large and fluid (`clamp(1.6rem, …, 2.4rem)`, tight
+  tracking); below that three sizes do the work: section title, card title,
+  body. Pay and status lines use weight, not size, to stand out.
 - Numbers (pay, counts) use tabular figures so ranges line up in a scanned
   list. Why: Dina and Maya compare pay across cards [PRD §4].
 
 ## Dials
 
-`Dial: ENERGY 1 / RHYTHM 2 / MOTION 1`
+`Dial: ENERGY 3 / RHYTHM 3 / MOTION 3`
 
-- **ENERGY 1.** A tool used many times a week by people under job-search
-  stress; it should get out of the way. [PRD §2]
-- **RHYTHM 2.** Each screen has its own shape because its job differs: the feed
-  is a scannable list with a filter rail, the profile is a long sectioned form,
-  the tracker is rows with a status control, account is two short blocks. Within
-  a screen the rhythm is uniform.
-- **MOTION 1.** Hover and focus states only. Skeletons do not shimmer when the
-  system asks for reduced motion. [plan-revamp.md §7 last line]
+- **ENERGY 3.** Lively and encouraging: job search is stressful, and a UI that
+  feels alive and rewarding (heroes, illustrations, a pop when the profile is
+  confirmed) keeps people coming back. Energy never crowds the job list or the
+  forms. [owner, 2026-10-14]
+- **RHYTHM 3.** Every view opens with a gradient hero, then its own shape: the
+  feed is a list with a sticky filter rail and a search bar overlapping the
+  hero; the profile is section cards with a sticky confirmation aside and save
+  bar; applications open with stat tiles; sign-in is a split card.
+- **MOTION 3.** Purposeful CSS motion only, no animation library:
+  - views fade up when shown; lists (job cards, CV rows, applications blocks)
+    stagger in, 50 ms apart, capped at 8;
+  - job cards lift 2 px on hover; alerts and Open & Fill notices fade in;
+  - the completeness ring fills (900 ms); the confirmed check pops;
+  - "New" badges (posted in the last 3 days) carry a pulsing dot; hero
+    illustrations float gently.
+  All of it sits inside `prefers-reduced-motion: no-preference`; with reduced
+  motion everything renders in its final state. [plan-revamp.md §7 last line]
 
 ## Levers
 
@@ -134,15 +145,23 @@ Milestone 4.5; plan-revamp.md §9 "Theme").
   status, and the extension's filled / uncertain / empty review. The same
   vocabulary appears on the web and on the employer's page, which is what makes
   the two feel like one product. Each marker names a real state.
-- **Whitespace as structure.** Sections are separated by space and a hairline,
-  not by a card around every block. Only repeated entities (job cards, CV rows,
-  tracker rows) get a surface.
-- **Elevation.** Flat by default. A shadow appears on things that float above
-  the page: the mobile filter drawer, the delete dialog, notifications.
-- **Radius.** One radius (Mantine `md`, 8px) for inputs, buttons and cards.
-  State markers are square with a 2px radius. Nothing is pill-shaped.
-- **Icons.** `@tabler/icons-react`, already installed, only where the glyph
-  names the action (search, upload, external link, sun/moon, trash). No wand,
+- **Heroes.** Each view opens with `PageHeader`: gradient panel, two glows,
+  title, one-line purpose and an illustration on wide screens. The feed hero
+  leaves room for the search bar to overlap its bottom edge.
+- **Illustrations.** Six inline SVGs in `Illustration.tsx` (`jobs`, `search`,
+  `documents`, `tracker`, `secure`, `error`), drawn from theme tokens so they
+  follow dark and light. Used in heroes, the sign-in promo and empty states.
+  Always `aria-hidden`; the words next to them carry the meaning.
+- **Surfaces.** Cards (16px radius) group each block; section cards on the
+  profile, stat tiles on applications. Filter chips (Mantine `Pill`) show every
+  active feed filter and remove it in one tap.
+- **Elevation.** Shadows (`--brand-shadow-*`) mark the floating search bar,
+  the sign-in card, hovered job cards, the brand tile and dialogs.
+- **Radius.** Mantine `md` (8px) for inputs and buttons, `lg` (16px) for
+  cards, 24px for heroes, 14px for company tiles. State markers stay square
+  with a 2px radius.
+- **Icons.** `@tabler/icons-react` where the glyph names the action or the
+  thing (search, upload, external link, sun/moon, trash, stat tiles). No wand,
   sparkle or star.
 
 ## Information architecture
@@ -158,8 +177,10 @@ architecture"]
 | Applications | `#applications` | signed in | `EnhancementsPanel` (completeness, tracker, saved filters, answer snippets) | Track what was filled and keep reusable answers |
 | Account | `#account` | everyone | `AuthPanel`; signed in: session and `AccountPanel` (export, delete) | Sign in or manage data rights |
 
-- Navigation: a header row of the views on wide screens; a labeled bottom bar
-  on phones, with the content padded so the bar never covers it. Why: four
+- Navigation: a fixed left sidebar (brand, views, account, language and
+  theme) on wide screens; a compact top bar plus a labeled bottom bar on
+  phones, with the content padded so the bar never covers it. Each view opens
+  with a page header (title and one-line purpose). Why: four
   destinations fit a bottom bar and stay one thumb tap away
   (antislop-layoutmobile, "Nav That Stays Desktop").
 - The feed comes first for everyone. Why: PRD G3 and G4 make discovery the
@@ -184,5 +205,5 @@ Each screen ships loading, empty, error and populated states in `id-ID` and
 
 ## Out of scope for this direction
 
-Logos, illustrations, photos, marketing sections, statistics, testimonials,
-and any new product feature. [plan-revamp.md §1 non-goals, §4 UI-specific]
+Photos, company logos (the feed has no logo data; that needs a backend
+change), testimonials, marketing pages, and any new product feature.
